@@ -1,0 +1,56 @@
+﻿@page
+@model Toolbox.Pages.PsHelloWorldSignalRScriptModel
+@{
+}
+
+<textarea name="command" id="commandText" style="width: 1000px; height: 500px;"></textarea>
+<button id="executeButton">Execute</button>
+<span style="white-space: pre-line">
+    <samp>
+        <div id="output"></div>
+    </samp>
+</span>
+
+<script src="~/lib/signalr/dist/browser/signalr.min.js"></script>
+<script>
+    document.getElementById("commandText").value =
+        //"Param($StrParam, $IntParam)" + "\n" +
+        "" + "\n" +
+        "Write-Output \"Message from inside the running script\"" + "\n" +
+        //"Write-Output \"This is the value from the first param: $StrParam\"" + "\n" +
+        //"Write-Output \"This is the value from the second param: $IntParam\"" + "\n" +
+        "" + "\n" +
+        "Write-Output \"Here are the loaded modules in the script:\"" + "\n" +
+        "Get-Module" + "\n" +
+        "" + "\n" +
+        "# write some data to the info/warning streams" + "\n" +
+        "" + "\n" +
+        "Write-Host \"A message from write-host\"" + "\n" +
+        "Write-Information \"A message from write-information\"" + "\n" +
+        "" + "\n" +
+        "Write-Warning \"A message from write-warning\"" + "\n" +
+        "" + "\n" +
+        "# write a message to the error stream by throwing a non-terminating error" + "\n" +
+        "# note: terminating errors will stop the pipeline." + "\n" +
+        "Get-ChildItem -Directory \"folder-doesnt-exist\"" + "\n" +
+        "";
+
+    // Invoke the "Stream" method, with the command
+    document.getElementById("executeButton").addEventListener("click", () => {
+        var command = document.getElementById("commandText").value;
+        var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
+        var output = document.getElementById("output");
+        output.innerHTML = '';
+
+        connection
+            .start()
+            .then(() => {
+                connection.on("OutputReceived", message => {
+                    var p = document.createElement("p");
+                    p.textContent = message;
+                    output.appendChild(p);
+                });
+                connection.invoke("StreamPowershell", command, {});
+            }).catch(err => alert(`An error occured: ${err}`));
+    });
+</script>
