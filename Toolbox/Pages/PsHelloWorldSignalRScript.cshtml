@@ -9,28 +9,31 @@
     <link rel="stylesheet" href="~/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
     <link rel="stylesheet" href="~/plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
     <style>
-        .terminal {
-            display: block; position: relative;
-            line-height: initial; overflow-y: auto;
-            height: auto; font-family: monospace; font-size: 12px;
-            color: #aaa; background-color: #000;
-            box-sizing: border-box; padding: 10px;
+        #log {
+            display: block;
+            line-height: initial;
+            font-family: monospace;
+            font-size: 12px;
+            color: #c2c7d0;
+            min-height: 500px;
+            padding: 10px;
         }
         #log { table-layout: auto; }
         #log td:nth-of-type(1) { white-space: nowrap }
-        #log th { text-align: left; }
+        #log th { text-align: left; padding: .75rem .75rem .75rem .25rem; }
         #log th:last-child { width: 100%; }
         #log td { border: 0; padding: .1rem .25rem; }
+        .table-dark { background-color: #343a40; }
     </style>
 }
 
-<div id="terminal" class="terminal" style="width: 1000px; height: 500px;">
-    <table id="log" class="table table-borderless">
+
+    <table id="log" class="table table-dark table-borderless">
         <thead><tr><th>TimeStamp</th><th>Type</th><th>Data</th></tr></thead>
         <tbody></tbody>
     </table>
-</div>
-<button id="execute" type="button" class="btn btn-primary" onclick="execute();"><i class="fas fa-code"></i> Execute</button>
+
+    <button id="execute" type="button" class="btn btn-primary" onclick="execute();"><i class="fas fa-code"></i> Execute</button>
 
 @section scripts {
 
@@ -84,7 +87,7 @@
 
         // Invoke the "Stream" method, with the command
         function execute() {
-            $('#log').DataTable().clear().draw();
+            //$('#log').DataTable().clear().draw();
             connection.invoke("StreamPowershell", script, {}).catch(function (err) {
                 $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
             });
