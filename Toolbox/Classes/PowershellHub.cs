@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
+using Toolbox.Models;
 
 namespace Toolbox.Classes
 {
@@ -81,14 +82,14 @@ namespace Toolbox.Classes
         /// <param name="scriptContents">The script file contents.</param>
         /// <param name="scriptParameters">A dictionary of parameter names and parameter values.</param>
 
-        private async Task StreamPowershell(string scriptContents, Dictionary<string, object> scriptParameters, Action<string> outputHandler)
+        private async Task StreamPowershell(string scriptContents, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
 
-            if (RsPool == null)
-            {
-                InitializeRunspaces(2, 10, Array.Empty<string>());
-                //throw new ApplicationException("Runspace Pool must be initialized before calling RunScript().");
-            }
+            //if (RsPool == null)
+            //{
+            //    InitializeRunspaces(2, 10, Array.Empty<string>());
+            //    //throw new ApplicationException("Runspace Pool must be initialized before calling RunScript().");
+            //}
 
             // create a new hosted PowerShell instance using a custom runspace.
             // wrap in a using statement to ensure resources are cleaned up.
@@ -96,7 +97,7 @@ namespace Toolbox.Classes
             using (PowerShell ps = PowerShell.Create())
             {
                 // use the runspace pool.
-                ps.RunspacePool = RsPool;
+                //ps.RunspacePool = RsPool;
 
                 // specify the script code to run.
                 ps.AddScript(scriptContents);
@@ -112,7 +113,7 @@ namespace Toolbox.Classes
                     var objectsReceived = sender as PSDataCollection<PSObject>;
                     var currentRecord = objectsReceived[e.Index];
 
-                    outputHandler($"DataAddedEvent: {currentRecord}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Data", currentRecord.ToString()));
                 };
 
                 // subscribe to events from some of the streams
@@ -125,7 +126,8 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<ErrorRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"ErrorStreamEvent: {currentStreamRecord.Exception}"); 
+                    //outputHandler($"ErrorStreamEvent: {currentStreamRecord.Exception}"); 
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", currentStreamRecord.Exception.ToString()));
                 };
 
                 /// Handles data-added events for the warning stream.
@@ -134,7 +136,7 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<WarningRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"WarningStreamEvent: {currentStreamRecord.Message}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Warning", currentStreamRecord.Message));
                 };
 
                 /// Handles data-added events for the information stream.
@@ -144,7 +146,7 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<InformationRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"InfoStreamEvent: {currentStreamRecord.MessageData}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Info", currentStreamRecord.MessageData.ToString()));
                 };
 
                 /// Handles data-added events for the progress stream.
@@ -153,7 +155,7 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<ProgressRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"ProgressStreamEvent: {currentStreamRecord.Activity}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress", currentStreamRecord.Activity));                    
                 };
 
                 /// Handles data-added events for the verbose stream.
@@ -162,7 +164,7 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<VerboseRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"VerboseStreamEvent: {currentStreamRecord.Message}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Verbose", currentStreamRecord.Message));
                 };
 
                 /// Handles data-added events for the debug stream.
@@ -171,7 +173,7 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<DebugRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler($"DebugStreamEvent: {currentStreamRecord.Message}");
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Debug", currentStreamRecord.Message));
                 };
 
                 await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);

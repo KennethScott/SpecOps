@@ -27,7 +27,8 @@ namespace Toolbox
         public void ConfigureServices(IServiceCollection services)
         {
             //services.AddAuthentication(IISDefaults.AuthenticationScheme);
-            services.AddRazorPages();
+            services.AddRazorPages()
+                    .AddRazorRuntimeCompilation();
             services.AddSignalR();
             services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
             services.AddLogging();

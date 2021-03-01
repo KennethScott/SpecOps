@@ -1,0 +1,14 @@
+{
+  "PathAndFilename": "C:\\Whatever\\test.ps1",
+  "Description": "This is a test script",
+  "InputParms": [
+    {
+      "Name": "StrParam",
+      "Type": "String"
+    },
+    {
+      "Name": "IntParam",
+      "Type": "String"
+    }
+  ]
+}

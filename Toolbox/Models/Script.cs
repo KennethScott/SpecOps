@@ -13,7 +13,11 @@ namespace Toolbox.Models
 
     public class Script
     {
+        public string PathAndFilename { get; set; }
         public ScriptType Type { get; set; }
         public string Contents { get; set; }
+        public string Description { get; set; }
+        public List<(string Name, string Type)> InputParms { get; set; }
+
     }
 }
