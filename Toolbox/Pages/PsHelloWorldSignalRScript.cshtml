@@ -9,113 +9,159 @@
     <link rel="stylesheet" href="~/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
     <link rel="stylesheet" href="~/plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
     <style>
-        #log {
-            display: block;
-            line-height: initial;
-            font-family: monospace;
-            font-size: 12px;
+        .logTable {
+            display: block; line-height: initial;
+            font-family: monospace; font-size: 12px;
             color: #c2c7d0;
-            min-height: 500px;
-            padding: 10px;
+            min-height: 500px; padding: 10px;
         }
-        #log { table-layout: auto; }
-        #log td:nth-of-type(1) { white-space: nowrap }
-        #log th { text-align: left; padding: .75rem .75rem .75rem .25rem; }
-        #log th:last-child { width: 100%; }
-        #log td { border: 0; padding: .1rem .25rem; }
-        .table-dark { background-color: #343a40; }
+        .logTable th             { text-align: left; padding: .75rem .75rem .75rem .25rem; font-weight: bold; }
+        .logTable th:nth-of-type(1) { width: 13%; }
+        .logTable th:nth-of-type(2) { width: 6%; }
+        .logTable th:nth-of-type(3) { width: 81%; }
+        .logTable td             { border: 0; padding: .1rem .25rem; }
+        .logTable.table-dark     { background-color: #343a40; }
     </style>
 }
 
+    <div class="container-fluid">
+        <div class="row">
+            <!-- left column -->
+            <div class="col-md-6">
+                <!-- Horizontal Form -->
+                <div class="card card-secondary">
+                    <div class="card-header">
+                        <h3 class="card-title">Input Parameters</h3>
+                    </div>
+                    <!-- /.card-header -->
+                    <div class="card-body">
+                        <div class="form-group row">
+                            <label for="computerName" class="col-sm-3 col-form-label">Computer Name</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="computerName" placeholder="Machine Name or IP">
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="somethingElse" class="col-sm-3 col-form-label">Something Else</label>
+                            <div class="col-sm-9">
+                                <input type="number" class="form-control" id="somethingElse" placeholder="Number">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /.card-body -->
+                    <div class="card-footer">
+                        <button id="runScript" type="button" class="btn btn-primary" onclick="runScript();"><i class="fas fa-code"></i> Run Script</button>
+                    </div>
+                    <!-- /.card-footer -->
+                </div>
+                <!-- /.card -->
+            </div>
+        </div>
+    </div>
 
-    <table id="log" class="table table-dark table-borderless">
+    <table id="log" class="logTable table table-dark table-borderless">
         <thead><tr><th>TimeStamp</th><th>Type</th><th>Data</th></tr></thead>
         <tbody></tbody>
     </table>
 
-    <button id="execute" type="button" class="btn btn-primary" onclick="execute();"><i class="fas fa-code"></i> Execute</button>
+    @section scripts {
 
-@section scripts {
+        <!-- SignalR -->
+        <script src="~/lib/signalr/dist/browser/signalr.min.js"></script>
+        <!-- DataTables  & Plugins -->
+        <script src="~/plugins/datatables/jquery.dataTables.min.js"></script>
+        <script src="~/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+        <script src="~/plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+        <script src="~/plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+        <script src="~/plugins/jszip/jszip.min.js"></script>
+        <script src="~/plugins/pdfmake/pdfmake.min.js"></script>
+        <script src="~/plugins/pdfmake/vfs_fonts.js"></script>
+        <script src="~/plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+        <script src="~/plugins/datatables-buttons/js/buttons.print.min.js"></script>
 
-    <!-- SignalR -->
-    <script src="~/lib/signalr/dist/browser/signalr.min.js"></script>
-    <!-- DataTables  & Plugins -->
-    <script src="~/plugins/datatables/jquery.dataTables.min.js"></script>
-    <script src="~/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
-    <script src="~/plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
-    <script src="~/plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
-    <script src="~/plugins/jszip/jszip.min.js"></script>
-    <script src="~/plugins/pdfmake/pdfmake.min.js"></script>
-    <script src="~/plugins/pdfmake/vfs_fonts.js"></script>
-    <script src="~/plugins/datatables-buttons/js/buttons.html5.min.js"></script>
-    <script src="~/plugins/datatables-buttons/js/buttons.print.min.js"></script>
+        <script>
 
-    <script>
-
-        $(document).ready(function () {
-            $('#log').DataTable({
-                buttons: [
-                    { extend: 'copy', className: 'btn-sm' },
-                    { extend: 'csv', className: 'btn-sm' },
-                    { extend: 'excel', className: 'btn-sm' },
-                    { extend: 'pdf', className: 'btn-sm' },
-                    { extend: 'print', className: 'btn-sm' }
-                ],
-                paging: false,
-                lengthChange: false,
-                searching: true,
-                ordering: true,
-                info: false,
-                autoWidth: false,
-                responsive: false,
-            }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
-        });
-
-        var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
-
-        //Disable send button until connection is established
-        $('#execute').prop('disabled', true);
-
-        connection.on("OutputReceived", logRecord => {
-            console.log(logRecord)
-            $('#log').DataTable().row.add([logRecord.timeStamp, logRecord.type, logRecord.data]).draw(false);
-        });
-
-        connection.start().then(function () {
-            $('#execute').prop('disabled', false);
-        }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
-
-        // Invoke the "Stream" method, with the command
-        function execute() {
-            //$('#log').DataTable().clear().draw();
-            connection.invoke("StreamPowershell", script, {}).catch(function (err) {
-                $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
+            $(document).ready(function () {
+                $('#log').DataTable({
+                    "buttons": [
+                        { extend: 'copy', className: 'btn-sm' },
+                        { extend: 'csv', className: 'btn-sm' },
+                        { extend: 'excel', className: 'btn-sm' },
+                        { extend: 'pdf', className: 'btn-sm' },
+                        { extend: 'print', className: 'btn-sm' }
+                    ],
+                    "paging": false,
+                    "language": {
+                        "emptyTable": "No output yet...  Try running the script."
+                    },
+                    "lengthChange": false,
+                    "searching": true,
+                    "ordering": true,
+                    "info": false,
+                    "autoWidth": false,
+                    "responsive": false,
+                }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
             });
-            event.preventDefault();
-        }
 
-        var script =
-            //"Param($StrParam, $IntParam)" + "\n" +
-            "" + "\n" +
-            "Write-Output \"Message from inside the running script\"" + "\n" +
-            //"Write-Output \"This is the value from the first param: $StrParam\"" + "\n" +
-            //"Write-Output \"This is the value from the second param: $IntParam\"" + "\n" +
-            "" + "\n" +
-            "Write-Output \"Here are the loaded modules in the script:\"" + "\n" +
-            "Get-Module" + "\n" +
-            "" + "\n" +
-            "# write some data to the info/warning streams" + "\n" +
-            "" + "\n" +
-            "Write-Host \"A message from write-host\"" + "\n" +
-            "Write-Information \"A message from write-information\"" + "\n" +
-            "" + "\n" +
-            "Write-Warning \"A message from write-warning\"" + "\n" +
-            "" + "\n" +
-            "# write a message to the error stream by throwing a non-terminating error" + "\n" +
-            "# note: terminating errors will stop the pipeline." + "\n" +
-            "Get-ChildItem -Directory \"folder-doesnt-exist\"" + "\n" +
-            "";
+            var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
 
-    </script>
+            //Disable send button until connection is established
+            $('#runScript').prop('disabled', true);
 
-}
+            connection.on("OutputReceived", logRecord => {
+                console.log(logRecord)
+                $('#log').DataTable().row.add([
+                    logRecord.timeStamp,
+                    `<span class='${dataTypeColors[logRecord.type]}'>${logRecord.type}</span>`,
+                    logRecord.data
+                ]).draw(false);
+            });
+
+            connection.start().then(function () {
+                $('#runScript').prop('disabled', false);
+            }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
+
+            var dataTypeColors = {
+                "Data": "text-muted",
+                "Error": "text-danger",
+                "Warning": "text-warning",
+                "Info": "text-info",
+                "Progress": "text-success",
+                "Verbose": "text-primary",
+                "Debug": "text-info"
+            }
+
+            // Invoke the "Stream" method, with the command
+            function runScript() {
+                //$('#log').DataTable().clear().draw();
+                connection.invoke("StreamPowershell", script, { "ComputerName": $('#computerName').val(), "SomethingElse": $('#somethingElse').val() }).catch(function (err) {
+                    $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
+                });
+                event.preventDefault();
+            }
+
+            var script =
+                "Param($ComputerName, $SomethingElse)" + "\n" +
+                "" + "\n" +
+                "Write-Output \"Message from inside the running script\"" + "\n" +
+                "Write-Output \"This is the value from the first param: $ComputerName\"" + "\n" +
+                "Write-Output \"This is the value from the second param: $SomethingElse\"" + "\n" +
+                "" + "\n" +
+                "Write-Output \"Here are the loaded modules in the script:\"" + "\n" +
+                "Get-Module" + "\n" +
+                "" + "\n" +
+                "# write some data to the info/warning streams" + "\n" +
+                "" + "\n" +
+                "Write-Host \"A message from write-host\"" + "\n" +
+                "Write-Information \"A message from write-information\"" + "\n" +
+                "" + "\n" +
+                "Write-Warning \"A message from write-warning\"" + "\n" +
+                "" + "\n" +
+                "# write a message to the error stream by throwing a non-terminating error" + "\n" +
+                "# note: terminating errors will stop the pipeline." + "\n" +
+                "Get-ChildItem -Directory \"folder-doesnt-exist\"" + "\n" +
+                "";
+
+        </script>
+
+    }

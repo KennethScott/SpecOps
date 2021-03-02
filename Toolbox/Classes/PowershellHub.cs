@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Toolbox.Models;
+using Newtonsoft.Json;
 
 namespace Toolbox.Classes
 {
