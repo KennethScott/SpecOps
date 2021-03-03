@@ -156,7 +156,8 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<ProgressRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress", currentStreamRecord.Activity));                    
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress",
+                        $"{currentStreamRecord.Activity}... {currentStreamRecord.StatusDescription} {currentStreamRecord.PercentComplete}%"));                  
                 };
 
                 /// Handles data-added events for the verbose stream.
