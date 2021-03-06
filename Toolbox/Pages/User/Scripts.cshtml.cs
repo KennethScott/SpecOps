@@ -31,10 +31,12 @@ namespace Toolbox.Pages.User
             this.logger = logger;
         }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(string categoryId, string scriptId)
         {
             try
             {
+                ViewData["CategoryId"] = categoryId ?? String.Empty;
+                ViewData["ScriptId"] = scriptId ?? String.Empty;
 
                 Categories = new SelectList(scriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
 
@@ -49,6 +51,7 @@ namespace Toolbox.Pages.User
 
         public async Task<JsonResult> OnGetScripts()
         {
+            ViewData.Clear();
             return new JsonResult(scriptService.GetScripts(CategoryId));
         }
 

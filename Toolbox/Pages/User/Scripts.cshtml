@@ -160,6 +160,8 @@
                 "autoWidth": false,
                 "responsive": false,
             }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
+
+            $("#CategoryId").val("@ViewData["CategoryId"]").trigger('change');
         });
 
         var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
@@ -208,12 +210,14 @@
             var categoryId = $(this).val();
             $("#ScriptId").empty();
             $('#scriptSummary').val("");
-            $('div.parameters').empty();            
+            $('div.parameters').empty();
             $("#ScriptId").append("<option value=''>Select Script</option>");
             $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
                 $.each(data, function (i, item) {
                     $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
                 });
+            }).done(function (){
+                $("#ScriptId").val("@ViewData["ScriptId"]").trigger('change');                
             });
         });
 
