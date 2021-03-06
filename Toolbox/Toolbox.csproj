@@ -11,4 +11,8 @@
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.1.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Pages\Admin\" />
+  </ItemGroup>
+
 </Project>

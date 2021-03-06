@@ -1,15 +1,15 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading.Tasks;
-using System.Text;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.Authorization;
 using Toolbox.Models;
-using Newtonsoft.Json;
+using Toolbox.Services;
 
-namespace Toolbox.Classes
+namespace Toolbox.Hubs
 {
     /// <summary>
     /// Contains functionality for executing PowerShell scripts.
@@ -17,34 +17,35 @@ namespace Toolbox.Classes
     [Authorize]
     public class PowershellHub : Hub
     {
-        public IHubContext<PowershellHub> powershellHubContext { get; }
+        private IScriptService ScriptService { get; set; }
 
-        public PowershellHub(IHubContext<PowershellHub> powershellHubContext)
+        private RunspacePool RsPool { get; set; }
+
+        public IHubContext<PowershellHub> PowershellHubContext { get; }
+
+
+        public PowershellHub(IScriptService scriptService, IHubContext<PowershellHub> powershellHubContext)
         {
-            this.powershellHubContext = powershellHubContext;
+            this.ScriptService = scriptService;
+            this.PowershellHubContext = powershellHubContext;
         }
 
-        public async void StreamPowershell(string scriptContents, Dictionary<string, object> scriptParameters)
+        public async void StreamPowershell(string scriptPathAndFilename, Dictionary<string, object> scriptParameters)
         {
             var user = Context.User.Identity.Name;
 
-            await StreamPowershell(scriptContents, scriptParameters, o =>
+            await StreamPowershell(scriptPathAndFilename, scriptParameters, o =>
             {
-                powershellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
+                PowershellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
             });
         }
 
         /// <summary>
-        /// The PowerShell runspace pool.
-        /// </summary>
-        private RunspacePool RsPool { get; set; }
-
-
-        /// <summary>
         /// Initialize the runspace pool.
         /// </summary>
-        /// <param name="minRunspaces"></param>
-        /// <param name="maxRunspaces"></param>
+        /// <param name="minRunspaces">Minimum number of runspaces to initialize</param>
+        /// <param name="maxRunspaces">Maximum number of runspaces to initialize</param>
+        /// <param name="modulesToLoad">Array of powershell modules to load</param>
         public void InitializeRunspaces(int minRunspaces, int maxRunspaces, string[] modulesToLoad)
         {
             // create the default session state.
@@ -80,11 +81,14 @@ namespace Toolbox.Classes
         /// <summary>
         /// Runs a PowerShell script with parameters and prints the resulting pipeline objects to the console output. 
         /// </summary>
-        /// <param name="scriptContents">The script file contents.</param>
+        /// <param name="scriptId">The script file contents.</param>
         /// <param name="scriptParameters">A dictionary of parameter names and parameter values.</param>
-
-        private async Task StreamPowershell(string scriptContents, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
+        /// <param name="outputHandler">The outputHandler to send the script output to.</param>
+        private async Task StreamPowershell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
+            var script = ScriptService.GetScripts().Where(s => s.Id == scriptId).FirstOrDefault();
+
+            string scriptContents = System.IO.File.ReadAllText(script.PathAndFilename);
 
             //if (RsPool == null)
             //{
@@ -127,7 +131,6 @@ namespace Toolbox.Classes
                     var streamObjectsReceived = sender as PSDataCollection<ErrorRecord>;
                     var currentStreamRecord = streamObjectsReceived[e.Index];
 
-                    //outputHandler($"ErrorStreamEvent: {currentStreamRecord.Exception}"); 
                     outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", currentStreamRecord.Exception.ToString()));
                 };
 

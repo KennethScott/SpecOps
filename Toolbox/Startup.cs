@@ -1,16 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Server.IISIntegration;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Toolbox.Classes;
+using Toolbox.Hubs;
+using Toolbox.Services;
 
 namespace Toolbox
 {
@@ -31,6 +27,7 @@ namespace Toolbox
                     .AddRazorRuntimeCompilation();
             services.AddSignalR();
             services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
+            services.AddScoped<IScriptService, ScriptService>();
             services.AddLogging();
         }
 
