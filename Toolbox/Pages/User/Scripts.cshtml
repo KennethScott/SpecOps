@@ -73,7 +73,7 @@
                     <div class="form-group row">
                         <label for="CategoryId" class="col-md-2 col-form-label">Category</label>
                         <div class="col-md-10">
-                            <select id="CategoryId" class="custom-select" asp-items="Model.Categories">
+                            <select id="CategoryId" class="custom-select" asp-items="Model.Categories" required>
                                 <option value="">Select Category</option>
                             </select>
                         </div>
@@ -81,7 +81,7 @@
                     <div class="form-group row">
                         <label for="ScriptId" class="col-md-2 col-form-label">Script</label>
                         <div class="col-md-10">
-                            <select id="ScriptId" class="custom-select"></select>
+                            <select id="ScriptId" class="custom-select" required></select>
                         </div>
                     </div>
                     <div class="form-group row">
@@ -202,17 +202,35 @@
             $('#runScript').prop('disabled', false);
         }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
 
+        $('div.parameters input, select').on("change", function () {
+            if (this.value === '' && this.hasAttribute('required')) {
+                $(this).addClass("is-invalid");
+            }
+            else { this.classList.remove("is-invalid"); }
+        });
+
         // Invoke the "Stream" method, with the command
         $('#runScript').on("click", function () {
-            var parameters = {};
-            $('div.parameters input').each(function (i) {
-                parameters[this.id] = this.value;
+            var isValid = true;
+            $('div.parameters input, select').each(function (i) {
+                if (this.value === '' && this.hasAttribute('required')) {
+                    $(this).addClass("is-invalid");
+                    isValid = false;
+                }
+                else { this.classList.remove("is-invalid"); }
             });
 
-            connection.invoke("StreamPowershell", $('#ScriptId').val(), parameters).catch(function (err) {
-                $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
-            });
-            event.preventDefault();
+            if (isValid) {
+                var parameters = {};
+                $('div.parameters input').each(function (i) {
+                    parameters[this.id] = this.value;
+                });
+
+                connection.invoke("StreamPowershell", $('#ScriptId').val(), parameters).catch(function (err) {
+                    $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
+                });
+                event.preventDefault();
+            }
         });
 
         $("#CategoryId").on("change", function () {
@@ -249,7 +267,7 @@
                             $('div.parameters').append(`<div class="form-group row">
                                                             <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
                                                             <div class="col-md-8">
-                                                                <input type="text" class="form-control" id="${parm.name}" placeholder="${parm.description}">
+                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" placeholder="${parm.description}" ${parm.required ? "required" : ""}>
                                                             </div>
                                                         </div>`);
                         });

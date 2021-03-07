@@ -15,26 +15,26 @@ namespace Toolbox.Hubs
     /// Contains functionality for executing PowerShell scripts.
     /// </summary>
     [Authorize]
-    public class PowershellHub : Hub
+    public class PowerShellHub : Hub
     {
         private IScriptService ScriptService { get; set; }
 
         private RunspacePool RsPool { get; set; }
 
-        public IHubContext<PowershellHub> PowershellHubContext { get; }
+        public IHubContext<PowerShellHub> PowershellHubContext { get; }
 
 
-        public PowershellHub(IScriptService scriptService, IHubContext<PowershellHub> powershellHubContext)
+        public PowerShellHub(IScriptService scriptService, IHubContext<PowerShellHub> powershellHubContext)
         {
             this.ScriptService = scriptService;
             this.PowershellHubContext = powershellHubContext;
         }
 
-        public async void StreamPowershell(string scriptPathAndFilename, Dictionary<string, object> scriptParameters)
+        public async void StreamPowershell(string scriptId, Dictionary<string, object> scriptParameters)
         {
             var user = Context.User.Identity.Name;
 
-            await StreamPowershell(scriptPathAndFilename, scriptParameters, o =>
+            await StreamPowershell(scriptId, scriptParameters, o =>
             {
                 PowershellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
             });

@@ -58,7 +58,7 @@ namespace Toolbox
             {
                 endpoints.MapRazorPages();
                 endpoints.MapHub<ProcessHub>("/stream");
-                endpoints.MapHub<PowershellHub>("/streamPowershell");
+                endpoints.MapHub<PowerShellHub>("/streamPowershell");
             });
         }
     }

@@ -19,7 +19,7 @@ namespace Toolbox.Pages.User
         public SelectList Categories { get; set; }
 
 
-        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IHubContext<PowershellHub> hubContext)
+        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IHubContext<PowerShellHub> hubContext)
         {
             this.scriptService = scriptService;
             this.logger = logger;

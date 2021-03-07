@@ -9,12 +9,13 @@
     "InputParms": [
       {
         "Name": "StrParam",
-        "Type": "String",
-        "Description": "Input String Parameter1"
+        "Type": "text",
+        "Description": "Input String Parameter1",
+        "Required": "true"
       },
       {
         "Name": "IntParam",
-        "Type": "String",
+        "Type": "date",
         "Description": "Input Integer Parameter1"
       }
     ]
@@ -29,7 +30,7 @@
     "InputParms": [
       {
         "Name": "machine",
-        "Type": "String",
+        "Type": "text",
         "Description": "Input String Parameter1"
       }
     ]
@@ -44,7 +45,7 @@
     "InputParms": [
       {
         "Name": "machine",
-        "Type": "String",
+        "Type": "time",
         "Description": "Input String Parameter1"
       }
     ]
