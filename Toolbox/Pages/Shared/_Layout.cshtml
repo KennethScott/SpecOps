@@ -69,7 +69,8 @@
                         <!-- Add icons to the links using the .nav-icon class
                         with font-awesome or any other icon font library -->
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/User/Scripts">
+                            <!-- Intentionally not using asp-page helper here as it gets confused when route parameters are used  -->
+                            <a class="nav-link" href="/User/Scripts">
                                 <i class="nav-icon fas fa-th"></i>
                                 <p>
                                     User Scripts

@@ -1,4 +1,4 @@
-﻿@page "{categoryId?}/{scriptId?}"
+﻿@page "{rpCategoryId?}/{rpScriptId?}"
 @model Toolbox.Pages.User.ScriptsModel
 @{
 }
@@ -12,11 +12,11 @@
         .logTable {
             display: block;
             line-height: initial;
-            font-family: Consolas, "Courier New", monospace; /*var(--font-family-monospace);  */
-            font-size: 12px;
+            font-family: var(--font-family-monospace);  
+            font-size: .8rem;
             color: var(--white);
-            min-height: 500px;
-            padding: 10px;
+            min-height: 30rem;
+            padding: .6rem;
         }
 
             .logTable th {
@@ -26,12 +26,12 @@
             }
 
                 .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) {
-                    width: 120px;
+                    width: 8rem;
                     white-space: nowrap;
                 }
 
                 .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) {
-                    width: 40px;
+                    width: 3rem;
                 }
 
                 .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) {
@@ -81,7 +81,7 @@
                     <div class="form-group row">
                         <label for="ScriptId" class="col-md-2 col-form-label">Script</label>
                         <div class="col-md-10">
-                            <select class="custom-select" asp-for="ScriptId"></select>
+                            <select id="ScriptId" class="custom-select"></select>
                         </div>
                     </div>
                     <div class="form-group row">
@@ -161,7 +161,9 @@
                 "responsive": false,
             }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
 
-            $("#CategoryId").val("@ViewData["CategoryId"]").trigger('change');
+            if ("@ViewData["CategoryId"]" != "") {
+                $("#CategoryId").val("@ViewData["CategoryId"]").trigger('change');
+            }
         });
 
         var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
@@ -170,7 +172,6 @@
         $('#runScript').prop('disabled', true);
 
         connection.on("OutputReceived", logRecord => {
-            //console.log(logRecord)
             $('#log').DataTable().row.add([
                 logRecord.timeStamp,
                 logRecord.type,
@@ -189,12 +190,11 @@
             "Info": "text-info",
             "Progress": "text-success",
             "Verbose": "text-teal",
-            "Debug": "text-indigo"
+            "Debug": "text-primary"
         }
 
         // Invoke the "Stream" method, with the command
-        $('#runScript').on("click", function () {
-            //$('#log').DataTable().clear().draw();
+        $('#runScript').on("click", function () {            
             var parameters = {};
             $('div.parameters input').each(function (i) {
                 parameters[this.id] = this.value;
@@ -208,34 +208,42 @@
 
         $("#CategoryId").on("change", function () {
             var categoryId = $(this).val();
-            $("#ScriptId").empty();
+            $("#ScriptId").empty().append("<option value=''>Select Script</option>");
             $('#scriptSummary').val("");
             $('div.parameters').empty();
-            $("#ScriptId").append("<option value=''>Select Script</option>");
-            $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
-                $.each(data, function (i, item) {
-                    $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
+            if (categoryId !== null) {
+                $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
+                    $.each(data, function (i, item) {
+                        $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
+                    });
+                }).done(function () {
+                    if ("@ViewData["ScriptId"]" != "") {
+                        $("#ScriptId").val("@ViewData["ScriptId"]").trigger('change');
+                    }
                 });
-            }).done(function (){
-                $("#ScriptId").val("@ViewData["ScriptId"]").trigger('change');                
-            });
+            }
         });
 
         $("#ScriptId").on("change", function () {
             var scriptId = $(this).val();
             $('#scriptSummary').val("");
             $('div.parameters').empty();
-            $.getJSON(`?handler=Script&scriptId=${scriptId}`, (data) => {
-                $('#scriptSummary').val(data.summary);
-                $.each(data.inputParms, function (i, parm) {
-                    $('div.parameters').append(`<div class="form-group row">
-                                                    <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
-                                                    <div class="col-md-8">
-                                                        <input type="text" class="form-control" id="${parm.name}" placeholder="${parm.description}">
-                                                    </div>
-                                                </div>`);
+            if (scriptId !== null) {
+                $.getJSON(`?handler=Script&scriptId=${scriptId}`, (data) => {
+                    if (data !== null) {
+                        $('#scriptSummary').val(data.summary);
+                        $.each(data.inputParms, function (i, parm) {
+                            $('div.parameters').append(`<div class="form-group row">
+                                                            <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
+                                                            <div class="col-md-8">
+                                                                <input type="text" class="form-control" id="${parm.name}" placeholder="${parm.description}">
+                                                            </div>
+                                                        </div>`);
+                        });
+                    }
                 });
-            });
+            }
+            $('#log').DataTable().clear().draw();
         });
 
     </script>

@@ -19,8 +19,8 @@ namespace Toolbox.Pages.User
         [BindProperty(SupportsGet =true)]
         public string CategoryId { get; set; }
 
-        [BindProperty(SupportsGet = true)]
-        public string ScriptId { get; set; }
+        //[BindProperty(SupportsGet = true)]
+        //public string ScriptId { get; set; }
 
         public SelectList Categories { get; set; }
 
@@ -31,16 +31,14 @@ namespace Toolbox.Pages.User
             this.logger = logger;
         }
 
-        public async Task OnGetAsync(string categoryId, string scriptId)
+        public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {
             try
             {
-                ViewData["CategoryId"] = categoryId ?? String.Empty;
-                ViewData["ScriptId"] = scriptId ?? String.Empty;
+                ViewData["CategoryId"] = rpCategoryId;
+                ViewData["ScriptId"] = rpScriptId;
 
                 Categories = new SelectList(scriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
-
-                var scripts = scriptService.GetScripts("Teller");
 
             }
             catch (Exception e)
@@ -49,15 +47,15 @@ namespace Toolbox.Pages.User
             }
         }
 
-        public async Task<JsonResult> OnGetScripts()
+        public async Task<JsonResult> OnGetScripts(string categoryId)
         {
             ViewData.Clear();
-            return new JsonResult(scriptService.GetScripts(CategoryId));
+            return new JsonResult(scriptService.GetScripts(categoryId));
         }
 
-        public async Task<JsonResult> OnGetScript()
+        public async Task<JsonResult> OnGetScript(string scriptId)
         {
-            return new JsonResult(scriptService.GetScript(ScriptId));
+            return new JsonResult(scriptService.GetScript(scriptId));
         }
 
     }
