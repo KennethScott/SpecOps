@@ -16,12 +16,6 @@ namespace Toolbox.Pages.User
         private ILogger<ScriptsModel> logger;
         private IScriptService scriptService;
 
-        [BindProperty(SupportsGet =true)]
-        public string CategoryId { get; set; }
-
-        //[BindProperty(SupportsGet = true)]
-        //public string ScriptId { get; set; }
-
         public SelectList Categories { get; set; }
 
 
@@ -35,11 +29,7 @@ namespace Toolbox.Pages.User
         {
             try
             {
-                ViewData["CategoryId"] = rpCategoryId;
-                ViewData["ScriptId"] = rpScriptId;
-
                 Categories = new SelectList(scriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
-
             }
             catch (Exception e)
             {
@@ -49,7 +39,6 @@ namespace Toolbox.Pages.User
 
         public async Task<JsonResult> OnGetScripts(string categoryId)
         {
-            ViewData.Clear();
             return new JsonResult(scriptService.GetScripts(categoryId));
         }
 
