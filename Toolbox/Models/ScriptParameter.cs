@@ -42,6 +42,11 @@
         /// Comma delimited list of values to be used in conjunction with Type=range
         /// </summary>
         public string List { get; set; }
+
+        /// <summary>
+        /// Regex pattern for input validation
+        /// </summary>
+        public string Pattern { get; set; }
         
     }
 }

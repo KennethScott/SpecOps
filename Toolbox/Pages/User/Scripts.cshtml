@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="@Url.Content("~/plugins/datatables-responsive/css/responsive.bootstrap4.min.css")">
     <link rel="stylesheet" href="@Url.Content("~/plugins/datatables-buttons/css/buttons.bootstrap4.min.css")">
     <style>
+        .error { border-color: var(--danger);}
+        label.error { color: var(--danger); }
+
         .logTable {
             display: block;
             line-height: initial;
@@ -19,29 +22,17 @@
             padding: .6rem;
         }
 
-            .logTable th {
-                text-align: left;
-                padding: .75rem .75rem .75rem .25rem;
-                font-weight: bold;
-            }
+        .logTable th {
+            text-align: left;
+            padding: .75rem .75rem .75rem .25rem;
+            font-weight: bold;
+        }
 
-                .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) {
-                    width: 8rem;
-                    white-space: nowrap;
-                }
+        .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) { width: 8rem; white-space: nowrap; }
+        .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) { width: 3rem; }
+        .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) { width: 100vw; }
 
-                .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) {
-                    width: 3rem;
-                }
-
-                .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) {
-                    width: 100vw;
-                }
-
-            .logTable td {
-                border: 0;
-                padding: .1rem .25rem;
-            }
+        .logTable td { border: 0; padding: .1rem .25rem; }
     </style>
 }
 
@@ -69,40 +60,43 @@
                     <h3 class="card-title">Script Config</h3>
                 </div>
                 <!-- /.card-header -->
-                <div class="card-body scriptConfig">
-                    <div class="form-group row">
-                        <label for="CategoryId" class="col-md-2 col-form-label">Category</label>
-                        <div class="col-md-10">
-                            <select id="CategoryId" class="custom-select" asp-items="Model.Categories" required>
-                                <option value="">Select Category</option>
-                            </select>
+                <form id="dummyForm">
+                    <div class="card-body scriptConfig">
+                        <div class="form-group row">
+                            <label for="CategoryId" class="col-md-2 col-form-label">Category</label>
+                            <div class="col-md-10">
+                                <select id="CategoryId" name="CategoryId" class="custom-select" asp-items="Model.Categories" required>
+                                    <option value="">Select Category</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="ScriptId" class="col-md-2 col-form-label">Script</label>
+                            <div class="col-md-10">
+                                <select id="ScriptId" name="ScriptId" class="custom-select" required>
+                                    <option value="">Select Script</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="scriptSummary" class="col-md-2 col-form-label">Summary</label>
+                            <div class="col-md-10">
+                                <textarea id="scriptSummary" name="scriptSummary" class="card-text form-control-plaintext" type="text" readonly style="resize:none;"></textarea>
+                            </div>
+                        </div>
+                        <div class="card border-light">
+                            <div class="card-header font-weight-bold">Parameters</div>
+                            <div class="card-body">
+                                <div class="card-text parameters"></div>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group row">
-                        <label for="ScriptId" class="col-md-2 col-form-label">Script</label>
-                        <div class="col-md-10">
-                            <select id="ScriptId" class="custom-select" required></select>
-                        </div>
+                    <!-- /.card-body -->
+                    <div class="card-footer">
+                        <button id="runScript" type="button" class="btn btn-primary"><i class="fas fa-code"></i> Run</button>
                     </div>
-                    <div class="form-group row">
-                        <label for="scriptSummary" class="col-md-2 col-form-label">Summary</label>
-                        <div class="col-md-10">
-                            <textarea id="scriptSummary" class="card-text form-control-plaintext" type="text" readonly style="resize:none;"></textarea>
-                        </div>
-                    </div>
-                    <div class="card border-light">
-                        <div class="card-header font-weight-bold">Parameters</div>
-                        <div class="card-body">
-                            @*<h5 class="card-title">Light card title</h5>*@
-                            <div class="card-text parameters"></div>
-                        </div>
-                    </div>
-                </div>
-                <!-- /.card-body -->
-                <div class="card-footer">
-                    <button id="runScript" type="button" class="btn btn-primary"><i class="fas fa-code"></i> Run</button>
-                </div>
-                <!-- /.card-footer -->
+                    <!-- /.card-footer -->
+                </form>
             </div>
             <!-- /.card -->
         </div>
@@ -137,10 +131,18 @@
     <script src="@Url.Content("~/plugins/pdfmake/vfs_fonts.js")"></script>
     <script src="@Url.Content("~/plugins/datatables-buttons/js/buttons.html5.min.js")"></script>
     <script src="@Url.Content("~/plugins/datatables-buttons/js/buttons.print.min.js")"></script>
+    <!-- jquery-validation -->
+    <script src="@Url.Content("~/plugins/jquery-validation/jquery.validate.min.js")"></script>
+    <script src="@Url.Content("~/plugins/jquery-validation/additional-methods.min.js")"></script>
 
     <script>
 
         (function () {
+
+            // simple helper to check for null/undefined/empty
+            function hasValue(x) {
+                return !!x;
+            }
 
             // Grab route parameters (if exists)
             var routeParms = $(location).attr('pathname').replace(/\/User\/Scripts\/?/i, '').split('/');
@@ -179,18 +181,25 @@
                     "autoWidth": false,
                     "responsive": false,
                 }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
+
                 // if categoryId route parm exists, auto-select it in the dropdown and clear the temp variable
-                if (routeCategoryId != "") {
+                if (hasValue(routeCategoryId)) {
                     $("#CategoryId").val(routeCategoryId).trigger('change');
                     routeCategoryId = "";
                 }
-            });
 
-            // setup the hub connection
-            var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
+                $('#dummyForm').validate();
+
+                $('#dummyForm').on('input change', 'input[type="range"]', function () {
+                    this.nextElementSibling.value = this.value;
+                });
+            });
 
             //Disable run button until connection is established
             $('#runScript').prop('disabled', true);
+
+            // setup the hub connection
+            var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
 
             // log the output records to the table as they come in
             connection.on("OutputReceived", logRecord => {
@@ -206,36 +215,11 @@
                 $('#runScript').prop('disabled', false);
             }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
 
-            // shared function to perform basic field validation
-            function validateField(e) {
-                let isValid = true;
-                if (e.hasAttribute('required') && e.value === '') {
-                    $(e).addClass("is-invalid");
-                    isValid = false;
-                }
-                else { e.classList.remove("is-invalid"); }
-                return isValid;
-            }
-
-            // listen for current and future elements for validation purposes
-            $('div.scriptConfig').on('change', 'input, select', function () {
-                validateField(this);
-            });
-
             // Run the script
             $('#runScript').on("click", function () {
 
-                // validate fields
-                let isValid = true;
-                $('div.parameters input, select').each(function (i) {
-                    // since this is a loop, *only* set isValid when false actually returned
-                    if (!validateField(this)) {
-                        isValid = false;
-                    }
-                });
-
                 // if fields are valid, invoke the hub and run the script
-                if (isValid) {
+                if ($('#dummyForm').valid()) {
 
                     let parameters = {};
                     $('div.parameters input').each(function (i) {
@@ -248,23 +232,13 @@
                     event.preventDefault();
                 }
                 else {
-                    // show the error
-                    $(document).Toasts('create', {
-                        class: 'bg-danger',
-                        title: 'Validation Error',
-                        autohide: true,
-                        delay: 5000,
-                        position: "bottomRight",
-                        icon: 'fas fa-exclamation-circle fa-lg',
-                        body: 'Please correct the highlighted fields.'
-                    });
+                    // scroll to the first error
+                    $('html, body').animate({
+                        scrollTop: ($('.error:visible').offset().top - 60)
+                    }, 500);
                 }
-            });
 
-            // simple helper to check for null/undefined/empty
-            function hasValue(x) {
-                return !!x;
-            }
+            });
 
             // shared function to clear the script-specific fields
             function clearScriptFields() {
@@ -277,7 +251,6 @@
                 let categoryId = $(this).val();
                 $("#ScriptId").empty().append("<option value=''>Select Script</option>");
                 clearScriptFields();
-                console.log(categoryId);
                 if (hasValue(categoryId)) {
                     $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
                         $.each(data, function (i, item) {
@@ -285,7 +258,7 @@
                         });
                     }).done(function () {
                         // if scriptId route parm exists, auto-select it in the dropdown and clear the temp variable
-                        if (routeScriptId != "") {
+                        if (hasValue(routeScriptId)) {
                             $("#ScriptId").val(routeScriptId).trigger('change');
                             routeScriptId = "";
                         }
@@ -297,20 +270,24 @@
             $("#ScriptId").on("change", function () {
                 let scriptId = $(this).val();
                 clearScriptFields();
-                console.log(scriptId);
                 if (hasValue(scriptId)) {
                     $.getJSON(`?handler=Script&scriptId=${scriptId}`, (data) => {
                         // load the script fields
                         $('#scriptSummary').val(data.summary);
                         $.each(data.inputParms, function (i, parm) {
                             $('div.parameters').append(`<div class="form-group row">
-                                                            <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
-                                                            <div class="col-md-8">
-                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" 
-                                                                    placeholder="${parm.description}" ${parm.required ? "required" : ""} 
-                                                                    ${parm.min ? parm.min : ""} ${parm.max ? parm.max : ""} ${parm.step ? parm.step : ""}>
-                                                            </div>
-                                                        </div>`);
+                                                                <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
+                                                                <div class="col-md-8">
+                                                                    <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
+                                                                        placeholder="${parm.description}"
+                                                                        ${parm.required ? "required" : ""}
+                                                                        ${parm.min ? "min='" + parm.min + "'" : ""}
+                                                                        ${parm.max ? "max='" + parm.max + "'" : ""}
+                                                                        ${parm.step ? "step='" + parm.step + "'" : ""}
+                                                                        ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}>
+                                                                        ${parm.type == "range" ? "<output></output>" : ""}
+                                                                </div>
+                                                            </div>`);
                         });
                     });
                 }

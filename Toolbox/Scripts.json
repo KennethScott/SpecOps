@@ -66,6 +66,17 @@
         "Type": "range",
         "Description": "Input Range List Parameter",
         "List": "value1, value2, value3"
+      },
+      {
+        "Name": "EmailParam",
+        "Type": "email",
+        "Description": "Input Email Parameter"
+      },
+      {
+        "Name": "PatternParam",
+        "Type": "text",
+        "Description": "Input 3 letter Parameter",
+        "Pattern": "[A-Za-z]{3}"
       }
     ]
   },
