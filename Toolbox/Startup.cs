@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using System.IO;
 using Toolbox.Classes;
 using Toolbox.Hubs;
 using Toolbox.Services;
@@ -33,7 +36,7 @@ namespace Toolbox
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
         {
             if (env.IsDevelopment())
             {
@@ -49,6 +52,9 @@ namespace Toolbox
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
+            // This will make the HTTP requests log as rich logs instead of plain text.
+            app.UseSerilogRequestLogging();
+
             app.UseRouting();
 
             app.UseAuthentication();
@@ -60,6 +66,8 @@ namespace Toolbox
                 endpoints.MapHub<ProcessHub>("/stream");
                 endpoints.MapHub<PowerShellHub>("/streamPowerShell");
             });
+
+            loggerFactory.AddSerilog();
         }
     }
 }

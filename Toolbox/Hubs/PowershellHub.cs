@@ -92,8 +92,9 @@ namespace Toolbox.Hubs
         {
             try
             {
-
                 var script = ScriptService.GetScripts().Where(s => s.Id == scriptId).FirstOrDefault();
+
+                Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run script.", script);
 
                 string scriptContents = System.IO.File.ReadAllText(script.PathAndFilename);
 

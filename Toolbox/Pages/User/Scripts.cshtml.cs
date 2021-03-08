@@ -30,6 +30,7 @@ namespace Toolbox.Pages.User
             try
             {
                 Categories = new SelectList(scriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
+                logger.Log(LogLevel.Information, "Got Categories", Categories);
             }
             catch (Exception e)
             {
