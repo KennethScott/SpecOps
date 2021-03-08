@@ -12,6 +12,9 @@
         .error { border-color: var(--danger);}
         label.error { color: var(--danger); }
 
+        /* Remove the browser's dropdown on input with range datalist because we're using bootstrap's */
+        [list]::-webkit-calendar-picker-indicator { display: none; }
+
         .logTable {
             display: block;
             line-height: initial;
@@ -278,13 +281,17 @@
                             $('div.parameters').append(`<div class="form-group row">
                                                                 <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
                                                                 <div class="col-md-8">
-                                                                    <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
-                                                                        placeholder="${parm.description}"
+                                                                    <input type="${parm.type}" class="form-control ${parm.list ? "custom-select" : ""}" 
+                                                                        id="${parm.name}" name="${parm.name}" placeholder="${parm.description}"
                                                                         ${parm.required ? "required" : ""}
+                                                                        ${parm.list ? "list='" + parm.name + "List'" : ""}
                                                                         ${parm.min ? "min='" + parm.min + "'" : ""}
                                                                         ${parm.max ? "max='" + parm.max + "'" : ""}
                                                                         ${parm.step ? "step='" + parm.step + "'" : ""}
-                                                                        ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}>
+                                                                        ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}> 
+                                                                        ${parm.list ? "<datalist id='" + parm.name + "List'>" +
+                                                                                         "<option value='" + parm.list.split(',').join("'></option><option value='") + "'></option>" +
+                                                                                      "</datalist>" : ""}
                                                                         ${parm.type == "range" ? "<output></output>" : ""}
                                                                 </div>
                                                             </div>`);
