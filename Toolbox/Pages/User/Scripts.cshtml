@@ -69,7 +69,7 @@
                     <h3 class="card-title">Script Config</h3>
                 </div>
                 <!-- /.card-header -->
-                <div class="card-body">
+                <div class="card-body scriptConfig">
                     <div class="form-group row">
                         <label for="CategoryId" class="col-md-2 col-form-label">Category</label>
                         <div class="col-md-10">
@@ -140,142 +140,185 @@
 
     <script>
 
-        var routeParms = $(location).attr('pathname').replace(/\/User\/Scripts\/?/i, '').split('/');
-        var routeCategoryId = routeParms[0] ?? "";
-        var routeScriptId = routeParms[1] ?? "";
+        (function () {
 
-        console.log(routeCategoryId);
-        console.log(routeScriptId);
+            // Grab route parameters (if exists)
+            var routeParms = $(location).attr('pathname').replace(/\/User\/Scripts\/?/i, '').split('/');
+            var routeCategoryId = routeParms[0] ?? "";
+            var routeScriptId = routeParms[1] ?? "";
 
-        var dataTypeColors = {
-            "Data": "text-light",
-            "Error": "text-danger",
-            "Warning": "text-warning",
-            "Info": "text-info",
-            "Progress": "text-success",
-            "Verbose": "text-teal",
-            "Debug": "text-primary"
-        }
-
-        $(document).ready(function () {
-
-            $('#log').DataTable({
-                "buttons": [
-                    { extend: 'copy', className: 'btn-sm' },
-                    { extend: 'csv', className: 'btn-sm' },
-                    { extend: 'excel', className: 'btn-sm' },
-                    { extend: 'pdf', className: 'btn-sm' },
-                    { extend: 'print', className: 'btn-sm' }
-                ],
-                "paging": false,
-                "language": {
-                    "emptyTable": "No output yet...  Try running the script."
-                },
-                "lengthChange": false,
-                "searching": true,
-                "ordering": true,
-                "info": false,
-                "autoWidth": false,
-                "responsive": false,
-            }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
-
-            if (routeCategoryId != "") {
-                $("#CategoryId").val(routeCategoryId).trigger('change');
-                routeCategoryId = "";
+            // Mapping of output log record type to css class for coloring
+            var dataTypeColors = {
+                "Data": "text-light",
+                "Error": "text-danger",
+                "Warning": "text-warning",
+                "Info": "text-info",
+                "Progress": "text-success",
+                "Verbose": "text-teal",
+                "Debug": "text-primary"
             }
-        });
 
-        var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowershell").build();
-
-        //Disable run button until connection is established
-        $('#runScript').prop('disabled', true);
-
-        connection.on("OutputReceived", logRecord => {
-            $('#log').DataTable().row.add([
-                logRecord.timeStamp,
-                logRecord.type,
-                logRecord.data
-            ]).draw(false).nodes().to$().addClass(dataTypeColors[logRecord.type]);
-        });
-
-        connection.start().then(function () {
-            $('#runScript').prop('disabled', false);
-        }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
-
-        $('div.parameters input, select').on("change", function () {
-            if (this.value === '' && this.hasAttribute('required')) {
-                $(this).addClass("is-invalid");
-            }
-            else { this.classList.remove("is-invalid"); }
-        });
-
-        // Invoke the "Stream" method, with the command
-        $('#runScript').on("click", function () {
-            var isValid = true;
-            $('div.parameters input, select').each(function (i) {
-                if (this.value === '' && this.hasAttribute('required')) {
-                    $(this).addClass("is-invalid");
-                    isValid = false;
+            $(document).ready(function () {
+                // setup the output log tabale
+                $('#log').DataTable({
+                    "buttons": [
+                        { extend: 'copy', className: 'btn-sm' },
+                        { extend: 'csv', className: 'btn-sm' },
+                        { extend: 'excel', className: 'btn-sm' },
+                        { extend: 'pdf', className: 'btn-sm' },
+                        { extend: 'print', className: 'btn-sm' }
+                    ],
+                    "paging": false,
+                    "language": {
+                        "emptyTable": "No output yet...  Try running the script."
+                    },
+                    "lengthChange": false,
+                    "searching": true,
+                    "ordering": true,
+                    "info": false,
+                    "autoWidth": false,
+                    "responsive": false,
+                }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
+                // if categoryId route parm exists, auto-select it in the dropdown and clear the temp variable
+                if (routeCategoryId != "") {
+                    $("#CategoryId").val(routeCategoryId).trigger('change');
+                    routeCategoryId = "";
                 }
-                else { this.classList.remove("is-invalid"); }
             });
 
-            if (isValid) {
-                var parameters = {};
-                $('div.parameters input').each(function (i) {
-                    parameters[this.id] = this.value;
-                });
+            // setup the hub connection
+            var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
 
-                connection.invoke("StreamPowershell", $('#ScriptId').val(), parameters).catch(function (err) {
-                    $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
-                });
-                event.preventDefault();
+            //Disable run button until connection is established
+            $('#runScript').prop('disabled', true);
+
+            // log the output records to the table as they come in
+            connection.on("OutputReceived", logRecord => {
+                $('#log').DataTable().row.add([
+                    logRecord.timeStamp,
+                    logRecord.type,
+                    logRecord.data
+                ]).draw(false).nodes().to$().addClass(dataTypeColors[logRecord.type]);
+            });
+
+            // enable the Run button once connected
+            connection.start().then(function () {
+                $('#runScript').prop('disabled', false);
+            }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
+
+            // shared function to perform basic field validation
+            function validateField(e) {
+                let isValid = true;
+                if (e.hasAttribute('required') && e.value === '') {
+                    $(e).addClass("is-invalid");
+                    isValid = false;
+                }
+                else { e.classList.remove("is-invalid"); }
+                return isValid;
             }
-        });
 
-        $("#CategoryId").on("change", function () {
-            var categoryId = $(this).val();
-            $("#ScriptId").empty().append("<option value=''>Select Script</option>");
-            $('#scriptSummary').val("");
-            $('div.parameters').empty();
-            if (categoryId !== null) {
-                $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
-                    $.each(data, function (i, item) {
-                        $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
+            // listen for current and future elements for validation purposes
+            $('div.scriptConfig').on('change', 'input, select', function () {
+                validateField(this);
+            });
+
+            // Run the script
+            $('#runScript').on("click", function () {
+
+                // validate fields
+                let isValid = true;
+                $('div.parameters input, select').each(function (i) {
+                    // since this is a loop, *only* set isValid when false actually returned
+                    if (!validateField(this)) {
+                        isValid = false;
+                    }
+                });
+
+                // if fields are valid, invoke the hub and run the script
+                if (isValid) {
+
+                    let parameters = {};
+                    $('div.parameters input').each(function (i) {
+                        parameters[this.id] = this.value;
                     });
-                }).done(function () {
-                    if (routeScriptId != "") {
-                        $("#ScriptId").val(routeScriptId).trigger('change');
-                        routeScriptId = "";
-                    }
-                    else {
-                        $("#ScriptId").prop("selectedIndex", 0).trigger('change');
-                    }
-                });
-            }
-        });
 
-        $("#ScriptId").on("change", function () {
-            var scriptId = $(this).val();
-            $('#scriptSummary').val("");
-            $('div.parameters').empty();
-            if (scriptId !== null) {
-                $.getJSON(`?handler=Script&scriptId=${scriptId}`, (data) => {
-                    if (data !== null) {
+                    connection.invoke("StreamPowerShell", $('#ScriptId').val(), parameters).catch(function (err) {
+                        $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
+                    });
+                    event.preventDefault();
+                }
+                else {
+                    // show the error
+                    $(document).Toasts('create', {
+                        class: 'bg-danger',
+                        title: 'Validation Error',
+                        autohide: true,
+                        delay: 5000,
+                        position: "bottomRight",
+                        icon: 'fas fa-exclamation-circle fa-lg',
+                        body: 'Please correct the highlighted fields.'
+                    });
+                }
+            });
+
+            // simple helper to check for null/undefined/empty
+            function hasValue(x) {
+                return !!x;
+            }
+
+            // shared function to clear the script-specific fields
+            function clearScriptFields() {
+                $('#scriptSummary').val("");
+                $('div.parameters').empty();
+            }
+
+            // when category changes, clear fields and get list of scripts
+            $("#CategoryId").on("change", function () {
+                let categoryId = $(this).val();
+                $("#ScriptId").empty().append("<option value=''>Select Script</option>");
+                clearScriptFields();
+                console.log(categoryId);
+                if (hasValue(categoryId)) {
+                    $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
+                        $.each(data, function (i, item) {
+                            $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
+                        });
+                    }).done(function () {
+                        // if scriptId route parm exists, auto-select it in the dropdown and clear the temp variable
+                        if (routeScriptId != "") {
+                            $("#ScriptId").val(routeScriptId).trigger('change');
+                            routeScriptId = "";
+                        }
+                    });
+                }
+            });
+
+            // when script changes, clear fields and get script-specific fields
+            $("#ScriptId").on("change", function () {
+                let scriptId = $(this).val();
+                clearScriptFields();
+                console.log(scriptId);
+                if (hasValue(scriptId)) {
+                    $.getJSON(`?handler=Script&scriptId=${scriptId}`, (data) => {
+                        // load the script fields
                         $('#scriptSummary').val(data.summary);
                         $.each(data.inputParms, function (i, parm) {
                             $('div.parameters').append(`<div class="form-group row">
                                                             <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
                                                             <div class="col-md-8">
-                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" placeholder="${parm.description}" ${parm.required ? "required" : ""}>
+                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" 
+                                                                    placeholder="${parm.description}" ${parm.required ? "required" : ""} 
+                                                                    ${parm.min ? parm.min : ""} ${parm.max ? parm.max : ""} ${parm.step ? parm.step : ""}>
                                                             </div>
                                                         </div>`);
                         });
-                    }
-                });
-            }
-            $('#log').DataTable().clear().draw();
-        });
+                    });
+                }
+                // clear the log if the selected script changes
+                $('#log').DataTable().clear().draw();
+            });
+
+        })();
 
     </script>
 

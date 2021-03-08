@@ -10,13 +10,62 @@
       {
         "Name": "StrParam",
         "Type": "text",
-        "Description": "Input String Parameter1",
+        "Description": "Input String Parameter",
         "Required": "true"
       },
       {
         "Name": "IntParam",
+        "Type": "number",
+        "Description": "Input Integer Parameter"
+      },
+      {
+        "Name": "DateParam",
         "Type": "date",
-        "Description": "Input Integer Parameter1"
+        "Description": "Input Date Parameter"
+      },
+      {
+        "Name": "TimeParam",
+        "Type": "time",
+        "Description": "Input Time Parameter"
+      },
+      {
+        "Name": "DateTimeParam",
+        "Type": "datetime-local",
+        "Description": "Input DateTime Parameter"
+      },
+      {
+        "Name": "TelephoneParam",
+        "Type": "tel",
+        "Description": "Input Telephone Parameter"
+      },
+      {
+        "Name": "MonthParam",
+        "Type": "month",
+        "Description": "Input Month Parameter"
+      },
+      {
+        "Name": "WeekParam",
+        "Type": "week",
+        "Description": "Input Week Parameter"
+      },
+      {
+        "Name": "UrlParam",
+        "Type": "url",
+        "Description": "Input URL Parameter"
+      },
+      {
+        "Name": "RangeParam",
+        "Type": "range",
+        "Description": "Input Range Parameter",
+        "Min": 1,
+        "Max": 10,
+        "Step": 1
+      },
+      {
+        "Name": "RangeListParam",
+        "Type": "range",
+        "Description": "Input Range List Parameter",
+        "List": "value1, value2, value3"
       }
     ]
   },

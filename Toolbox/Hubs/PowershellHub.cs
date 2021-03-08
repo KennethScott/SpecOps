@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,22 +20,25 @@ namespace Toolbox.Hubs
     {
         private IScriptService ScriptService { get; set; }
 
+        private ILogger<PowerShellHub> Logger;
+
         private RunspacePool RsPool { get; set; }
 
         public IHubContext<PowerShellHub> PowershellHubContext { get; }
 
 
-        public PowerShellHub(IScriptService scriptService, IHubContext<PowerShellHub> powershellHubContext)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powershellHubContext)
         {
             this.ScriptService = scriptService;
+            this.Logger = logger;
             this.PowershellHubContext = powershellHubContext;
         }
 
-        public async void StreamPowershell(string scriptId, Dictionary<string, object> scriptParameters)
+        public async void StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
         {
             var user = Context.User.Identity.Name;
 
-            await StreamPowershell(scriptId, scriptParameters, o =>
+            await StreamPowerShell(scriptId, scriptParameters, o =>
             {
                 PowershellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
             });
@@ -84,120 +88,127 @@ namespace Toolbox.Hubs
         /// <param name="scriptId">The script file contents.</param>
         /// <param name="scriptParameters">A dictionary of parameter names and parameter values.</param>
         /// <param name="outputHandler">The outputHandler to send the script output to.</param>
-        private async Task StreamPowershell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
+        private async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
-            var script = ScriptService.GetScripts().Where(s => s.Id == scriptId).FirstOrDefault();
-
-            string scriptContents = System.IO.File.ReadAllText(script.PathAndFilename);
-
-            //if (RsPool == null)
-            //{
-            //    InitializeRunspaces(2, 10, Array.Empty<string>());
-            //    //throw new ApplicationException("Runspace Pool must be initialized before calling RunScript().");
-            //}
-
-            // create a new hosted PowerShell instance using a custom runspace.
-            // wrap in a using statement to ensure resources are cleaned up.
-
-            using (PowerShell ps = PowerShell.Create())
+            try
             {
-                // use the runspace pool.
-                //ps.RunspacePool = RsPool;
 
-                // specify the script code to run.
-                ps.AddScript(scriptContents);
+                var script = ScriptService.GetScripts().Where(s => s.Id == scriptId).FirstOrDefault();
 
-                // specify the parameters to pass into the script.
-                ps.AddParameters(scriptParameters);
+                string scriptContents = System.IO.File.ReadAllText(script.PathAndFilename);
 
-                // Subscribe to events from output
-                var output = new PSDataCollection<PSObject>();
-
-                output.DataAdded += delegate(object sender, DataAddedEventArgs e)
-                {
-                    var objectsReceived = sender as PSDataCollection<PSObject>;
-                    var currentRecord = objectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Data", currentRecord.ToString()));
-                };
-
-                // subscribe to events from some of the streams
-
-                /// Handles data-added events for the error stream.
-                /// Note: Uncaught terminating errors will stop the pipeline completely.
-                /// Non-terminating errors will be written to this stream and execution will continue.
-                ps.Streams.Error.DataAdded += delegate(object sender, DataAddedEventArgs e) 
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<ErrorRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", currentStreamRecord.Exception.ToString()));
-                };
-
-                /// Handles data-added events for the warning stream.
-                ps.Streams.Warning.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<WarningRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Warning", currentStreamRecord.Message));
-                };
-
-                /// Handles data-added events for the information stream.
-                /// Note: Write-Host and Write-Information messages will end up in the information stream.
-                ps.Streams.Information.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<InformationRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Info", currentStreamRecord.MessageData.ToString()));
-                };
-
-                /// Handles data-added events for the progress stream.
-                ps.Streams.Progress.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<ProgressRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress",
-                        $"{currentStreamRecord.Activity}... {currentStreamRecord.StatusDescription} {currentStreamRecord.PercentComplete}%"));                  
-                };
-
-                /// Handles data-added events for the verbose stream.
-                ps.Streams.Verbose.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<VerboseRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Verbose", currentStreamRecord.Message));
-                };
-
-                /// Handles data-added events for the debug stream.
-                ps.Streams.Debug.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                {
-                    var streamObjectsReceived = sender as PSDataCollection<DebugRecord>;
-                    var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Debug", currentStreamRecord.Message));
-                };
-
-                await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
-
-                //// execute the script and await the result.
-                //var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
-                //foreach (var item in pipelineObjects)
+                //if (RsPool == null)
                 //{
-                //    outputHandler(item.BaseObject.ToString() + "\n");
+                //    InitializeRunspaces(2, 10, Array.Empty<string>());
+                //    //throw new ApplicationException("Runspace Pool must be initialized before calling RunScript().");
                 //}
 
-                ////// Execute powershell command
-                ////IAsyncResult asyncResult = ps.BeginInvoke<PSObject, PSObject>(null, output);
-                ////// Wait for powershell command to finish
-                ////asyncResult.AsyncWaitHandle.WaitOne();
-                ///
+                // create a new hosted PowerShell instance using a custom runspace.
+                // wrap in a using statement to ensure resources are cleaned up.
 
-                ////ps.Invoke(null, output);
+                using (PowerShell ps = PowerShell.Create())
+                {
+                    // use the runspace pool.
+                    //ps.RunspacePool = RsPool;
 
+                    // specify the script code to run.
+                    ps.AddScript(scriptContents);
+
+                    // specify the parameters to pass into the script.
+                    ps.AddParameters(scriptParameters);
+
+                    // Subscribe to events from output
+                    var output = new PSDataCollection<PSObject>();
+
+                    output.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var objectsReceived = sender as PSDataCollection<PSObject>;
+                        var currentRecord = objectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Data", currentRecord.ToString()));
+                    };
+
+                    // subscribe to events from some of the streams
+
+                    /// Handles data-added events for the error stream.
+                    /// Note: Uncaught terminating errors will stop the pipeline completely.
+                    /// Non-terminating errors will be written to this stream and execution will continue.
+                    ps.Streams.Error.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<ErrorRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", currentStreamRecord.Exception.ToString()));
+                    };
+
+                    /// Handles data-added events for the warning stream.
+                    ps.Streams.Warning.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<WarningRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Warning", currentStreamRecord.Message));
+                    };
+
+                    /// Handles data-added events for the information stream.
+                    /// Note: Write-Host and Write-Information messages will end up in the information stream.
+                    ps.Streams.Information.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<InformationRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Info", currentStreamRecord.MessageData.ToString()));
+                    };
+
+                    /// Handles data-added events for the progress stream.
+                    ps.Streams.Progress.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<ProgressRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress",
+                            $"{currentStreamRecord.Activity}... {currentStreamRecord.StatusDescription} {currentStreamRecord.PercentComplete}%"));
+                    };
+
+                    /// Handles data-added events for the verbose stream.
+                    ps.Streams.Verbose.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<VerboseRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Verbose", currentStreamRecord.Message));
+                    };
+
+                    /// Handles data-added events for the debug stream.
+                    ps.Streams.Debug.DataAdded += delegate (object sender, DataAddedEventArgs e)
+                    {
+                        var streamObjectsReceived = sender as PSDataCollection<DebugRecord>;
+                        var currentStreamRecord = streamObjectsReceived[e.Index];
+
+                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Debug", currentStreamRecord.Message));
+                    };
+
+                    await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
+
+                    //// execute the script and await the result.
+                    //var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
+                    //foreach (var item in pipelineObjects)
+                    //{
+                    //    outputHandler(item.BaseObject.ToString() + "\n");
+                    //}
+
+                    ////// Execute powershell command
+                    ////IAsyncResult asyncResult = ps.BeginInvoke<PSObject, PSObject>(null, output);
+                    ////// Wait for powershell command to finish
+                    ////asyncResult.AsyncWaitHandle.WaitOne();
+                    ///
+
+                    ////ps.Invoke(null, output);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "Failure loading or executing script", ex);
             }
         }
     }
