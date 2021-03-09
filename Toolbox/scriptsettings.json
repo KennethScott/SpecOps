@@ -1,0 +1,115 @@
+{
+  "ScriptSettings": [
+    {
+      "CategoryId": "Teller",
+      "Id": "7CF9D423-5CB7-432B-A3E9-618340ADF5A7",
+      "PathAndFilename": "./Scripts/Demo.ps1",
+      "Name": "Test Script",
+      "Summary": "This is a summary of what the test script does - blah blah blah",
+      "RestrictedToAdGroups": "***REMOVED***",
+      "InputParms": [
+        {
+          "Name": "StrParam",
+          "Type": "text",
+          "Description": "Input String Parameter",
+          "Required": "true"
+        },
+        {
+          "Name": "IntParam",
+          "Type": "number",
+          "Description": "Input Integer Parameter"
+        },
+        {
+          "Name": "DateParam",
+          "Type": "date",
+          "Description": "Input Date Parameter"
+        },
+        {
+          "Name": "TimeParam",
+          "Type": "time",
+          "Description": "Input Time Parameter"
+        },
+        {
+          "Name": "DateTimeParam",
+          "Type": "datetime-local",
+          "Description": "Input DateTime Parameter"
+        },
+        {
+          "Name": "TelephoneParam",
+          "Type": "tel",
+          "Description": "Input Telephone Parameter"
+        },
+        {
+          "Name": "MonthParam",
+          "Type": "month",
+          "Description": "Input Month Parameter"
+        },
+        {
+          "Name": "WeekParam",
+          "Type": "week",
+          "Description": "Input Week Parameter"
+        },
+        {
+          "Name": "UrlParam",
+          "Type": "url",
+          "Description": "Input URL Parameter"
+        },
+        {
+          "Name": "RangeParam",
+          "Type": "range",
+          "Description": "Input Range Parameter",
+          "Min": 1,
+          "Max": 10,
+          "Step": 1
+        },
+        {
+          "Name": "RangeListParam",
+          "Type": "text",
+          "Description": "Input Range List Parameter",
+          "List": "value1,value2,value3"
+        },
+        {
+          "Name": "EmailParam",
+          "Type": "email",
+          "Description": "Input Email Parameter"
+        },
+        {
+          "Name": "PatternParam",
+          "Type": "text",
+          "Description": "Input 3 letter Parameter",
+          "Pattern": "[A-Za-z]{3}"
+        }
+      ]
+    },
+    {
+      "CategoryId": "Teller",
+      "Id": "4DADFEF2-F021-4220-8D21-A056B7AE0DE8",
+      "PathAndFilename": "./Scripts/ToolBox.TellerSlowness.Check.ps1",
+      "Name": "Teller Slowness Check",
+      "Summary": "This is a summary of what the teller slowness check script does - blah blah blah",
+      "RestrictedToAdGroups": "***REMOVED***",
+      "InputParms": [
+        {
+          "Name": "machine",
+          "Type": "text",
+          "Description": "Input String Parameter1"
+        }
+      ]
+    },
+    {
+      "CategoryId": "Admin",
+      "Id": "03EF6AD2-05F8-4807-B521-E71FEE6F1471",
+      "PathAndFilename": "./Scripts/ToolBox.SomeAdmin.Check.ps1",
+      "Name": "Teller Admin Check",
+      "Summary": "This is a summary of what the teller admin check script does - blah blah blah",
+      "RestrictedToAdGroups": "***REMOVED***",
+      "InputParms": [
+        {
+          "Name": "machine",
+          "Type": "time",
+          "Description": "Input String Parameter1"
+        }
+      ]
+    }
+  ]
+}

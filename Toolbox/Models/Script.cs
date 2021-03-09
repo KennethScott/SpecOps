@@ -12,5 +12,9 @@ namespace Toolbox.Models
         public string RestrictedToAdGroups { get; set; }
         public List<ScriptParameter> InputParms { get; set; }
 
+        public string GetContents() 
+        { 
+            return System.IO.File.ReadAllText(PathAndFilename);
+        }
     }
 }

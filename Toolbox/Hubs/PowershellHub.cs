@@ -20,27 +20,26 @@ namespace Toolbox.Hubs
     {
         private IScriptService ScriptService { get; set; }
 
-        private ILogger<PowerShellHub> Logger;
+        private readonly ILogger<PowerShellHub> Logger;
 
         private RunspacePool RsPool { get; set; }
 
-        public IHubContext<PowerShellHub> PowershellHubContext { get; }
+        private IHubContext<PowerShellHub> PowerShellHubContext { get; }
 
-
-        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powershellHubContext)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
-            this.PowershellHubContext = powershellHubContext;
+            this.PowerShellHubContext = powerShellHubContext;
         }
 
-        public async void StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
+        public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
         {
             var user = Context.User.Identity.Name;
 
             await StreamPowerShell(scriptId, scriptParameters, o =>
             {
-                PowershellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
+                PowerShellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
             });
         }
 
@@ -92,11 +91,11 @@ namespace Toolbox.Hubs
         {
             try
             {
-                var script = ScriptService.GetScripts().Where(s => s.Id == scriptId).FirstOrDefault();
+                var script = ScriptService.GetScript(scriptId);
 
                 Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run script.", script);
 
-                string scriptContents = System.IO.File.ReadAllText(script.PathAndFilename);
+                string scriptContents = script.GetContents();
 
                 //if (RsPool == null)
                 //{

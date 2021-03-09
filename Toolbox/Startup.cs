@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using System.IO;
 using Toolbox.Classes;
 using Toolbox.Hubs;
 using Toolbox.Services;
@@ -15,16 +15,22 @@ namespace Toolbox
 {
     public class Startup
     {
+        public IConfiguration Configuration { get; }
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        public IConfiguration Configuration { get; }
-
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // Intentionally *not* injecting scriptsettings from config because it wont respect reloadOnChange
+            //  Instead we'll just call Configuration.GetSection where needed because configuration is injected too..
+            //////services.Configure<ScriptSettings>(options => {
+            //////    options.Scripts = Configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
+            //////});
+
             //services.AddAuthentication(IISDefaults.AuthenticationScheme);
             services.AddRazorPages()
                     .AddRazorRuntimeCompilation();
@@ -60,6 +66,11 @@ namespace Toolbox
             app.UseAuthentication();
             app.UseAuthorization();
 
+            //app.UseSerilogRequestLogging(options =>
+            //{
+            //    options.EnrichDiagnosticContext = PushSeriLogProperties;
+            //});
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
@@ -68,6 +79,12 @@ namespace Toolbox
             });
 
             loggerFactory.AddSerilog();
+        }
+
+        public void PushSeriLogProperties(IDiagnosticContext diagnosticContext, HttpContext httpContext)
+        {
+            // TODO:  Why is this not working???
+            diagnosticContext.Set("UserName", httpContext.User.Identity.Name);
         }
     }
 }

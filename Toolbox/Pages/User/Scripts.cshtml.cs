@@ -13,39 +13,38 @@ namespace Toolbox.Pages.User
 {
     public class ScriptsModel : PageModel
     {
-        private ILogger<ScriptsModel> logger;
-        private IScriptService scriptService;
+        private readonly ILogger<ScriptsModel> Logger;
+        private readonly IScriptService ScriptService;
 
         public SelectList Categories { get; set; }
 
-
         public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IHubContext<PowerShellHub> hubContext)
         {
-            this.scriptService = scriptService;
-            this.logger = logger;
+            this.ScriptService = scriptService;
+            this.Logger = logger;
         }
 
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {
             try
             {
-                Categories = new SelectList(scriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
-                logger.Log(LogLevel.Information, "Got Categories", Categories);
+                Categories = new SelectList(ScriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
+                Logger.Log(LogLevel.Information, "Got Categories", Categories);
             }
             catch (Exception e)
             {
-                logger.Log(LogLevel.Debug, "Could not retrieve scripts");
+                Logger.Log(LogLevel.Error, e, "Could not retrieve scripts");
             }
         }
 
         public async Task<JsonResult> OnGetScripts(string categoryId)
         {
-            return new JsonResult(scriptService.GetScripts(categoryId));
+            return new JsonResult(ScriptService.GetScripts(categoryId));
         }
 
         public async Task<JsonResult> OnGetScript(string scriptId)
         {
-            return new JsonResult(scriptService.GetScript(scriptId));
+            return new JsonResult(ScriptService.GetScript(scriptId));
         }
 
     }

@@ -19,7 +19,7 @@ namespace Toolbox.Pages
 
         public void OnGet()
         {
-
+            // Method intentionally left empty.
         }
     }
 }

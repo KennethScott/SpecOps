@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.AspNetCore;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -27,8 +28,7 @@ namespace Toolbox
                         .ConfigureAppConfiguration(config =>
                         {
                             config
-                                // Used for local settings like connection strings.
-                                .AddJsonFile("appsettings.Local.json", optional: true);
+                                .AddJsonFile("scriptSettings.json", optional: false, reloadOnChange: true);
                         })
                         .UseSerilog((hostingContext, loggerConfiguration) => {
                             loggerConfiguration
