@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
-using Toolbox.Models;
+using SpecOps.Models;
 
-namespace Toolbox.Services
+namespace SpecOps.Services
 {
     public interface IScriptService
     {

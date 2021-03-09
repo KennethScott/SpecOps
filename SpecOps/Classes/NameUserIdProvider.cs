@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 
-namespace Toolbox.Classes
+namespace SpecOps.Classes
 {
     public class NameUserIdProvider : IUserIdProvider
     {

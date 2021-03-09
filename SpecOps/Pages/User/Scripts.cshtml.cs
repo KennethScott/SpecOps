@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Toolbox.Hubs;
-using Toolbox.Models;
-using Toolbox.Services;
+using SpecOps.Hubs;
+using SpecOps.Models;
+using SpecOps.Services;
 
-namespace Toolbox.Pages.User
+namespace SpecOps.Pages.User
 {
     public class ScriptsModel : PageModel
     {

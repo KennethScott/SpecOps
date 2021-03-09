@@ -7,10 +7,10 @@ using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading.Tasks;
-using Toolbox.Models;
-using Toolbox.Services;
+using SpecOps.Models;
+using SpecOps.Services;
 
-namespace Toolbox.Hubs
+namespace SpecOps.Hubs
 {
     /// <summary>
     /// Contains functionality for executing PowerShell scripts.

@@ -15,7 +15,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "Toolbox": {
+    "SpecOps": {
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {

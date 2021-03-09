@@ -5,9 +5,9 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Toolbox.Models;
+using SpecOps.Models;
 
-namespace Toolbox.Services
+namespace SpecOps.Services
 {
     //TODO: Leaving MemoryCache in case we want to cache the 
     public class ScriptService : IScriptService

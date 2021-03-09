@@ -2,7 +2,7 @@
 using System;
 using System.Diagnostics;
 
-namespace Toolbox.Hubs
+namespace SpecOps.Hubs
 {
     public class ProcessHub : Hub
     {

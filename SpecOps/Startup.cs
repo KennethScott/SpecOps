@@ -7,11 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Toolbox.Classes;
-using Toolbox.Hubs;
-using Toolbox.Services;
+using SpecOps.Classes;
+using SpecOps.Hubs;
+using SpecOps.Services;
 
-namespace Toolbox
+namespace SpecOps
 {
     public class Startup
     {

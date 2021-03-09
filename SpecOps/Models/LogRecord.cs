@@ -1,4 +1,4 @@
-﻿namespace Toolbox.Models
+﻿namespace SpecOps.Models
 {
     public class LogRecord
     {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Toolbox.Models
+namespace SpecOps.Models
 {
     public class Script
     {
