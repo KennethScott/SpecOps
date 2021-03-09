@@ -3,15 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpecOps", "SpecOps\SpecOps.csproj", "{A4986692-5D5A-4D13-A7BE-F89F81370C11}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpecOps", "SpecOps\SpecOps.csproj", "{A4986692-5D5A-4D13-A7BE-F89F81370C11}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{95C9931D-1490-45F2-89B4-DF00DD110CF4}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {7CA359DE-5918-411E-AC4C-39033638B6C9}
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x64 = Debug|x64
@@ -33,5 +35,11 @@ Global
 		{A4986692-5D5A-4D13-A7BE-F89F81370C11}.Release|x64.Build.0 = Release|Any CPU
 		{A4986692-5D5A-4D13-A7BE-F89F81370C11}.Release|x86.ActiveCfg = Release|Any CPU
 		{A4986692-5D5A-4D13-A7BE-F89F81370C11}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7CA359DE-5918-411E-AC4C-39033638B6C9}
 	EndGlobalSection
 EndGlobal
