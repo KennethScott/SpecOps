@@ -1,7 +1,7 @@
 # SpecOps
 ### Tactical Scripting
 
-SpecOps is a web-based application that allows you to centralize and host your PowerShell scripts for execution by non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  
+SpecOps is a .NET5 web-based application that allows you to centralize and host your PowerShell scripts for execution by non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  
 
 Scripts are added and configured dynamically through the **scriptsettings.json** configuration file.  The individual scripts are placed in separate files in the **Scripts** folder.  This allows scripts to be added and changed on the fly, as well as allows for the dynamic generation of a GUI for the users with support for all HTML5 input element types (i.e. text, date, number, etc.).  The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that validation is also possible by specifying HTML5-based attributes such as required, pattern, etc.
 
