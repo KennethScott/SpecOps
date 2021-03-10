@@ -4,7 +4,7 @@
       "CategoryId": "Teller",
       "Id": "7CF9D423-5CB7-432B-A3E9-618340ADF5A7",
       "PathAndFilename": "./Scripts/Demo.ps1",
-      "Name": "Test Script",
+      "Name": "Demo",
       "Summary": "This is a summary of what the test script does - blah blah blah",
       "RestrictedToAdGroups": "***REMOVED***",
       "InputParms": [

@@ -1,5 +1,7 @@
 ﻿    Param($StrParam, $IntParam)
 
+    Get-Host | Select-Object Version
+
     Write-Output "Message from inside the running script"
     Write-Output "This is the value from the first param: $StrParam"
     Write-Output "This is the value from the second param: $IntParam"

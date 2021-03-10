@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading.Tasks;
@@ -93,7 +92,8 @@ namespace SpecOps.Hubs
             {
                 var script = ScriptService.GetScript(scriptId);
 
-                Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run script.", script);
+                outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Loading script..."));
+                Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run {script.Name}");
 
                 string scriptContents = script.GetContents();
 
@@ -188,6 +188,7 @@ namespace SpecOps.Hubs
                         outputHandler(new LogRecord(DateTime.Now.ToString(), "Debug", currentStreamRecord.Message));
                     };
 
+                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Beginning script execution..."));
                     await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
 
                     //// execute the script and await the result.
@@ -210,6 +211,10 @@ namespace SpecOps.Hubs
             {
                 Logger.Log(LogLevel.Error, ex.Message);
                 outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", ex.Message));
+            }
+            finally
+            {
+                outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Script execution ended."));
             }
         }
     }
