@@ -99,13 +99,13 @@
     {
       "CategoryId": "Admin",
       "Id": "03EF6AD2-05F8-4807-B521-E71FEE6F1471",
-      "PathAndFilename": "./Scripts/SpecOps.SomeAdmin.Check.ps1",
+      "PathAndFilename": "./Scripts/Ping.ps1",
       "Name": "Teller Admin Check",
       "Summary": "This is a summary of what the teller admin check script does - blah blah blah",
       "RestrictedToAdGroups": "***REMOVED***",
       "InputParms": [
         {
-          "Name": "machine",
+          "Name": "someMachine",
           "Type": "time",
           "Description": "Input String Parameter1"
         }

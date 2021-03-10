@@ -208,7 +208,8 @@ namespace SpecOps.Hubs
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, "Failure loading or executing script", ex);
+                Logger.Log(LogLevel.Error, ex.Message);
+                outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", ex.Message));
             }
         }
     }
