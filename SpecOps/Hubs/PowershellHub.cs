@@ -92,7 +92,7 @@ namespace SpecOps.Hubs
             {
                 var script = ScriptService.GetScript(scriptId);
 
-                outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Loading script..."));
+                outputHandler(new OutputRecord(OutputLevel.System, "Loading script..."));
                 Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run {script.Name}");
 
                 string scriptContents = script.GetContents();
@@ -119,83 +119,31 @@ namespace SpecOps.Hubs
 
                     // Subscribe to events from output
                     var output = new PSDataCollection<PSObject>();
-
-                    output.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var objectsReceived = sender as PSDataCollection<PSObject>;
-                        var currentRecord = objectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Data", currentRecord.ToString()));
-                    };
+                    output.DataAdded += (object sender, DataAddedEventArgs e) => WriteOutput<PSObject>(sender, e, outputHandler);
 
                     // subscribe to events from some of the streams
 
                     /// Handles data-added events for the error stream.
                     /// Note: Uncaught terminating errors will stop the pipeline completely.
                     /// Non-terminating errors will be written to this stream and execution will continue.
-                    ps.Streams.Error.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<ErrorRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", currentStreamRecord.Exception.ToString()));
-                    };
-
-                    /// Handles data-added events for the warning stream.
-                    ps.Streams.Warning.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<WarningRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Warning", currentStreamRecord.Message));
-                    };
-
+                    ps.Streams.Error.DataAdded       += (object sender, DataAddedEventArgs e) => WriteOutput<ErrorRecord>(sender, e, outputHandler);
+                    ps.Streams.Warning.DataAdded     += (object sender, DataAddedEventArgs e) => WriteOutput<WarningRecord>(sender, e, outputHandler);
                     /// Handles data-added events for the information stream.
                     /// Note: Write-Host and Write-Information messages will end up in the information stream.
-                    ps.Streams.Information.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<InformationRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
+                    ps.Streams.Information.DataAdded += (object sender, DataAddedEventArgs e) => WriteOutput<InformationRecord>(sender, e, outputHandler);
+                    ps.Streams.Progress.DataAdded    += (object sender, DataAddedEventArgs e) => WriteOutput<ProgressRecord>(sender, e, outputHandler);
+                    ps.Streams.Verbose.DataAdded     += (object sender, DataAddedEventArgs e) => WriteOutput<VerboseRecord>(sender, e, outputHandler);
+                    ps.Streams.Debug.DataAdded       += (object sender, DataAddedEventArgs e) => WriteOutput<DebugRecord>(sender, e, outputHandler);
 
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Info", currentStreamRecord.MessageData.ToString()));
-                    };
+                    outputHandler(new OutputRecord(OutputLevel.System, "Beginning script execution..."));
 
-                    /// Handles data-added events for the progress stream.
-                    ps.Streams.Progress.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<ProgressRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Progress",
-                            $"{currentStreamRecord.Activity}... {currentStreamRecord.StatusDescription} {currentStreamRecord.PercentComplete}%"));
-                    };
-
-                    /// Handles data-added events for the verbose stream.
-                    ps.Streams.Verbose.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<VerboseRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Verbose", currentStreamRecord.Message));
-                    };
-
-                    /// Handles data-added events for the debug stream.
-                    ps.Streams.Debug.DataAdded += delegate (object sender, DataAddedEventArgs e)
-                    {
-                        var streamObjectsReceived = sender as PSDataCollection<DebugRecord>;
-                        var currentStreamRecord = streamObjectsReceived[e.Index];
-
-                        outputHandler(new LogRecord(DateTime.Now.ToString(), "Debug", currentStreamRecord.Message));
-                    };
-
-                    outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Beginning script execution..."));
                     await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
 
                     //// execute the script and await the result.
                     //var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
                     //foreach (var item in pipelineObjects)
                     //{
-                    //    outputHandler(item.BaseObject.ToString() + "\n");
+                    //    outputHandler(item.BaseObject.ToString());
                     //}
 
                     ////// Execute powershell command
@@ -210,12 +158,59 @@ namespace SpecOps.Hubs
             catch (Exception ex)
             {
                 Logger.Log(LogLevel.Error, ex.Message);
-                outputHandler(new LogRecord(DateTime.Now.ToString(), "Error", ex.Message));
+                outputHandler(new OutputRecord(OutputLevel.Error, ex.Message));
             }
             finally
             {
-                outputHandler(new LogRecord(DateTime.Now.ToString(), "Information", "Script execution ended."));
+                outputHandler(new OutputRecord(OutputLevel.System, "Script execution ended."));
             }
+        }
+
+        private void WriteOutput<T>(object sender, DataAddedEventArgs ea, Action<object> outputHandler)
+        {
+            var streamObjectsReceived = sender as PSDataCollection<T>;
+            var currentStreamRecord = streamObjectsReceived[ea.Index];
+            string data;
+            string type;
+
+            switch (currentStreamRecord)
+            {
+                case DebugRecord d:
+                    type = OutputLevel.Debug;
+                    data = d.Message;
+                    break;
+                case ErrorRecord e:
+                    type = OutputLevel.Error;
+                    data = e.Exception.ToString();
+                    break;
+                case InformationRecord i:
+                    type = OutputLevel.Info;
+                    data = i.MessageData.ToString();
+                    break;
+                case ProgressRecord p:
+                    type = OutputLevel.Progress;
+                    data = $"{p.Activity}... {p.StatusDescription} {p.PercentComplete}%";
+                    break;
+                case PSObject ps:
+                    type = OutputLevel.Data;
+                    data = currentStreamRecord.ToString();
+                    break;
+                case VerboseRecord v:
+                    type = OutputLevel.Verbose;
+                    data = v.Message;
+                    break;
+                case WarningRecord w:
+                    type = OutputLevel.Warning;
+                    data = w.Message;
+                    break;
+                default:
+                    type = OutputLevel.Unknown;
+                    data = currentStreamRecord.ToString();
+                    break;
+            }
+
+            outputHandler(new OutputRecord(type, data));
+
         }
     }
 }

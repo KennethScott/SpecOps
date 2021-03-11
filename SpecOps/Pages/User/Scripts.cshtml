@@ -96,7 +96,9 @@
                     </div>
                     <!-- /.card-body -->
                     <div class="card-footer">
-                        <button id="runScript" type="button" class="btn btn-primary"><i class="fas fa-code"></i> Run</button>
+                        <button id="runScript" type="button" class="btn btn-primary">
+                            <i class="fas fa-code"></i> Run
+                        </button>
                     </div>
                     <!-- /.card-footer -->
                 </form>
@@ -147,7 +149,7 @@
                 return !!x;
             }
 
-            // Grab route parameters (if exists)
+            // Grab route parameters (if exists) because we'll auto-select them
             var routeParms = $(location).attr('pathname').replace(/\/User\/Scripts\/?/i, '').split('/');
             var routeCategoryId = routeParms[0] ?? "";
             var routeScriptId = routeParms[1] ?? "";
@@ -160,8 +162,12 @@
                 "Info": "text-info",
                 "Progress": "text-success",
                 "Verbose": "text-teal",
-                "Debug": "text-primary"
+                "Debug": "text-primary",
+                "System": "text-info",
+                "Unknown": "text-warning"
             }
+
+            var connection;
 
             $(document).ready(function () {
                 // setup the output log tabale
@@ -185,38 +191,59 @@
                     "responsive": false,
                 }).buttons().container().appendTo('#log_wrapper .col-md-6:eq(0)');
 
+                //Disable run button until connection is established; dont show spinner
+                toggleRunScript(true, false);
+
+                // setup the hub connection
+                connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
+
+                // log the output records to the table as they come in
+                connection.on("OutputReceived", logRecord => {
+                    $('#log').DataTable().row.add([
+                        logRecord.timeStamp,
+                        logRecord.type,
+                        logRecord.data
+                    ]).draw(false).nodes().to$().addClass(dataTypeColors[logRecord.type]);
+
+                    if (logRecord.type == 'System' && logRecord.data == "Script execution ended.") {
+                        // script finished, so enable run button and hide spinner
+                        toggleRunScript(false, false);
+                    }
+                });
+
+                // enable the Run button once connected
+                connection.start().then(function () {
+                    // enable run button; dont show spinner
+                    toggleRunScript(false, false);
+                }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
+
                 // if categoryId route parm exists, auto-select it in the dropdown and clear the temp variable
                 if (hasValue(routeCategoryId)) {
                     $("#CategoryId").val(routeCategoryId).trigger('change');
                     routeCategoryId = "";
                 }
 
+                // setup validation
                 $('#dummyForm').validate();
 
+                // this displays the range value in the output element as the slider is moved
                 $('#dummyForm').on('input change', 'input[type="range"]', function () {
                     this.nextElementSibling.value = this.value;
                 });
             });
 
-            //Disable run button until connection is established
-            $('#runScript').prop('disabled', true);
+            /// disable (boolean)  Disable button
+            /// spin (boolean)  Invoke spinner
+            function toggleRunScript(disable, spin) {
 
-            // setup the hub connection
-            var connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
+                var $runScript = $('#runScript');
+                $runScript.prop('disabled', disable);
 
-            // log the output records to the table as they come in
-            connection.on("OutputReceived", logRecord => {
-                $('#log').DataTable().row.add([
-                    logRecord.timeStamp,
-                    logRecord.type,
-                    logRecord.data
-                ]).draw(false).nodes().to$().addClass(dataTypeColors[logRecord.type]);
-            });
+                var $icon = $runScript.children(":first");
+                if (spin) { $icon.addClass("spinner-border spinner-border-sm").removeClass("fas fa-code"); }
+                else      { $icon.removeClass("spinner-border spinner-border-sm").addClass("fas fa-code"); }
 
-            // enable the Run button once connected
-            connection.start().then(function () {
-                $('#runScript').prop('disabled', false);
-            }).catch(err => $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false));
+            }
 
             // Run the script
             $('#runScript').on("click", function () {
@@ -224,14 +251,23 @@
                 // if fields are valid, invoke the hub and run the script
                 if ($('#dummyForm').valid()) {
 
+                    // disable run button and show spinner
+                    toggleRunScript(true, true);
+
                     let parameters = {};
                     $('div.parameters input').each(function (i) {
                         parameters[this.id] = this.value;
                     });
 
-                    connection.invoke("StreamPowerShell", $('#ScriptId').val(), parameters).catch(function (err) {
-                        $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
-                    });
+                    connection
+                        .invoke("StreamPowerShell", $('#ScriptId').val(), parameters)
+                        .catch(function (err) {
+                            $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
+                            // enable run button and hide spinner
+                            toggleRunScript(false, false);
+                        }
+                    );
+
                     event.preventDefault();
                 }
                 else {
@@ -252,17 +288,18 @@
             // when category changes, clear fields and get list of scripts
             $("#CategoryId").on("change", function () {
                 let categoryId = $(this).val();
-                $("#ScriptId").empty().append("<option value=''>Select Script</option>");
+                $ScriptId = $("#ScriptId");
+                $ScriptId.empty().append("<option value=''>Select Script</option>");
                 clearScriptFields();
                 if (hasValue(categoryId)) {
                     $.getJSON(`?handler=Scripts&categoryId=${categoryId}`, (data) => {
                         $.each(data, function (i, item) {
-                            $("#ScriptId").append(`<option value="${item.id}">${item.name}</option>`);
+                            $ScriptId.append(`<option value="${item.id}">${item.name}</option>`);
                         });
                     }).done(function () {
                         // if scriptId route parm exists, auto-select it in the dropdown and clear the temp variable
                         if (hasValue(routeScriptId)) {
-                            $("#ScriptId").val(routeScriptId).trigger('change');
+                            $ScriptId.val(routeScriptId).trigger('change');
                             routeScriptId = "";
                         }
                     });
