@@ -5,12 +5,16 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using SpecOps.Hubs;
+using SpecOps.Classes;
 using SpecOps.Models;
 using SpecOps.Services;
+using System.DirectoryServices.AccountManagement;
+using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SpecOps.Pages.User
 {
+    [MultiplePolicyAuthorize("User,Admin")]
     public class ScriptsModel : PageModel
     {
         private readonly ILogger<ScriptsModel> Logger;
@@ -18,7 +22,7 @@ namespace SpecOps.Pages.User
 
         public SelectList Categories { get; set; }
 
-        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IHubContext<PowerShellHub> hubContext)
+        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
@@ -28,11 +32,12 @@ namespace SpecOps.Pages.User
         {
             try
             {
-                Categories = new SelectList(ScriptService.GetCategories(), nameof(Script.CategoryId), nameof(Script.CategoryId));
+                Categories = new SelectList(ScriptService.GetCategories());
                 Logger.Log(LogLevel.Information, "Got Categories", Categories);
             }
             catch (Exception e)
             {
+                // TODO: Notify User!
                 Logger.Log(LogLevel.Error, e, "Could not retrieve scripts");
             }
         }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.IISIntegration;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,8 @@ namespace SpecOps
             //////    options.Scripts = Configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
             //////});
 
-            //services.AddAuthentication(IISDefaults.AuthenticationScheme);
+            services.AddHttpContextAccessor();
+            services.AddAuthentication(IISDefaults.AuthenticationScheme);
             services.AddRazorPages()
                     .AddRazorRuntimeCompilation();
             services.AddSignalR();
@@ -39,6 +41,13 @@ namespace SpecOps
             services.AddScoped<IScriptService, ScriptService>();
             services.AddLogging();
             services.AddMemoryCache();
+
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("User", policy => policy.RequireRole("mydomain\\users"));
+                options.AddPolicy("Admin", policy => policy.RequireRole("mydomain\\admins"));
+            });
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -73,8 +82,8 @@ namespace SpecOps
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapRazorPages();
-                endpoints.MapHub<ProcessHub>("/stream");
+                // Require Authorization for all your Razor Pages
+                endpoints.MapRazorPages().RequireAuthorization();
                 endpoints.MapHub<PowerShellHub>("/streamPowerShell");
             });
 

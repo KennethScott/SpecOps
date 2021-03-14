@@ -6,43 +6,40 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SpecOps.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using System.Threading.Tasks;
 
 namespace SpecOps.Services
 {
     //TODO: Leaving MemoryCache in case we want to cache the 
     public class ScriptService : IScriptService
     {
-        private readonly IMemoryCache memoryCache;
         private readonly IConfiguration configuration;
+        private IHttpContextAccessor httpContextAccessor;
+        private IAuthorizationService authorizationService;
 
-        public ScriptService(IMemoryCache memoryCache, IConfiguration configuration)
+        public ScriptService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IAuthorizationService authorizationService)
         {
-            this.memoryCache = memoryCache;
             this.configuration = configuration;
+            this.httpContextAccessor = httpContextAccessor;
+            this.authorizationService = authorizationService;
         }
 
-        public IEnumerable<Script> GetCategories()
+        public IEnumerable<string> GetCategories()
         {
-            return GetScripts().GroupBy(s => s.CategoryId).Select(s => s.First());
+            IEnumerable<string> categories = GetScripts().GroupBy(s => s.CategoryId).Select(s => s.First().CategoryId);
+
+            if (!UserIsAdmin())
+            {
+                categories = categories.Where(s => !ScriptIsAdmin(s));
+            }
+
+            return categories;
         }
 
         public IEnumerable<Script> GetScripts()
         {
-            //string path = @"./Scripts.json";
-
-            //if (!memoryCache.TryGetValue(path, out IEnumerable<Script> scripts))
-            //{
-            //    string scriptsConfig = System.IO.File.ReadAllText(path);
-            //    scripts = JsonConvert.DeserializeObject<IEnumerable<Script>>(scriptsConfig);
-
-            //    var cacheExpiryOptions = new MemoryCacheEntryOptions
-            //    {
-            //        AbsoluteExpiration = DateTime.Now.AddMinutes(30),
-            //        Priority = CacheItemPriority.High
-            //    };
-            //    memoryCache.Set(path, scripts, cacheExpiryOptions);
-            //}
-
             return configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
         }
 
@@ -54,6 +51,15 @@ namespace SpecOps.Services
         public Script GetScript(string Id)
         {
             return GetScripts().FirstOrDefault(s => s.Id == Id);
+        }
+
+        private bool UserIsAdmin()
+        {
+            return authorizationService.AuthorizeAsync(httpContextAccessor.HttpContext.User, "Admin").Result.Succeeded;
+        }
+        private bool ScriptIsAdmin(string categoryId)
+        {
+            return categoryId.StartsWith("Admin");
         }
     }
 }
