@@ -14,7 +14,6 @@ namespace SpecOps.Hubs
     /// <summary>
     /// Contains functionality for executing PowerShell scripts.
     /// </summary>
-    [Authorize]
     public class PowerShellHub : Hub
     {
         private IScriptService ScriptService { get; set; }
