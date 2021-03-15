@@ -29,17 +29,18 @@ namespace SpecOps.Pages.User
             this.Logger = logger;
         }
 
+        // TODO: Figure out how to really make these async...
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {
             Categories = new SelectList(ScriptService.GetCategories());
         }
 
-        public async Task<JsonResult> OnGetScripts(string categoryId)
+        public async Task<JsonResult> OnGetScriptsAsync(string categoryId)
         {
             return new JsonResult(ScriptService.GetScripts(categoryId));
         }
 
-        public async Task<JsonResult> OnGetScript(string scriptId)
+        public async Task<JsonResult> OnGetScriptAsync(string scriptId)
         {
             return new JsonResult(ScriptService.GetScript(scriptId));
         }
