@@ -15,6 +15,7 @@ using System.Linq;
 using SpecOps.Models;
 using SpecOps.Services;
 using System;
+using SpecOps.Middleware;
 
 namespace SpecOps
 {
@@ -104,6 +105,8 @@ namespace SpecOps
             });
 
             loggerFactory.AddSerilog();
+
+            app.UseErrorLogging();
         }
 
         public void PushSeriLogProperties(IDiagnosticContext diagnosticContext, HttpContext httpContext)

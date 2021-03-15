@@ -31,16 +31,7 @@ namespace SpecOps.Pages.User
 
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {
-            try
-            {
-                Categories = new SelectList(ScriptService.GetCategories());
-                Logger.Log(LogLevel.Information, "Got Categories", Categories);
-            }
-            catch (Exception e)
-            {
-                // TODO: Notify User!
-                Logger.Log(LogLevel.Error, e, "Could not retrieve scripts");
-            }
+            Categories = new SelectList(ScriptService.GetCategories());
         }
 
         public async Task<JsonResult> OnGetScripts(string categoryId)

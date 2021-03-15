@@ -156,7 +156,7 @@ namespace SpecOps.Hubs
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, ex.Message);
+                Logger.Log(LogLevel.Error, ex, ex.Message);
                 outputHandler(new OutputRecord(OutputLevel.Error, ex.Message));
             }
             finally
