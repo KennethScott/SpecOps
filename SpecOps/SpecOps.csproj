@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Folder Include="Pages\Admin\" />
+    <Content Include="Scripts\**\*" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
