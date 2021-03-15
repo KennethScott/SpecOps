@@ -14,7 +14,8 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SpecOps.Pages.User
 {
-    [MultiplePolicyAuthorize("User,Admin")]
+    // Unnecessary now that we'll restrict the entire site to members of our groups
+    //[AuthorizeOr(new[] { SecurityPolicy.User, SecurityPolicy.Admin })]
     public class ScriptsModel : PageModel
     {
         private readonly ILogger<ScriptsModel> Logger;

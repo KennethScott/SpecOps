@@ -6,7 +6,6 @@
       "PathAndFilename": "./Scripts/Demo.ps1",
       "Name": "Demo",
       "Summary": "This is a summary of what the test script does - blah blah blah",
-      "RestrictedToAdGroups": "***REMOVED***",
       "InputParms": [
         {
           "Name": "StrParam",
@@ -33,26 +32,6 @@
           "Name": "DateTimeParam",
           "Type": "datetime-local",
           "Description": "Input DateTime Parameter"
-        },
-        {
-          "Name": "TelephoneParam",
-          "Type": "tel",
-          "Description": "Input Telephone Parameter"
-        },
-        {
-          "Name": "MonthParam",
-          "Type": "month",
-          "Description": "Input Month Parameter"
-        },
-        {
-          "Name": "WeekParam",
-          "Type": "week",
-          "Description": "Input Week Parameter"
-        },
-        {
-          "Name": "UrlParam",
-          "Type": "url",
-          "Description": "Input URL Parameter"
         },
         {
           "Name": "RangeParam",
@@ -87,7 +66,6 @@
       "PathAndFilename": "./Scripts/SpecOps.TellerSlowness.Check.ps1",
       "Name": "Teller Slowness Check",
       "Summary": "This is a summary of what the teller slowness check script does - blah blah blah",
-      "RestrictedToAdGroups": "***REMOVED***",
       "InputParms": [
         {
           "Name": "machine",
@@ -102,7 +80,6 @@
       "PathAndFilename": "./Scripts/Ping.ps1",
       "Name": "Teller Admin Check",
       "Summary": "This is a summary of what the teller admin check script does - blah blah blah",
-      "RestrictedToAdGroups": "***REMOVED***",
       "InputParms": [
         {
           "Name": "someMachine",

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -10,7 +11,10 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using SpecOps.Classes;
 using SpecOps.Hubs;
+using System.Linq;
+using SpecOps.Models;
 using SpecOps.Services;
+using System;
 
 namespace SpecOps
 {
@@ -42,10 +46,22 @@ namespace SpecOps
             services.AddLogging();
             services.AddMemoryCache();
 
+            // Changes to these settings require the app to be restarted so the policies can be reset
+            var userGroups = Configuration.GetSection("AppSettings:UserGroups").Get<string[]>();
+            var adminGroups = Configuration.GetSection("AppSettings:AdminGroups").Get<string[]>();
+            // combine all the groups and use that to restrict the entire site via the default policy
+            var allGroups = userGroups.Union(adminGroups);
+            
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("User", policy => policy.RequireRole("mydomain\\users"));
-                options.AddPolicy("Admin", policy => policy.RequireRole("mydomain\\admins"));
+                // the User and Admin policies will dictate which scripts a user is allowed to run (and potentially control access to certain pages)
+                options.AddPolicy(SecurityPolicy.User, policy => policy.RequireRole(userGroups));
+                options.AddPolicy(SecurityPolicy.Admin, policy => policy.RequireRole(adminGroups));
+
+                // Configure the default policy so that only members of defined groups can access this site
+                options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                    .RequireRole(allGroups)
+                    .Build();
             });
 
         }
@@ -84,7 +100,7 @@ namespace SpecOps
             {
                 // Require Authorization for all your Razor Pages
                 endpoints.MapRazorPages().RequireAuthorization();
-                endpoints.MapHub<PowerShellHub>("/streamPowerShell");
+                endpoints.MapHub<PowerShellHub>("/streamPowerShell").RequireAuthorization();
             });
 
             loggerFactory.AddSerilog();
