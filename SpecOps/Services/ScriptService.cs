@@ -32,14 +32,16 @@ namespace SpecOps.Services
         /// <returns>List of CategoryIds</returns>
         public IEnumerable<string> GetCategories()
         {
-            IEnumerable<string> categories = GetScripts().GroupBy(s => s.CategoryId).Select(s => s.First().CategoryId);
+            IEnumerable<string> categories = GetScripts()
+                                                .GroupBy(s => s.CategoryId)
+                                                .Select(s => s.First().CategoryId);
 
             if (!UserIsAdmin())
             {
                 categories = categories.Where(s => !ScriptIsAdmin(s));
             }
 
-            return categories;
+            return categories.OrderBy(s => s);
         }
 
         /// <summary>
@@ -59,7 +61,10 @@ namespace SpecOps.Services
         /// <returns>List of Scripts in the desired Category</returns>
         public IEnumerable<Script> GetScripts(string category)
         {
-            return GetScripts().Where(s => s.CategoryId == category).Select(s => s);
+            return GetScripts()
+                    .Where(s => s.CategoryId == category)
+                    .Select(s => s)
+                    .OrderBy(s => s.Name);
         }
 
         /// <summary>
