@@ -170,6 +170,16 @@
             var connection;
 
             $(document).ready(function () {
+
+                // if the user presses Enter in a form control, don't submit the form (postback) but rather click the Run button
+                $('form').keydown(function (event) {
+                    if (event.keyCode == 13) {
+                        event.preventDefault();
+                        $('#runScript').click();
+                        return false;
+                    }
+                });
+
                 // setup the output log tabale
                 $('#log').DataTable({
                     "buttons": [
