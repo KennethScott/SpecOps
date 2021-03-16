@@ -46,7 +46,7 @@
         <!-- Main Sidebar Container -->
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
-            <a href="/" class="brand-link">
+            <a asp-area="" asp-page="/Index" class="brand-link">
                 <img src="@Url.Content("~/dist/img/AdminLTELogo.png")" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
                 <span class="brand-text font-weight-light">SpecOps</span>
             </a>
@@ -70,8 +70,8 @@
                         <!-- Add icons to the links using the .nav-icon class
                         with font-awesome or any other icon font library -->
                         <li class="nav-item">
-                            <!-- Intentionally not using asp-page helper here as it gets confused when route parameters are used  -->
-                            <a class="nav-link" href="/User/Scripts">
+                            <!-- Intentionally use href so link doesnt include route parms when on the page.. asp-page and empty asp-route-id SHOULD have worked..  -->
+                            <a class="nav-link" href="@Context.Request.PathBase.Value/User/Scripts">
                                 <i class="nav-icon fas fa-th"></i>
                                 <p>
                                     Script Runner
