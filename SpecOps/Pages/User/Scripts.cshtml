@@ -1,6 +1,7 @@
 ﻿@page "{rpCategoryId?}/{rpScriptId?}"
 @model SpecOps.Pages.User.ScriptsModel
 @{
+    ViewData["Title"] = "Script Runner";
 }
 
 @section head {
@@ -25,17 +26,17 @@
             padding: .6rem;
         }
 
-        .logTable th {
-            text-align: left;
-            padding: .75rem .75rem .75rem .25rem;
-            font-weight: bold;
-        }
+            .logTable th {
+                text-align: left;
+                padding: .75rem .75rem .75rem .25rem;
+                font-weight: bold;
+            }
 
-        .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) { width: 8rem; white-space: nowrap; }
-        .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) { width: 3rem; }
-        .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) { width: 100vw; }
+            .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) { width: 8rem; white-space: nowrap; }
+            .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) { width: 3rem; }
+            .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) { width: 100vw; }
 
-        .logTable td { border: 0; padding: .1rem .25rem; }
+            .logTable td { border: 0; padding: .1rem .25rem; }
     </style>
 }
 
@@ -150,9 +151,8 @@
             }
 
             // Grab route parameters (if exists) because we'll auto-select them
-            var routeParms = $(location).attr('pathname').replace(/\/User\/Scripts\/?/i, '').split('/');
-            var routeCategoryId = routeParms[0] ?? "";
-            var routeScriptId = routeParms[1] ?? "";
+            var routeCategoryId = "@HttpContext.Request.RouteValues["rpCategoryId"]" ?? "";
+            var routeScriptId = "@HttpContext.Request.RouteValues["rpScriptId"]" ?? "";
 
             // Mapping of output log record type to css class for coloring
             var dataTypeColors = {
@@ -204,8 +204,9 @@
                 //Disable run button until connection is established; dont show spinner
                 toggleRunScript(true, false);
 
+                // dynamically get the hubUrl by including the site's appname if exists, as site could be running from root or as an app.
                 // setup the hub connection
-                connection = new signalR.HubConnectionBuilder().withUrl("/streamPowerShell").build();
+                connection = new signalR.HubConnectionBuilder().withUrl("@HttpContext.Request.PathBase.Value" + "/streamPowerShell").build();
 
                 // log the output records to the table as they come in
                 connection.on("OutputReceived", logRecord => {
@@ -276,7 +277,7 @@
                             // enable run button and hide spinner
                             toggleRunScript(false, false);
                         }
-                    );
+                        );
 
                     event.preventDefault();
                 }
@@ -326,22 +327,22 @@
                         $('#scriptSummary').val(data.summary);
                         $.each(data.inputParms, function (i, parm) {
                             $('div.parameters').append(`<div class="form-group row">
-                                                                <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
-                                                                <div class="col-md-8">
-                                                                    <input type="${parm.type}" class="form-control ${parm.list ? "custom-select" : ""}" 
-                                                                        id="${parm.name}" name="${parm.name}" placeholder="${parm.description}"
-                                                                        ${parm.required ? "required" : ""}
-                                                                        ${parm.list ? "list='" + parm.name + "List'" : ""}
-                                                                        ${parm.min ? "min='" + parm.min + "'" : ""}
-                                                                        ${parm.max ? "max='" + parm.max + "'" : ""}
-                                                                        ${parm.step ? "step='" + parm.step + "'" : ""}
-                                                                        ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}> 
-                                                                        ${parm.list ? "<datalist id='" + parm.name + "List'>" +
-                                                                                         "<option value='" + parm.list.split(',').join("'></option><option value='") + "'></option>" +
-                                                                                      "</datalist>" : ""}
-                                                                        ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
-                                                                </div>
-                                                            </div>`);
+                                                                    <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
+                                                                    <div class="col-md-8">
+                                                                        <input type="${parm.type}" class="form-control ${parm.list ? "custom-select" : ""}"
+                                                                            id="${parm.name}" name="${parm.name}" placeholder="${parm.description}"
+                                                                            ${parm.required ? "required" : ""}
+                                                                            ${parm.list ? "list='" + parm.name + "List'" : ""}
+                                                                            ${parm.min ? "min='" + parm.min + "'" : ""}
+                                                                            ${parm.max ? "max='" + parm.max + "'" : ""}
+                                                                            ${parm.step ? "step='" + parm.step + "'" : ""}
+                                                                            ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}>
+                                                                            ${parm.list ? "<datalist id='" + parm.name + "List'>" +
+                                    "<option value='" + parm.list.split(',').join("'></option><option value='") + "'></option>" +
+                                    "</datalist>" : ""}
+                                                                            ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
+                                                                    </div>
+                                                                </div>`);
                         });
                     });
                 }
