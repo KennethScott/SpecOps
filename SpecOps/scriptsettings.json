@@ -1,11 +1,11 @@
 {
   "ScriptSettings": [
     {
-      "CategoryId": "Teller",
+      "CategoryId": "Testing",
       "Id": "7CF9D423-5CB7-432B-A3E9-618340ADF5A7",
       "PathAndFilename": "./Scripts/Demo.ps1",
       "Name": "Demo",
-      "Summary": "This is a summary of what the test script does - blah blah blah",
+      "Summary": "This is a summary of what the demo script does - blah blah blah",
       "InputParms": [
         {
           "Name": "StrParam",
@@ -61,14 +61,14 @@
       ]
     },
     {
-      "CategoryId": "Teller",
+      "CategoryId": "Testing",
       "Id": "4DADFEF2-F021-4220-8D21-A056B7AE0DE8",
-      "PathAndFilename": "./Scripts/SpecOps.TellerSlowness.Check.ps1",
-      "Name": "Teller Slowness Check",
-      "Summary": "This is a summary of what the teller slowness check script does - blah blah blah",
+      "PathAndFilename": "./Scripts/Demo.ps1",
+      "Name": "Another Demo",
+      "Summary": "This is a summary of what the another demo script does - blah blah blah",
       "InputParms": [
         {
-          "Name": "machine",
+          "Name": "StrParam",
           "Type": "text",
           "Description": "Input String Parameter1"
         }
@@ -77,13 +77,13 @@
     {
       "CategoryId": "Admin",
       "Id": "03EF6AD2-05F8-4807-B521-E71FEE6F1471",
-      "PathAndFilename": "./Scripts/Ping.ps1",
-      "Name": "Teller Admin Check",
-      "Summary": "This is a summary of what the teller admin check script does - blah blah blah",
+      "PathAndFilename": "./Scripts/Demo.ps1",
+      "Name": "Demo for Admin",
+      "Summary": "This is a summary of what the demo for admin script does - blah blah blah",
       "InputParms": [
         {
-          "Name": "someMachine",
-          "Type": "time",
+          "Name": "StrParam",
+          "Type": "text",
           "Description": "Input String Parameter1"
         }
       ]
