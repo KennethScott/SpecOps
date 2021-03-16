@@ -50,8 +50,18 @@ namespace SpecOps
             // Changes to these settings require the app to be restarted so the policies can be reset
             var userGroups = Configuration.GetSection("AppSettings:UserGroups").Get<string[]>();
             var adminGroups = Configuration.GetSection("AppSettings:AdminGroups").Get<string[]>();
-            // combine all the groups and use that to restrict the entire site via the default policy
-            var allGroups = userGroups.Union(adminGroups);
+
+            var allGroups = Enumerable.Empty<string>();
+
+            try
+            {
+                // combine all the groups and use that to restrict the entire site via the default policy
+                allGroups = userGroups.Union(adminGroups);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Must specify at least one value for UserGroups and one value for AdminGroups.", ex.InnerException);
+            }
             
             services.AddAuthorization(options =>
             {
