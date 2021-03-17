@@ -20,23 +20,20 @@
             display: block;
             line-height: initial;
             font-family: var(--font-family-monospace);
-            font-size: .8rem;
+            font-size: .9rem;
             color: var(--white);
             min-height: 30rem;
             padding: .6rem;
+            table-layout: fixed;
         }
 
-            .logTable th {
-                text-align: left;
-                padding: .75rem .75rem .75rem .25rem;
-                font-weight: bold;
-            }
+        .logTable th { text-align: left; padding: .75rem .75rem .75rem .25rem; font-weight: bold; }
 
-            .logTable th:nth-of-type(1), .logTable td:nth-of-type(1) { width: 8rem; white-space: nowrap; }
-            .logTable th:nth-of-type(2), .logTable td:nth-of-type(2) { width: 3rem; }
-            .logTable th:nth-of-type(3), .logTable td:nth-of-type(3) { width: 100vw; }
+        .logTable col:nth-of-type(1), .logTable td:nth-of-type(1) { width: 190px; white-space: nowrap; }
+        .logTable col:nth-of-type(2) { width: 85px; }
+        .logTable col:nth-of-type(3) { width: 100vw; }
 
-            .logTable td { border: 0; padding: .1rem .25rem; }
+        .logTable td { border: 0; padding: .1rem .25rem; }
     </style>
 }
 
@@ -112,6 +109,11 @@
             <div class="card card-secondary">
                 <div class="card-body">
                     <table id="log" class="logTable table table-dark table-borderless">
+                        <colgroup>
+                            <col>
+                            <col>
+                            <col>
+                        </colgroup>
                         <thead><tr><th>TimeStamp</th><th>Type</th><th>Data</th></tr></thead>
                         <tbody></tbody>
                     </table>
