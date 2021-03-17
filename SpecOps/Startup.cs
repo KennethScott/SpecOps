@@ -42,7 +42,6 @@ namespace SpecOps
             services.AddRazorPages()
                     .AddRazorRuntimeCompilation();
             services.AddSignalR();
-            services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
             services.AddScoped<IScriptService, ScriptService>();
             services.AddLogging();
             services.AddMemoryCache();
@@ -60,7 +59,7 @@ namespace SpecOps
             }
             catch (Exception ex)
             {
-                throw new Exception("Must specify at least one value for UserGroups and one value for AdminGroups.", ex.InnerException);
+                throw new ApplicationException("Must specify at least one value for UserGroups and one value for AdminGroups.", ex.InnerException);
             }
             
             services.AddAuthorization(options =>

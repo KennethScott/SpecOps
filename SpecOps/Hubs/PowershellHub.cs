@@ -33,11 +33,9 @@ namespace SpecOps.Hubs
 
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
         {
-            var user = Context.User.Identity.Name;
-
             await StreamPowerShell(scriptId, scriptParameters, o =>
             {
-                PowerShellHubContext.Clients.User(user).SendAsync("OutputReceived", o);
+                PowerShellHubContext.Clients.Client(Context.ConnectionId).SendAsync("OutputReceived", o);
             });
         }
 
