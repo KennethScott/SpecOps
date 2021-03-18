@@ -156,18 +156,8 @@
             var routeCategoryId = "@HttpContext.Request.RouteValues["rpCategoryId"]" ?? "";
             var routeScriptId = "@HttpContext.Request.RouteValues["rpScriptId"]" ?? "";
 
-            // Mapping of output log record type to css class for coloring
-            var dataTypeColors = {
-                "Data": "text-info",
-                "Error": "text-danger",
-                "Warning": "text-warning",
-                "Info": "text-light",
-                "Progress": "text-success",
-                "Verbose": "text-teal",
-                "Debug": "text-primary",
-                "System": "text-info",
-                "Unknown": "text-warning"
-            }
+            // Mapping of output log record type to css class for coloring comes from appsettings
+            var dataTypeColors = @Html.Raw(Model.OutputLevelStyles);
 
             var connection;
 

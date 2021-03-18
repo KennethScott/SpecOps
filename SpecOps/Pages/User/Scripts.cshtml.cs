@@ -11,6 +11,8 @@ using SpecOps.Services;
 using System.DirectoryServices.AccountManagement;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 namespace SpecOps.Pages.User
 {
@@ -20,18 +22,24 @@ namespace SpecOps.Pages.User
     {
         private readonly ILogger<ScriptsModel> Logger;
         private readonly IScriptService ScriptService;
+        private readonly IConfiguration Configuration;
 
         public SelectList Categories { get; set; }
+        public string OutputLevelStyles { get; set; }
 
-        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger)
+        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IConfiguration configuration)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
+            this.Configuration = configuration;
         }
 
         // TODO: Figure out how to really make these async...
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {
+            var styles = Configuration.GetSection("AppSettings:OutputStyles").Get<OutputLevelStyles>();
+            OutputLevelStyles = JsonSerializer.Serialize(styles);
+
             Categories = new SelectList(ScriptService.GetCategories());
         }
 
