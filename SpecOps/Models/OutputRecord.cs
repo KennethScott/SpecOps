@@ -8,11 +8,8 @@ namespace SpecOps.Models
         public string Type { get; set; }
         public string Data { get; set; }
 
-        public OutputRecord(string Type, string Data)
+        public OutputRecord(string Type, string Data) : this(DateTime.Now.ToString(), Type, Data)
         {
-            this.TimeStamp = DateTime.Now.ToString();
-            this.Type = Type;
-            this.Data = Data;
         }
 
         public OutputRecord(string TimeStamp, string Type, string Data)
