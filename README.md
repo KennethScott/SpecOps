@@ -22,13 +22,18 @@ Scripts are configured in **scriptsettings.json**.
 * **Required** with a value of **true** causes the parameter to be required
 * **Pattern** is used to apply a regex pattern for validation
 
-Writing to the different output types in the PowerShell script code will trigger different colors in the output log.
-* Write-Output
-* Write-Host
-* Write-Information
-* Write-Warning
-* Write-Debug
-* Write-Verbose
-* Write-Progress
+Writing to the different output types in the PowerShell script code will trigger different output types in the output log, and those are mapped to different Bootstrap color classes.
+
+| PowerShell Write            | Output Type |
+| :---                        | :---        |
+| Write-Output                | Data        |
+| Write-Host                  | Info        |
+| Write-Information           | Info        |
+| Write-Warning               | Warning     |
+| Write-Debug                 | Debug       |
+| Write-Verbose               | Verbose     |
+| Write-Progress              | Progress    |
+| Write-Error (or Exceptions) | Error     |
+
 
 _Please note this application is still considered **beta**._
