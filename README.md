@@ -33,7 +33,7 @@ Writing to the different output types in the PowerShell script code will trigger
 | Write-Debug                 | Debug       |
 | Write-Verbose               | Verbose     |
 | Write-Progress              | Progress    |
-| Write-Error (or Exceptions) | Error     |
+| Write-Error (or Exceptions) | Error       |
 
 
 _Please note this application is still considered **beta**._
