@@ -72,7 +72,15 @@
           "Type": "text",
           "Description": "Input String Parameter1"
         }
-      ]
+      ],
+      "Runspace": {
+        "ExecutionPolicy":  "Unrestricted",
+        "Min": 1,
+        "Max": 2,
+        "Modules": [
+          "PSDiagnostics"
+        ]
+      }
     },
     {
       "CategoryId": "Admin",

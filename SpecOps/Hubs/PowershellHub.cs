@@ -8,27 +8,31 @@ using System.Management.Automation.Runspaces;
 using System.Threading.Tasks;
 using SpecOps.Models;
 using SpecOps.Services;
+using Microsoft.Extensions.Configuration;
+using SpecOps.Classes;
 
 namespace SpecOps.Hubs
 {
     /// <summary>
     /// Contains functionality for executing PowerShell scripts.
+    /// *Much of the logic for executing PowerShell scripts was taken from Keith Babinec's work here:
+    /// https://github.com/keithbabinec/PowerShellHostedRunspaceStarterkits
     /// </summary>
     public class PowerShellHub : Hub
     {
         private IScriptService ScriptService { get; set; }
-
+        private readonly IConfiguration Configuration;
         private readonly ILogger<PowerShellHub> Logger;
+        private IHubContext<PowerShellHub> PowerShellHubContext { get; }
 
         private RunspacePool RsPool { get; set; }
 
-        private IHubContext<PowerShellHub> PowerShellHubContext { get; }
-
-        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext, IConfiguration configuration)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
             this.PowerShellHubContext = powerShellHubContext;
+            this.Configuration = configuration;
         }
 
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
@@ -42,38 +46,33 @@ namespace SpecOps.Hubs
         /// <summary>
         /// Initialize the runspace pool.
         /// </summary>
-        /// <param name="minRunspaces">Minimum number of runspaces to initialize</param>
-        /// <param name="maxRunspaces">Maximum number of runspaces to initialize</param>
-        /// <param name="modulesToLoad">Array of powershell modules to load</param>
-        public void InitializeRunspaces(int minRunspaces, int maxRunspaces, string[] modulesToLoad)
+        /// <param name="runspace">Contains runspace config parameters necessary for the script</param>
+        public void InitializeRunspaces(ScriptRunspace runspace)
         {
             // create the default session state.
             // session state can be used to set things like execution policy, language constraints, etc.
-            // optionally load any modules (by name) that were supplied.
-
             var defaultSessionState = InitialSessionState.CreateDefault();
-            defaultSessionState.ExecutionPolicy = Microsoft.PowerShell.ExecutionPolicy.Unrestricted;
+            if (!String.IsNullOrEmpty(runspace.ExecutionPolicy))
+            {
+                defaultSessionState.ExecutionPolicy = runspace.ExecutionPolicy.ToEnum<Microsoft.PowerShell.ExecutionPolicy>(); 
+            }         
 
-            foreach (var moduleName in modulesToLoad)
+            // optionally load any modules (by name) that were supplied.
+            foreach (var moduleName in runspace.Modules)
             {
                 defaultSessionState.ImportPSModule(moduleName);
             }
 
-            // use the runspace factory to create a pool of runspaces
-            // with a minimum and maximum number of runspaces to maintain.
-
+            // use the runspace factory to create a pool of runspaces with a minimum and maximum number of runspaces to maintain.
             RsPool = RunspaceFactory.CreateRunspacePool(defaultSessionState);
-            RsPool.SetMinRunspaces(minRunspaces);
-            RsPool.SetMaxRunspaces(maxRunspaces);
+            RsPool.SetMinRunspaces(runspace.Min);
+            RsPool.SetMaxRunspaces(runspace.Max);
 
             // set the pool options for thread use.
             // we can throw away or re-use the threads depending on the usage scenario.
-
             RsPool.ThreadOptions = PSThreadOptions.UseNewThread;
 
-            // open the pool. 
-            // this will start by initializing the minimum number of runspaces.
-
+            // open the pool. this will start by initializing the minimum number of runspaces.
             RsPool.Open();
         }
 
@@ -94,19 +93,21 @@ namespace SpecOps.Hubs
 
                 string scriptContents = script.GetContents();
 
-                //if (RsPool == null)
-                //{
-                //    InitializeRunspaces(2, 10, Array.Empty<string>());
-                //    //throw new ApplicationException("Runspace Pool must be initialized before calling RunScript().");
-                //}
+                // Setup a custom runspace pool if configured on the script
+                if (script.Runspace != null)
+                {
+                    InitializeRunspaces(script.Runspace);
+                }
 
-                // create a new hosted PowerShell instance using a custom runspace.
+                // create a new hosted PowerShell instance potentially with a custom runspace.
                 // wrap in a using statement to ensure resources are cleaned up.
-
                 using (PowerShell ps = PowerShell.Create())
                 {
-                    // use the runspace pool.
-                    //ps.RunspacePool = RsPool;
+                    // use the runspace pool, if it was created.
+                    if (RsPool != null)
+                    {
+                        ps.RunspacePool = RsPool;
+                    }
 
                     // specify the script code to run.
                     ps.AddScript(scriptContents);

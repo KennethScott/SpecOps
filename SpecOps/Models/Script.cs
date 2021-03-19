@@ -16,6 +16,7 @@ namespace SpecOps.Models
         public string Name { get; set; }        
         public string Summary { get; set; }
         public List<ScriptParameter> InputParms { get; set; }
+        public ScriptRunspace Runspace { get; set; }
 
         public string GetContents() 
         { 
