@@ -157,7 +157,7 @@
             var routeScriptId = "@HttpContext.Request.RouteValues["rpScriptId"]" ?? "";
 
             // Mapping of output log record type to css class for coloring comes from appsettings
-            var dataTypeColors = @Html.Raw(Model.OutputLevelSettings);
+            var dataTypes = @Html.Raw(Model.OutputLevels);
 
             var connection;
 
@@ -214,7 +214,9 @@
                         logRecord.timeStamp,
                         logRecord.type,
                         logRecord.data
-                    ]).draw(false).nodes().to$().addClass(dataTypeColors[logRecord.type]);
+                    ]).draw(false).nodes().to$().addClass(
+                        dataTypes.find((o) => { return o["Name"] === logRecord.type }).CssClass
+                    );
 
                     if (logRecord.type == 'System' && logRecord.data == "Script execution ended.") {
                         // script finished, so enable run button and hide spinner

@@ -86,7 +86,7 @@ namespace SpecOps.Hubs
             {
                 var script = ScriptService.GetScript(scriptId);
 
-                outputHandler(new OutputRecord(OutputLevel.System, "Loading script..."));
+                outputHandler(new OutputRecord(OutputLevelName.System, "Loading script..."));
                 Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run {script.Name}");
 
                 string scriptContents = script.GetContents();
@@ -131,7 +131,7 @@ namespace SpecOps.Hubs
                     ps.Streams.Verbose.DataAdded     += (object sender, DataAddedEventArgs e) => WriteOutput<VerboseRecord>(sender, e, outputHandler);
                     ps.Streams.Debug.DataAdded       += (object sender, DataAddedEventArgs e) => WriteOutput<DebugRecord>(sender, e, outputHandler);
 
-                    outputHandler(new OutputRecord(OutputLevel.System, "Beginning script execution..."));
+                    outputHandler(new OutputRecord(OutputLevelName.System, "Beginning script execution..."));
 
                     await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
 
@@ -154,11 +154,11 @@ namespace SpecOps.Hubs
             catch (Exception ex)
             {
                 Logger.Log(LogLevel.Error, ex, ex.Message);
-                outputHandler(new OutputRecord(OutputLevel.Error, ex.Message));
+                outputHandler(new OutputRecord(OutputLevelName.Error, ex.Message));
             }
             finally
             {
-                outputHandler(new OutputRecord(OutputLevel.System, "Script execution ended."));
+                outputHandler(new OutputRecord(OutputLevelName.System, "Script execution ended."));
             }
         }
 
@@ -167,40 +167,40 @@ namespace SpecOps.Hubs
             var streamObjectsReceived = sender as PSDataCollection<T>;
             var currentStreamRecord = streamObjectsReceived[ea.Index];
             string data;
-            string type;
+            OutputLevelName type;
 
             switch (currentStreamRecord)
             {
                 case DebugRecord d:
-                    type = OutputLevel.Debug;
+                    type = OutputLevelName.Debug;
                     data = d.Message;
                     break;
                 case ErrorRecord e:
-                    type = OutputLevel.Error;
+                    type = OutputLevelName.Error;
                     data = e.Exception.ToString();
                     break;
                 case InformationRecord i:
-                    type = OutputLevel.Info;
+                    type = OutputLevelName.Info;
                     data = i.MessageData.ToString();
                     break;
                 case ProgressRecord p:
-                    type = OutputLevel.Progress;
+                    type = OutputLevelName.Progress;
                     data = $"{p.Activity}... {p.StatusDescription} {p.PercentComplete}%";
                     break;
                 case PSObject ps:
-                    type = OutputLevel.Data;
+                    type = OutputLevelName.Data;
                     data = currentStreamRecord.ToString();
                     break;
                 case VerboseRecord v:
-                    type = OutputLevel.Verbose;
+                    type = OutputLevelName.Verbose;
                     data = v.Message;
                     break;
                 case WarningRecord w:
-                    type = OutputLevel.Warning;
+                    type = OutputLevelName.Warning;
                     data = w.Message;
                     break;
                 default:
-                    type = OutputLevel.Unknown;
+                    type = OutputLevelName.Unknown;
                     data = currentStreamRecord.ToString();
                     break;
             }

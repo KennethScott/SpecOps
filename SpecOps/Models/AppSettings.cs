@@ -9,7 +9,7 @@ namespace SpecOps.Models
     {
         public SecurityPolicySettings SecurityPolicies { get; set; }
 
-        public OutputLevelSettings OutputLevelStyles { get; set; }
+        public IEnumerable<OutputLevel> OutputLevels { get; set; }
 
     }
 }

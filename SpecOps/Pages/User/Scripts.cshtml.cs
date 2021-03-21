@@ -25,7 +25,7 @@ namespace SpecOps.Pages.User
         private readonly IScriptService ScriptService;
 
         public SelectList Categories { get; set; }
-        public string OutputLevelSettings { get; set; }
+        public string OutputLevels { get; set; }
 
         private readonly AppSettings appSettings;
 
@@ -39,7 +39,7 @@ namespace SpecOps.Pages.User
         // TODO: Figure out how to really make these async...
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
         {        
-            OutputLevelSettings = JsonSerializer.Serialize(appSettings.OutputLevelStyles);
+            OutputLevels = JsonSerializer.Serialize(appSettings.OutputLevels);
 
             Categories = new SelectList(ScriptService.GetCategories());
         }
