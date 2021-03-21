@@ -21,18 +21,16 @@ namespace SpecOps.Hubs
     public class PowerShellHub : Hub
     {
         private IScriptService ScriptService { get; set; }
-        private readonly IConfiguration Configuration;
         private readonly ILogger<PowerShellHub> Logger;
         private IHubContext<PowerShellHub> PowerShellHubContext { get; }
 
         private RunspacePool RsPool { get; set; }
 
-        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext, IConfiguration configuration)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
             this.PowerShellHubContext = powerShellHubContext;
-            this.Configuration = configuration;
         }
 
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)

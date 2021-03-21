@@ -20,7 +20,7 @@ namespace SpecOps.Models
     }
 
     // The purpose of this class is to act as a strongly-typed appsettings configuration object
-    public class OutputLevelStyles
+    public class OutputLevelSettings
     {
         public string Debug { get; set; }
         public string Error { get; set; }

@@ -16,6 +16,7 @@ using SpecOps.Models;
 using SpecOps.Services;
 using System;
 using SpecOps.Middleware;
+using System.Collections.Generic;
 
 namespace SpecOps
 {
@@ -31,12 +32,15 @@ namespace SpecOps
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            // Intentionally *not* injecting scriptsettings from config because it wont respect reloadOnChange
-            //  Instead we'll just call Configuration.GetSection where needed because configuration is injected too..
-            //////services.Configure<ScriptSettings>(options => {
-            //////    options.Scripts = Configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
-            //////});
+            // save off the appSettingsConfig temporarily so we can use it to set the policies down below
+            var appSettingsConfig = Configuration.GetSection(nameof(AppSettings));
+            services.Configure<AppSettings>(appSettingsConfig);
 
+            // Map the ScriptSettings section in the config specifically to the Scripts property on the class
+            services.Configure<ScriptSettings>(options => {
+                options.Scripts = Configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
+            });
+            
             services.AddHttpContextAccessor();
             services.AddAuthentication(IISDefaults.AuthenticationScheme);
             services.AddRazorPages()
@@ -46,16 +50,13 @@ namespace SpecOps
             services.AddLogging();
             services.AddMemoryCache();
 
-            // Changes to these settings require the app to be restarted so the policies can be reset
-            var userGroups = Configuration.GetSection("AppSettings:UserGroups").Get<string[]>();
-            var adminGroups = Configuration.GetSection("AppSettings:AdminGroups").Get<string[]>();
-
+            var securityPolicySettings = appSettingsConfig.Get<AppSettings>().SecurityPolicies;
             var allGroups = Enumerable.Empty<string>();
 
             try
             {
                 // combine all the groups and use that to restrict the entire site via the default policy
-                allGroups = userGroups.Union(adminGroups);
+                allGroups = securityPolicySettings.UserGroups.Union(securityPolicySettings.AdminGroups);
             }
             catch (Exception ex)
             {
@@ -64,9 +65,11 @@ namespace SpecOps
             
             services.AddAuthorization(options =>
             {
+                // Reminder: Changes to these settings require the app to be restarted so the policies can be reset
+
                 // the User and Admin policies will dictate which scripts a user is allowed to run (and potentially control access to certain pages)
-                options.AddPolicy(SecurityPolicy.User, policy => policy.RequireRole(userGroups));
-                options.AddPolicy(SecurityPolicy.Admin, policy => policy.RequireRole(adminGroups));
+                options.AddPolicy(SecurityPolicy.User, policy => policy.RequireRole(securityPolicySettings.UserGroups));
+                options.AddPolicy(SecurityPolicy.Admin, policy => policy.RequireRole(securityPolicySettings.AdminGroups));
 
                 // Configure the default policy so that only members of defined groups can access this site
                 options.DefaultPolicy = new AuthorizationPolicyBuilder()

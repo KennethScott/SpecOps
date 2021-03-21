@@ -157,7 +157,7 @@
             var routeScriptId = "@HttpContext.Request.RouteValues["rpScriptId"]" ?? "";
 
             // Mapping of output log record type to css class for coloring comes from appsettings
-            var dataTypeColors = @Html.Raw(Model.OutputLevelStyles);
+            var dataTypeColors = @Html.Raw(Model.OutputLevelSettings);
 
             var connection;
 

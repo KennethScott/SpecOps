@@ -14,13 +14,13 @@ namespace SpecOps.Services
 {
     public class ScriptService : IScriptService
     {
-        private readonly IConfiguration configuration;
+        private readonly ScriptSettings scriptSettings;
         private IHttpContextAccessor httpContextAccessor;
         private IAuthorizationService authorizationService;
 
-        public ScriptService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IAuthorizationService authorizationService)
+        public ScriptService(IOptionsSnapshot<ScriptSettings> scriptSettings, IHttpContextAccessor httpContextAccessor, IAuthorizationService authorizationService)
         {
-            this.configuration = configuration;
+            this.scriptSettings = scriptSettings.Value;
             this.httpContextAccessor = httpContextAccessor;
             this.authorizationService = authorizationService;
         }
@@ -51,7 +51,7 @@ namespace SpecOps.Services
         public IEnumerable<Script> GetScripts()
         {
             // Changes to the scriptsettings.json file are detected immediately
-            return configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
+            return scriptSettings.Scripts;
         }
 
         /// <summary>
