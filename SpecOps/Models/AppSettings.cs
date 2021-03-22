@@ -7,7 +7,7 @@ namespace SpecOps.Models
 {
     public class AppSettings
     {
-        public SecurityPolicySettings SecurityPolicies { get; set; }
+        public IEnumerable<SecurityPolicy> SecurityPolicies { get; set; }
 
         public IEnumerable<OutputLevel> OutputLevels { get; set; }
 

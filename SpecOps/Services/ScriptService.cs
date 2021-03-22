@@ -15,33 +15,28 @@ namespace SpecOps.Services
     public class ScriptService : IScriptService
     {
         private readonly ScriptSettings scriptSettings;
-        private IHttpContextAccessor httpContextAccessor;
-        private IAuthorizationService authorizationService;
+        private readonly AppSettings appSettings;
+        private readonly IHttpContextAccessor httpContextAccessor;
+        private readonly IAuthorizationService authorizationService;
+        private readonly IMemoryCache memoryCache;
 
-        public ScriptService(IOptionsSnapshot<ScriptSettings> scriptSettings, IHttpContextAccessor httpContextAccessor, IAuthorizationService authorizationService)
+        public ScriptService(IOptionsSnapshot<ScriptSettings> scriptSettings, IHttpContextAccessor httpContextAccessor, IAuthorizationService authorizationService,
+            IOptionsSnapshot<AppSettings> appSettings, IMemoryCache memoryCache)
         {
             this.scriptSettings = scriptSettings.Value;
+            this.appSettings = appSettings.Value;
             this.httpContextAccessor = httpContextAccessor;
             this.authorizationService = authorizationService;
+            this.memoryCache = memoryCache;
         }
 
         /// <summary>
-        /// Get list of Categories.  If user has Admin rights, they'll get all Categories.  If not, they'll get all Categories except 
-        ///  any that start with "Admin"
+        /// Get list of Categories that the user has access to
         /// </summary>
         /// <returns>List of CategoryIds</returns>
         public IEnumerable<string> GetCategories()
         {
-            IEnumerable<string> categories = GetScripts()
-                                                .GroupBy(s => s.CategoryId)
-                                                .Select(s => s.First().CategoryId);
-
-            if (!UserIsAdmin())
-            {
-                categories = categories.Where(s => !ScriptIsAdmin(s));
-            }
-
-            return categories.OrderBy(s => s);
+            return AuthorizedCategories().OrderBy(s => s);
         }
 
         /// <summary>
@@ -50,7 +45,6 @@ namespace SpecOps.Services
         /// <returns>List of Scripts</returns>
         public IEnumerable<Script> GetScripts()
         {
-            // Changes to the scriptsettings.json file are detected immediately
             return scriptSettings.Scripts;
         }
 
@@ -78,22 +72,35 @@ namespace SpecOps.Services
         }
 
         /// <summary>
-        /// Check if current user has Admin rights
+        /// Get list of categories the user has access to.  These categories are strictly those from the appsettings security policies - there may 
+        /// not actually be any scripts defined  in these categories in the scriptsettings file.
+        /// The generated list will be cached.
         /// </summary>
         /// <returns></returns>
-        private bool UserIsAdmin()
+        private IEnumerable<string> AuthorizedCategories()
         {
-            return authorizationService.AuthorizeAsync(httpContextAccessor.HttpContext.User, SecurityPolicy.Admin).Result.Succeeded;
+            string cacheKey = httpContextAccessor.HttpContext.User.Identity.Name + "|Categories";
+
+            if (!memoryCache.TryGetValue(cacheKey, out IEnumerable<string> authorizedCategories))
+            {
+                authorizedCategories = Enumerable.Empty<string>();
+
+                foreach (var p in appSettings.SecurityPolicies)
+                {
+                    if (authorizationService.AuthorizeAsync(httpContextAccessor.HttpContext.User, p.Name).Result.Succeeded)
+                        authorizedCategories = authorizedCategories.Union(p.CategoryIds);
+                }
+
+                var cacheExpiryOptions = new MemoryCacheEntryOptions
+                {                    
+                    AbsoluteExpiration = DateTime.Now.AddDays(1),
+                    Priority = CacheItemPriority.High
+                };
+                memoryCache.Set(cacheKey, authorizedCategories, cacheExpiryOptions);
+            }
+
+            return authorizedCategories;
         }
 
-        /// <summary>
-        /// Check if Category starts with Admin
-        /// </summary>
-        /// <param name="categoryId"></param>
-        /// <returns></returns>
-        private bool ScriptIsAdmin(string categoryId)
-        {
-            return categoryId.StartsWith(SecurityPolicy.Admin);
-        }
     }
 }

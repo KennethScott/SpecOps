@@ -51,26 +51,19 @@ namespace SpecOps
             services.AddMemoryCache();
 
             var securityPolicySettings = appSettingsConfig.Get<AppSettings>().SecurityPolicies;
-            var allGroups = Enumerable.Empty<string>();
 
-            try
-            {
-                // combine all the groups and use that to restrict the entire site via the default policy
-                allGroups = securityPolicySettings.UserGroups.Union(securityPolicySettings.AdminGroups);
-            }
-            catch (Exception ex)
-            {
-                throw new ApplicationException("Must specify at least one value for UserGroups and one value for AdminGroups.", ex.InnerException);
-            }
+            // combine all the groups and use that to restrict the entire site via the default policy
+            var allGroups = securityPolicySettings.SelectMany(p => p.Groups);
             
             services.AddAuthorization(options =>
             {
                 // Reminder: Changes to these settings require the app to be restarted so the policies can be reset
-
-                // the User and Admin policies will dictate which scripts a user is allowed to run (and potentially control access to certain pages)
-                options.AddPolicy(SecurityPolicy.User, policy => policy.RequireRole(securityPolicySettings.UserGroups));
-                options.AddPolicy(SecurityPolicy.Admin, policy => policy.RequireRole(securityPolicySettings.AdminGroups));
-
+                // Add policies that dictate which scripts a user is allowed to run
+                foreach (var p in securityPolicySettings)
+                {
+                    options.AddPolicy(p.Name, policy => policy.RequireRole(p.Groups));
+                }
+  
                 // Configure the default policy so that only members of defined groups can access this site
                 options.DefaultPolicy = new AuthorizationPolicyBuilder()
                     .RequireRole(allGroups)

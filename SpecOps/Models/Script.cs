@@ -4,9 +4,6 @@ namespace SpecOps.Models
 {
     public class Script
     {
-        /// <summary>
-        /// CategoryIds that start with "Admin" will be restricted to the Admin group
-        /// </summary>
         public string CategoryId { get; set; }
         /// <summary>
         /// Unique identifier for the script (generally a GUID)
