@@ -10,6 +10,22 @@
     <link rel="stylesheet" href="@Url.Content("~/plugins/datatables-responsive/css/responsive.bootstrap4.min.css")">
     <link rel="stylesheet" href="@Url.Content("~/plugins/datatables-buttons/css/buttons.bootstrap4.min.css")">
     <style>
+        /* Log table styles taken from https://windowsterminalthemes.dev/ theme Obsidian */
+        :root {
+            --log-foreground: #bbbbbb;   /*white*/
+            --log-background: #283033;   /*background*/
+        }
+        .so-data { color: #bbbbbb; }     /*white*/
+        .so-error { color: #ff5370; }    /*red*/
+        .so-warning { color: #fecd22; }  /*yellow*/
+        .so-info { color: #ffffff; }     /*brightWhite*/
+        .so-progress { color: #00bb00; } /*green*/
+        .so-verbose { color: #3a9bdb; }  /*blue*/
+        .so-debug { color: #55ffff; }    /*brightCyan*/
+        .so-system { color: #00bbbb; }   /*cyan*/
+        .so-unknown { color: #ffcb6b; }  /*yellow*/
+        /* ----------------------------------------------------------------------------- */
+
         .error { border-color: var(--danger);}
         label.error { color: var(--danger); }
 
@@ -21,7 +37,8 @@
             line-height: initial;
             font-family: var(--font-family-monospace);
             font-size: .9rem;
-            color: var(--white);
+            color: var(--log-foreground);
+            background-color: var(--log-background);
             min-height: 30rem;
             padding: .6rem;
             table-layout: fixed;
