@@ -10,6 +10,7 @@
         {
           "Name": "StrParam",
           "Type": "text",
+          "Placeholder": "Enter text..",
           "Description": "Input String Parameter",
           "Required": "true"
         },
@@ -50,7 +51,8 @@
         {
           "Name": "EmailParam",
           "Type": "email",
-          "Description": "Input Email Parameter"
+          "Description": "Input Email Parameter",
+          "Placeholder": "email@somewhere.com"
         },
         {
           "Name": "PatternParam",
@@ -70,7 +72,7 @@
         {
           "Name": "StrParam",
           "Type": "text",
-          "Description": "Input String Parameter1"
+          "Placeholder": "Input String Parameter1"
         }
       ],
       "Runspace": {

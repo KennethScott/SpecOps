@@ -71,7 +71,7 @@
 <div class="container-fluid">
     <div class="row">
         <!-- left column -->
-        <div class="col-md-6">
+        <div class="col-md-10">
             <!-- Horizontal Form -->
             <div class="card card-secondary">
                 <div class="card-header">
@@ -82,7 +82,7 @@
                     <div class="card-body scriptConfig">
                         <div class="form-group row">
                             <label for="CategoryId" class="col-md-2 col-form-label">Category</label>
-                            <div class="col-md-10">
+                            <div class="col-md-6">
                                 <select id="CategoryId" name="CategoryId" class="custom-select" asp-items="Model.Categories" required>
                                     <option value="">Select Category</option>
                                 </select>
@@ -90,7 +90,7 @@
                         </div>
                         <div class="form-group row">
                             <label for="ScriptId" class="col-md-2 col-form-label">Script</label>
-                            <div class="col-md-10">
+                            <div class="col-md-6">
                                 <select id="ScriptId" name="ScriptId" class="custom-select" required>
                                     <option value="">Select Script</option>
                                 </select>
@@ -99,7 +99,7 @@
                         <div class="form-group row">
                             <label for="scriptSummary" class="col-md-2 col-form-label">Summary</label>
                             <div class="col-md-10">
-                                <textarea id="scriptSummary" name="scriptSummary" class="card-text form-control-plaintext" type="text" readonly style="resize:none;"></textarea>
+                                <textarea id="scriptSummary" name="scriptSummary" class="card-text form-control-plaintext" readonly style="resize:none;"></textarea>
                             </div>
                         </div>
                         <div class="card border-light">
@@ -346,22 +346,24 @@
                         $('#scriptSummary').val(data.summary);
                         $.each(data.inputParms, function (i, parm) {
                             $('div.parameters').append(`<div class="form-group row">
-                                                                    <label for="${parm.name}" class="col-md-4 col-form-label">${parm.name}</label>
-                                                                    <div class="col-md-8">
-                                                                        <input type="${parm.type}" class="form-control ${parm.list ? "custom-select" : ""}"
-                                                                            id="${parm.name}" name="${parm.name}" placeholder="${parm.description}"
-                                                                            ${parm.required ? "required" : ""}
-                                                                            ${parm.list ? "list='" + parm.name + "List'" : ""}
-                                                                            ${parm.min ? "min='" + parm.min + "'" : ""}
-                                                                            ${parm.max ? "max='" + parm.max + "'" : ""}
-                                                                            ${parm.step ? "step='" + parm.step + "'" : ""}
-                                                                            ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}>
-                                                                            ${parm.list ? "<datalist id='" + parm.name + "List'>" +
-                                                                                                "<option value='" + parm.list.join("'></option><option value='") + "'></option>" +
-                                                                                            "</datalist>" : ""}
-                                                                            ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
-                                                                    </div>
-                                                                </div>`);
+                                                            <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
+                                                            <div class="col-md-4">
+                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}" 
+                                                                    ${parm.list ? " custom-select" : ""}
+                                                                    ${parm.placeholder ? " placeholder='" + parm.placeholder + "'" : ""}
+                                                                    ${parm.required ? " required" : ""}
+                                                                    ${parm.list ? " list='" + parm.name + "List'" : ""}
+                                                                    ${parm.min ? " min='" + parm.min + "'" : ""}
+                                                                    ${parm.max ? " max='" + parm.max + "'" : ""}
+                                                                    ${parm.step ? " step='" + parm.step + "'" : ""}
+                                                                    ${parm.pattern ? " pattern='" + parm.pattern + "'" : ""}>
+                                                                    ${parm.list ? "<datalist id='" + parm.name + "List'>" +
+                                                                                        "<option value='" + parm.list.join("'></option><option value='") + "'></option>" +
+                                                                                    "</datalist>" : ""}
+                                                                    ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
+                                                            </div>
+                                                            ${parm.description ? "<textarea class='col-md-6 form-control-plaintext pl-2' readonly style='resize:none;'>" + parm.description + "</textarea>" : ""}
+                                                        </div>`);
                         });
                     });
                 }

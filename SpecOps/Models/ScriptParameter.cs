@@ -16,9 +16,14 @@ namespace SpecOps.Models
         public string Type { get; set; }
 
         /// <summary>
-        /// Brief description shown as placeholder text in the element
+        /// Brief description of the parameter
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Optional text to be shown in the input element (if relevant)
+        /// </summary>
+        public string Placeholder { get; set; }
 
         /// <summary>
         /// Setting Required to true will generate the HTML5 compliant required attribute on the generated element

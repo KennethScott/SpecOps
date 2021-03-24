@@ -42,7 +42,8 @@ Scripts are configured in **scriptsettings.json**.
 5) **Summary** is a brief description of the script and will be shown when selected in the dropdown.
 6) **InputParms** is an array of Input Parameter objects for each parameter to be passed into the script.
     * **Name** should match the parameter name expected in the script
-    * **Description** is a brief user-friendly description of the parameter that will be displayed to the user
+    * **Description** is a brief user-friendly description of the parameter
+    * **Placeholder** optional text to be shown inside the input element (if relevant)
     * **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) 
     * **Min**, **Max**, **Step** are integer values used in combination with Type=**range** to facilitate a slider
     * **List** is an array of values used in combination with Type=**text** to facilitate a dropdown
@@ -67,6 +68,7 @@ Scripts are configured in **scriptsettings.json**.
           "Name": "StrParam1",
           "Type": "text",
           "Description": "Input 3-letter String Parameter",
+          "Placeholder": "Enter text here...",
           "Required": "true",
           "Pattern": "[A-Za-z]{3}"
         },
@@ -89,6 +91,8 @@ Scripts are configured in **scriptsettings.json**.
   }
 ]
 ```
+
+<br/>
 
 <img src="SpecOps/wwwroot/dist/img/parameters-example.PNG" width="400">
 
@@ -134,6 +138,6 @@ Example showing each Output Level being mapped to the desired css class:
 
 #### Miscellaneous
 
-The Script Runner page supports routing parameters for the CategoryId and the Script ID.  This allows you to construct links that go straight to the desired category, and optionally, script.
+The Script Runner page supports routing parameters for the CategoryId and the Script ID.  This allows you to construct links directly to the desired category, and optionally, script.  
+`.../Pages/Scripts/{CategoryId}/{ScriptId}`
 
-_Please note this application is still considered **beta**._
