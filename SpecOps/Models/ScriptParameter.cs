@@ -1,4 +1,6 @@
-﻿namespace SpecOps.Models
+﻿using System.Collections.Generic;
+
+namespace SpecOps.Models
 {
     public class ScriptParameter
     {
@@ -39,9 +41,9 @@
         public int Step { get; set; }
 
         /// <summary>
-        /// Comma delimited list of values to be used in conjunction with Type=range
+        /// List of values to be used in conjunction with Type=range
         /// </summary>
-        public string List { get; set; }
+        public IEnumerable<string> List { get; set; }
 
         /// <summary>
         /// Regex pattern for input validation

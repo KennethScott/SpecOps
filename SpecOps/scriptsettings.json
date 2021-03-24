@@ -45,7 +45,7 @@
           "Name": "RangeListParam",
           "Type": "text",
           "Description": "Input Range List Parameter",
-          "List": "value1,value2,value3"
+          "List": [ "value1", "value2", "value3" ]
         },
         {
           "Name": "EmailParam",

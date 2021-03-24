@@ -357,8 +357,8 @@
                                                                             ${parm.step ? "step='" + parm.step + "'" : ""}
                                                                             ${parm.pattern ? "pattern='" + parm.pattern + "'" : ""}>
                                                                             ${parm.list ? "<datalist id='" + parm.name + "List'>" +
-                                    "<option value='" + parm.list.split(',').join("'></option><option value='") + "'></option>" +
-                                    "</datalist>" : ""}
+                                                                                                "<option value='" + parm.list.join("'></option><option value='") + "'></option>" +
+                                                                                            "</datalist>" : ""}
                                                                             ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
                                                                     </div>
                                                                 </div>`);

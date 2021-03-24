@@ -45,7 +45,7 @@ Scripts are configured in **scriptsettings.json**.
     * **Description** is a brief user-friendly description of the parameter that will be displayed to the user
     * **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) 
     * **Min**, **Max**, **Step** are integer values used in combination with Type=**range** to facilitate a slider
-    * **List** is a comma-separated string of values used in combination with Type=**text** to facilitate a dropdown
+    * **List** is an array of values used in combination with Type=**text** to facilitate a dropdown
     * **Required** with a value of **true** may be used to cause the parameter to be required
     * **Pattern** may be used to apply a desired regex pattern for validation
 7) Custom Runspace pools are also supported 
@@ -74,7 +74,7 @@ Scripts are configured in **scriptsettings.json**.
           "Name": "ListParam1",
           "Type": "text",
           "Description": "Input Range List Parameter",
-          "List": "value1,value2,value3"
+          "List": [ "value1", "value2", "value3" ]
         }
       ],
       "Runspace": {
