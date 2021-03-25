@@ -4,7 +4,7 @@
 <img src="SpecOps/wwwroot/dist/img/banner-SpecOps.PNG" width="800">
 <br/><br/>
 
-SpecOps is a .NET5 web-based application that allows you to centralize and host your PowerShell scripts for execution by anyone, particularly non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  The application is intended to be used in a Windows-based Intranet environment.
+SpecOps is a .NET5 web application that allows you to centralize and host your PowerShell scripts for execution by anyone, particularly non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  The application is intended to be used in a Windows-based Intranet environment.
 
 Scripts are added and configured dynamically through the **scriptsettings.json** configuration file.  Scripts can be added and changed on the fly, and the configuration specified in the json file allows for the dynamic generation of a GUI for users to input parameter values via rudimentary support for [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) (i.e. text, date, number, etc.).  The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that basic validation is also possible by specifying HTML5-based attributes such as [required](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/required), [pattern](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern), etc.
 
