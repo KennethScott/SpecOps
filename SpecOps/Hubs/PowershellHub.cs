@@ -33,7 +33,7 @@ namespace SpecOps.Hubs
             this.PowerShellHubContext = powerShellHubContext;
         }
 
-        public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
+        public async Task StreamPowerShell(Guid scriptId, Dictionary<string, object> scriptParameters)
         {
             await StreamPowerShell(scriptId, scriptParameters, o =>
             {
@@ -80,7 +80,7 @@ namespace SpecOps.Hubs
         /// <param name="scriptId">The script file contents.</param>
         /// <param name="scriptParameters">A dictionary of parameter names and parameter values.</param>
         /// <param name="outputHandler">The outputHandler to send the script output to.</param>
-        private async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
+        private async Task StreamPowerShell(Guid scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
             try
             {

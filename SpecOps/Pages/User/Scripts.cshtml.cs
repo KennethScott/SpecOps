@@ -23,11 +23,10 @@ namespace SpecOps.Pages.User
     {
         private readonly ILogger<ScriptsModel> Logger;
         private readonly IScriptService ScriptService;
+        private readonly AppSettings appSettings;
 
         public SelectList Categories { get; set; }
         public string OutputLevels { get; set; }
-
-        private readonly AppSettings appSettings;
 
         public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IOptionsSnapshot<AppSettings> appSettings)
         {
@@ -49,7 +48,7 @@ namespace SpecOps.Pages.User
             return new JsonResult(ScriptService.GetScripts(categoryId));
         }
 
-        public async Task<JsonResult> OnGetScriptAsync(string scriptId)
+        public async Task<JsonResult> OnGetScriptAsync(Guid scriptId)
         {
             return new JsonResult(ScriptService.GetScript(scriptId));
         }

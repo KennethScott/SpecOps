@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace SpecOps.Models
 {
@@ -8,7 +9,7 @@ namespace SpecOps.Models
         /// <summary>
         /// Unique identifier for the script (generally a GUID)
         /// </summary>
-        public string Id { get; set; }
+        public Guid Id { get; set; }
         public string PathAndFilename { get; set; }
         public string Name { get; set; }        
         public string Summary { get; set; }

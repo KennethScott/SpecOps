@@ -17,6 +17,7 @@ using SpecOps.Services;
 using System;
 using SpecOps.Middleware;
 using System.Collections.Generic;
+using SpecOps.LiteDb;
 
 namespace SpecOps
 {
@@ -47,6 +48,9 @@ namespace SpecOps
                     .AddRazorRuntimeCompilation();
             services.AddSignalR();
             services.AddScoped<IScriptService, ScriptService>();
+            services.AddScoped<IDbScriptService, DbScriptService>();
+            services.AddScoped<IAppSettingsService, AppSettingsService>();
+            services.AddScoped<ILiteDbContext, LiteDbContext>();
             services.AddLogging();
             services.AddMemoryCache();
 

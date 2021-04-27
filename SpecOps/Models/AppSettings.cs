@@ -11,5 +11,6 @@ namespace SpecOps.Models
 
         public IEnumerable<OutputLevel> OutputLevels { get; set; }
 
+        public string DatabaseLocation { get; set; }
     }
 }
