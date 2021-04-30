@@ -114,6 +114,9 @@
                         <button id="runScript" type="button" class="btn btn-primary">
                             <i class="fas fa-code"></i> Run
                         </button>
+                        <button id="cancelScript" type="button" class="btn btn-danger">
+                            <i class="fas fa-stop-circle"></i> Cancel
+                        </button>
                     </div>
                     <!-- /.card-footer -->
                 </form>
@@ -224,7 +227,7 @@
                 // dynamically get the hubUrl by including the site's appname if exists, as site could be running from root or as an app.
                 // setup the hub connection
                 connection = new signalR.HubConnectionBuilder().withUrl("@HttpContext.Request.PathBase.Value" + "/streamPowerShell").build();
-
+ 
                 // log the output records to the table as they come in
                 connection.on("OutputReceived", logRecord => {
                     $('#log').DataTable().row.add([
@@ -269,11 +272,23 @@
                 var $runScript = $('#runScript');
                 $runScript.prop('disabled', disable);
 
+                var $cancelScript = $('#cancelScript');
+
                 var $icon = $runScript.children(":first");
-                if (spin) { $icon.addClass("spinner-border spinner-border-sm").removeClass("fas fa-code"); }
-                else      { $icon.removeClass("spinner-border spinner-border-sm").addClass("fas fa-code"); }
+                if (spin) {
+                    $icon.addClass("spinner-border spinner-border-sm").removeClass("fas fa-code");
+                    $cancelScript.prop('disabled', false);
+                }
+                else {
+                    $icon.removeClass("spinner-border spinner-border-sm").addClass("fas fa-code");
+                    $cancelScript.prop('disabled', true);
+                }
 
             }
+
+            $('#cancelScript').on("click", function () {
+                $.getJSON(`?handler=CancelScript&connectionId=${connection.connection.connectionId}`);
+            });
 
             // Run the script
             $('#runScript').on("click", function () {
@@ -295,8 +310,7 @@
                             $('#log').DataTable().row.add(["", "Error", `An error occured: ${err}`]).draw(false);
                             // enable run button and hide spinner
                             toggleRunScript(false, false);
-                        }
-                        );
+                        });
 
                     event.preventDefault();
                 }
@@ -348,7 +362,7 @@
                             $('div.parameters').append(`<div class="form-group row">
                                                             <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
                                                             <div class="col-md-4">
-                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}" 
+                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
                                                                     ${parm.list ? " custom-select" : ""}
                                                                     ${parm.placeholder ? " placeholder='" + parm.placeholder + "'" : ""}
                                                                     ${parm.required ? " required" : ""}

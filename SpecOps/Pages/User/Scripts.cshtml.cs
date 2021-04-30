@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Caching.Memory;
+using System.Threading;
 
 namespace SpecOps.Pages.User
 {
@@ -23,17 +25,19 @@ namespace SpecOps.Pages.User
     {
         private readonly ILogger<ScriptsModel> Logger;
         private readonly IScriptService ScriptService;
+        private IMemoryCache MemoryCache { get; set; }
 
         public SelectList Categories { get; set; }
         public string OutputLevels { get; set; }
 
         private readonly AppSettings appSettings;
 
-        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IOptionsSnapshot<AppSettings> appSettings)
+        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IOptionsSnapshot<AppSettings> appSettings, IMemoryCache memoryCache)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
             this.appSettings = appSettings.Value;
+            this.MemoryCache = memoryCache;
         }
 
         // TODO: Figure out how to really make these async...
@@ -54,5 +58,14 @@ namespace SpecOps.Pages.User
             return new JsonResult(ScriptService.GetScript(scriptId));
         }
 
+        public async Task OnGetCancelScriptAsync(string connectionId)
+        {
+            var cacheKey = $"{connectionId}|CancellationTokenSource";
+
+            if (MemoryCache.TryGetValue(cacheKey, out CancellationTokenSource cancellationTokenSource))
+            {
+                cancellationTokenSource.Cancel();
+            }
+        }
     }
 }

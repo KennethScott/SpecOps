@@ -9,6 +9,9 @@
     Write-Output "Here are the loaded modules in the script:" 
     Get-Module
     
+    Write-Information "Wait 5 seconds to allow for cancel..." 
+    Wait-Event -SourceIdentifier "ProcessStarted" -Timeout 5
+
     # write some data to the info/warning streams
     
     Write-Host "A message from write-host"

@@ -10,6 +10,8 @@ using SpecOps.Models;
 using SpecOps.Services;
 using Microsoft.Extensions.Configuration;
 using SpecOps.Classes;
+using System.Threading;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace SpecOps.Hubs
 {
@@ -23,14 +25,16 @@ namespace SpecOps.Hubs
         private IScriptService ScriptService { get; set; }
         private readonly ILogger<PowerShellHub> Logger;
         private IHubContext<PowerShellHub> PowerShellHubContext { get; }
+        private IMemoryCache MemoryCache { get; set; }
 
         private RunspacePool RsPool { get; set; }
 
-        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext, IMemoryCache memoryCache)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
             this.PowerShellHubContext = powerShellHubContext;
+            this.MemoryCache = memoryCache;
         }
 
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
@@ -82,6 +86,8 @@ namespace SpecOps.Hubs
         /// <param name="outputHandler">The outputHandler to send the script output to.</param>
         private async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
+            string cacheKey = $"{Context.ConnectionId}|CancellationTokenSource";
+
             try
             {
                 var script = ScriptService.GetScript(scriptId);
@@ -133,22 +139,21 @@ namespace SpecOps.Hubs
 
                     outputHandler(new OutputRecord(OutputLevelName.System, "Beginning script execution..."));
 
-                    await ps.InvokeAsync<PSObject, PSObject>(null, output).ConfigureAwait(false);
+                    // setup our cancellation token for possible use later to cancel
+                    CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-                    //// execute the script and await the result.
-                    //var pipelineObjects = await ps.InvokeAsync().ConfigureAwait(false);
-                    //foreach (var item in pipelineObjects)
-                    //{
-                    //    outputHandler(item.BaseObject.ToString());
-                    //}
+                    // We basically want to cache the cancellationTokenSource until the script finishes (or is canceled)
+                    var cacheExpiryOptions = new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpiration = DateTime.Now.AddDays(1),
+                        Priority = CacheItemPriority.High
+                    };
+                    MemoryCache.Set(cacheKey, cancellationTokenSource, cacheExpiryOptions);
 
-                    ////// Execute powershell command
-                    ////IAsyncResult asyncResult = ps.BeginInvoke<PSObject, PSObject>(null, output);
-                    ////// Wait for powershell command to finish
-                    ////asyncResult.AsyncWaitHandle.WaitOne();
-                    ///
-
-                    ////ps.Invoke(null, output);
+                    // NOTE: the 'await' call is gone here so we can access the task object.
+                    Task<PSDataCollection<PSObject>> asyncTask = ps.InvokeAsync();
+                    asyncTask.Wait(cancellationTokenSource.Token); // Wait on the task until natural completion OR cancel token fires.
+                    output = asyncTask.Result; // this object should contain the original PSObject results (pipeline output).
                 }
             }
             catch (Exception ex)
@@ -159,6 +164,7 @@ namespace SpecOps.Hubs
             finally
             {
                 outputHandler(new OutputRecord(OutputLevelName.System, "Script execution ended."));
+                MemoryCache.Remove(cacheKey);
             }
         }
 
