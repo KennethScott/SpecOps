@@ -31,6 +31,9 @@ Security is based around the concept of **Security Policies** for different type
     ]
 ```
 
+The application also works off a domain - simply use your computer name\login instead of domain\login.
+
+
 #### Script Configuration
 
 Scripts are configured in **scriptsettings.json**.
@@ -101,7 +104,7 @@ Scripts are configured in **scriptsettings.json**.
 
 <br/>
 
-<img src="SpecOps/wwwroot/dist/img/parameters-example.PNG" width="400">
+<img src="SpecOps/wwwroot/dist/img/script-page-example.PNG" width="1000">
 
 <br/><br/>
 
