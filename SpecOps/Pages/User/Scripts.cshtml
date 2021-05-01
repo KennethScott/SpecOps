@@ -300,7 +300,7 @@
                     toggleRunScript(true, true);
 
                     let parameters = {};
-                    $('div.parameters input').each(function (i) {
+                    $('div.parameters input, div.parameters select').each(function (i) {
                         parameters[this.id] = this.value;
                     });
 
