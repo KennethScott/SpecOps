@@ -6,7 +6,7 @@
 
 SpecOps is a .NET5 web application that allows you to centralize and host your PowerShell scripts for execution by anyone, particularly non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  The application is intended to be used in a Windows-based Intranet environment.
 
-Scripts are added and configured dynamically through the **scriptsettings.json** configuration file.  Scripts can be added and changed on the fly, and the configuration specified in the json file allows for the dynamic generation of a GUI for users to input parameter values via rudimentary support for [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) (i.e. text, date, number, etc.).  The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that basic validation is also possible by specifying HTML5-based attributes such as [required](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/required), [pattern](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern), etc.
+Scripts are added and configured dynamically through the **scriptsettings.json** configuration file.  Scripts can be added and changed on the fly, and the configuration specified in the json file allows for the dynamic generation of a GUI for users to input parameter values via rudimentary support for [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) (i.e. text, date, number, etc.) and dropdowns via [HTML select elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select).  The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that basic validation is also possible by specifying HTML5-based attributes such as [required](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/required), [pattern](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern), etc.
 
 The application leverages [Bootstrap4](https://getbootstrap.com/docs/4.0/getting-started/introduction/) and the [AdminLTE](https://adminlte.io/) theme for styling with all plugins available.  
 
@@ -44,7 +44,7 @@ Scripts are configured in **scriptsettings.json**.
     * **Name** should match the parameter name expected in the script
     * **Description** is a brief user-friendly description of the parameter
     * **Placeholder** optional text to be shown inside the input element (if relevant)
-    * **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) 
+    * **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input).  Proper dropdowns are also supported by using type=**select** in conjunction with the **Options** parameter.  
     * **Min**, **Max**, **Step** are integer values used in combination with Type=**range** to facilitate a slider
     * **List** is an array of values used in combination with Type=**text** to facilitate a combobox (range list)
     * **Options** is a dictionary of key/value pairs used in combination with Type=**select** to facilitate a dropdown
@@ -145,6 +145,7 @@ Example showing each Output Level being mapped to the desired css class:
 
 #### Miscellaneous
 
-The Script Runner page supports routing parameters for the CategoryId and the Script ID.  This allows you to construct links directly to the desired category, and optionally, script.  
+The Script Runner page supports routing parameters for the CategoryId and the ScriptId.  This allows you to construct links directly to the desired category, and optionally, script.  
 `.../Pages/Scripts/{CategoryId}/{ScriptId}`
 
+<br/>
