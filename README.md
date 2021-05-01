@@ -104,7 +104,7 @@ Scripts are configured in **scriptsettings.json**.
 
 <br/>
 
-<img src="SpecOps/wwwroot/dist/img/script-page-example.PNG" width="1000">
+<img src="SpecOps/wwwroot/dist/img/script-page-example.png" width="1000">
 
 <br/><br/>
 
