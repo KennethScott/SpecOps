@@ -51,6 +51,11 @@ namespace SpecOps.Models
         public IEnumerable<string> List { get; set; }
 
         /// <summary>
+        /// Dictionary of key/value pairs for use with Type=select (dropdowns)
+        /// </summary>
+        public Dictionary<string, string> Options { get; set; }
+
+        /// <summary>
         /// Regex pattern for input validation
         /// </summary>
         public string Pattern { get; set; }

@@ -49,6 +49,18 @@
           "List": [ "value1", "value2", "value3" ]
         },
         {
+          "Name": "DropdownParam",
+          "Type": "select",
+          "Description": "Dropdown Select Parameter",
+          "Options": {
+            "": "Select a value...",
+            "abc": "ABC Text To Display",
+            "def": "DEF Text To Display",
+            "ghi": "GHI Text To Display"
+          },
+          "Required": "true"
+        },
+        {
           "Name": "EmailParam",
           "Type": "email",
           "Description": "Input Email Parameter",

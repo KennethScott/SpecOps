@@ -359,25 +359,44 @@
                         // load the script fields
                         $('#scriptSummary').val(data.summary);
                         $.each(data.inputParms, function (i, parm) {
-                            $('div.parameters').append(`<div class="form-group row">
-                                                            <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
-                                                            <div class="col-md-4">
-                                                                <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
-                                                                    ${parm.list ? " custom-select" : ""}
-                                                                    ${parm.placeholder ? " placeholder='" + parm.placeholder + "'" : ""}
-                                                                    ${parm.required ? " required" : ""}
-                                                                    ${parm.list ? " list='" + parm.name + "List'" : ""}
-                                                                    ${parm.min ? " min='" + parm.min + "'" : ""}
-                                                                    ${parm.max ? " max='" + parm.max + "'" : ""}
-                                                                    ${parm.step ? " step='" + parm.step + "'" : ""}
-                                                                    ${parm.pattern ? " pattern='" + parm.pattern + "'" : ""}>
-                                                                    ${parm.list ? "<datalist id='" + parm.name + "List'>" +
-                                                                                        "<option value='" + parm.list.join("'></option><option value='") + "'></option>" +
-                                                                                    "</datalist>" : ""}
-                                                                    ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
-                                                            </div>
-                                                            ${parm.description ? "<textarea class='col-md-6 form-control-plaintext pl-2' readonly style='resize:none;'>" + parm.description + "</textarea>" : ""}
-                                                        </div>`);
+                            switch (parm.type) {
+                                case "select":
+                                    let options="";
+                                    for (var key in parm.options) {
+                                        options = options + `<option value="${key}">${parm.options[key]}</option>`;
+                                    }
+                                    $('div.parameters').append(`<div class="form-group row">
+                                                                    <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
+                                                                    <div class="col-md-4">
+                                                                        <select class="custom-select" id="${parm.name}" name="${parm.name}"
+                                                                            ${parm.required ? " required" : ""}>
+                                                                            ${options}
+                                                                        </select>
+                                                                    </div>
+                                                                    ${parm.description ? "<textarea class='col-md-6 form-control-plaintext pl-2' readonly style='resize:none;'>" + parm.description + "</textarea>" : ""}
+                                                                </div>`);
+                                    break;
+                                default:
+                                    $('div.parameters').append(`<div class="form-group row">
+                                                                    <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
+                                                                    <div class="col-md-4">
+                                                                        <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
+                                                                            ${parm.list ? " custom-select" : ""}
+                                                                            ${parm.placeholder ? " placeholder='" + parm.placeholder + "'" : ""}
+                                                                            ${parm.required ? " required" : ""}
+                                                                            ${parm.list ? " list='" + parm.name + "List'" : ""}
+                                                                            ${parm.min ? " min='" + parm.min + "'" : ""}
+                                                                            ${parm.max ? " max='" + parm.max + "'" : ""}
+                                                                            ${parm.step ? " step='" + parm.step + "'" : ""}
+                                                                            ${parm.pattern ? " pattern='" + parm.pattern + "'" : ""}>
+                                                                            ${parm.list ? "<datalist id='" + parm.name + "List'>" +
+                                                                                            "<option value='" + parm.list.join("'></option><option value='") + "'></option>" +
+                                                                                          "</datalist>" : ""}
+                                                                            ${parm.type == "range" ? "<output for='" + parm.name + "'></output>" : ""}
+                                                                    </div>
+                                                                    ${parm.description ? "<textarea class='col-md-6 form-control-plaintext pl-2' readonly style='resize:none;'>" + parm.description + "</textarea>" : ""}
+                                                                </div>`);
+                            }
                         });
                     });
                 }
