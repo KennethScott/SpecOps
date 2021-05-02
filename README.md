@@ -151,4 +151,10 @@ Example showing each Output Level being mapped to the desired css class:
 The Script Runner page supports routing parameters for the CategoryId and the ScriptId.  This allows you to construct links directly to the desired category, and optionally, script.  
 `.../Pages/Scripts/{CategoryId}/{ScriptId}`
 
+<br/><br/>
+
+#### Credits
+
+Thank you to [@keithbabinec](https://github.com/keithbabinec) for his work with hosted runspaces in his [PowerShellHostedRunspaceStarterKits](https://github.com/keithbabinec/PowerShellHostedRunspaceStarterkits) project.
+
 <br/>
