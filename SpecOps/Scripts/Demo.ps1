@@ -1,4 +1,4 @@
-﻿    Param($StrParam, $IntParam)
+﻿    Param($StrParam, $IntParam, $SpecOpsCurrentUser, $SpecOpsCurrentUserIP)
 
     Get-Host | Select-Object Version
 
@@ -28,4 +28,7 @@
     # write a message to the error stream by throwing a non-terminating error
     # note: terminating errors will stop the pipeline.
     Get-ChildItem -Directory "folder-doesnt-exist"
+
+    Write-Information "The current user is: $SpecOpsCurrentUser"
+    Write-Information "The current user's IP is: $SpecOpsCurrentUserIP"
     

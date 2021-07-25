@@ -53,7 +53,10 @@ Scripts are configured in **scriptsettings.json**.
     * **Options** is a dictionary of key/value pairs used in combination with Type=**select** to facilitate a dropdown
     * **Required** with a value of **true** may be used to cause the parameter to be required
     * **Pattern** may be used to apply a desired regex pattern for validation
-7) Custom Runspace pools are also supported 
+7) **System Generated Input Parameters** are automatically available to all scripts.  They could be used for anything, but most commonly for additional custom logging purposes.
+    * **SpecOpsCurrentUser** is the domain and userid of the user running the script
+    * **SpecOpsCurrentUserIP** is the IP address of the user running the script
+8) Custom Runspace pools are also supported 
     * **ExecutionPolicy** allows for specifying the desired [Microsoft.PowerShell.ExecutionPolicy](https://docs.microsoft.com/en-us/dotnet/api/microsoft.powershell.executionpolicy?view=powershellsdk-7.0.0) string name such as Unrestricted, Bypass, etc.
     * **Min** is an integer value and specifies the minimum number of runspaces to allocate to the pool
     * **Max** is an integer value and specifies the maximum number of runspaces to allocate to the pool.  Recommended at n+1 where n=number of processors.
@@ -145,6 +148,13 @@ Example showing each Output Level being mapped to the desired css class:
 
 <img src="SpecOps/wwwroot/dist/img/log-example.PNG" width="1000">
 <br/><br/>
+
+#### Logging
+Serilog is used to log detailed information about the application, the scripts being executed, etc.  It is currently configured to log to text files in the **/logs** folder.  
+
+System-generated input parameters are also available in every script automatically and could be used for additional custom logging purposes.  See the input parameters section for details.  
+<br/>
+
 
 #### Miscellaneous
 

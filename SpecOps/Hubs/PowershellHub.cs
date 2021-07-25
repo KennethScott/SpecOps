@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using SpecOps.Classes;
 using System.Threading;
 using Microsoft.Extensions.Caching.Memory;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace SpecOps.Hubs
 {
@@ -39,6 +41,9 @@ namespace SpecOps.Hubs
 
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
         {
+            scriptParameters.Add("SpecOpsCurrentUser", Context.User?.Identity?.Name);
+            scriptParameters.Add("SpecOpsCurrentUserIP", Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress?.ToString());
+
             await StreamPowerShell(scriptId, scriptParameters, o =>
             {
                 PowerShellHubContext.Clients.Client(Context.ConnectionId).SendAsync("OutputReceived", o);
@@ -93,7 +98,7 @@ namespace SpecOps.Hubs
                 var script = ScriptService.GetScript(scriptId);
 
                 outputHandler(new OutputRecord(OutputLevelName.System, "Loading script..."));
-                Logger.Log(LogLevel.Information, $"{Context.User.Identity.Name} attempting to run {script.Name}");
+                Logger.Log(LogLevel.Information, @$"{Context.User.Identity.Name} attempting to run '{script.CategoryId}\{script.Name}' with parameters: {JsonSerializer.Serialize(scriptParameters)}");
 
                 string scriptContents = script.GetContents();
 
