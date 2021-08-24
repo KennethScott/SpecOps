@@ -14,6 +14,7 @@ using System.Threading;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http.Features;
+using System.Linq;
 
 namespace SpecOps.Hubs
 {
@@ -97,8 +98,11 @@ namespace SpecOps.Hubs
             {
                 var script = ScriptService.GetScript(scriptId);
 
+                var parmsToNotLog = script.InputParms.Where(s => s.Logging == false);
+                var filteredParms = scriptParameters.Where(x => !parmsToNotLog.Any(s => s.Name == x.Key));
+
                 outputHandler(new OutputRecord(OutputLevelName.System, "Loading script..."));
-                Logger.Log(LogLevel.Information, @$"{Context.User.Identity.Name} attempting to run '{script.CategoryId}\{script.Name}' with parameters: {JsonSerializer.Serialize(scriptParameters)}");
+                Logger.Log(LogLevel.Information, @$"{Context.User.Identity.Name} attempting to run '{script.CategoryId}\{script.Name}' with parameters: {JsonSerializer.Serialize(filteredParms)}");
 
                 string scriptContents = script.GetContents();
 
@@ -160,6 +164,9 @@ namespace SpecOps.Hubs
                     asyncTask.Wait(cancellationTokenSource.Token); // Wait on the task until natural completion OR cancel token fires.
                     output = asyncTask.Result; // this object should contain the original PSObject results (pipeline output).
                 }
+
+                Logger.Log(LogLevel.Information, @$"'{script.CategoryId}\{script.Name}' ran by {Context.User.Identity.Name} completed normally.");
+
             }
             catch (Exception ex)
             {
