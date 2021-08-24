@@ -59,6 +59,11 @@ namespace SpecOps.Models
         /// Regex pattern for input validation
         /// </summary>
         public string Pattern { get; set; }
+
+        /// <summary>
+        /// Parameter logging is enabled by default.  Set Logging=false to prevent parameter value from being logged.
+        /// </summary>
+        public bool Logging { get; set; } = true;
         
     }
 }
