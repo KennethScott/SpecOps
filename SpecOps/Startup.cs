@@ -93,14 +93,8 @@ namespace SpecOps
             app.UseSerilogRequestLogging();
 
             app.UseRouting();
-
             app.UseAuthentication();
             app.UseAuthorization();
-
-            //app.UseSerilogRequestLogging(options =>
-            //{
-            //    options.EnrichDiagnosticContext = PushSeriLogProperties;
-            //});
 
             app.UseEndpoints(endpoints =>
             {
@@ -114,10 +108,5 @@ namespace SpecOps
             app.UseErrorLogging();
         }
 
-        public void PushSeriLogProperties(IDiagnosticContext diagnosticContext, HttpContext httpContext)
-        {
-            // TODO:  Why is this not working???
-            diagnosticContext.Set("UserName", httpContext.User.Identity.Name);
-        }
     }
 }
