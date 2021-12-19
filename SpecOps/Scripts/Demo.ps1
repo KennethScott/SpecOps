@@ -1,5 +1,6 @@
-﻿    Param($StrParam, $IntParam, $SpecOpsCurrentUser, $SpecOpsCurrentUserIP)
-
+﻿    #Normally you would explicitly define your parameters, but for this demo I'll just get them dynamically.  This lets me use this one script as input to multiple scriptsettings for demo purposes.
+    #Param($StrParam, $IntParam, $SpecOpsCurrentUser, $SpecOpsCurrentUserIP)
+    
     Get-Host | Select-Object Version
 
     Write-Output "Message from inside the running script"
@@ -27,8 +28,13 @@
     
     # write a message to the error stream by throwing a non-terminating error
     # note: terminating errors will stop the pipeline.
+    Write-Information "Example of an error message:"
     Get-ChildItem -Directory "folder-doesnt-exist"
 
-    Write-Information "The current user is: $SpecOpsCurrentUser"
-    Write-Information "The current user's IP is: $SpecOpsCurrentUserIP"
-    
+    # There's probably a better way of dynamically getting all the input parms, but I found them in UnboundArguments
+    Write-Information "Dumping $($MyInvocation.UnboundArguments.Count/2) input parameter names and values..."
+
+    for ( $i = 0; $i -lt $MyInvocation.UnboundArguments.Count; $i+=2 ) {
+        Write-Information "$($args[$i]) : $($args[$i+1])"                   
+    } 
+
