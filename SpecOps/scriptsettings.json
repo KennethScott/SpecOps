@@ -106,7 +106,8 @@
         {
           "Name": "StrParam",
           "Type": "text",
-          "Description": "Input String Parameter1"
+          "Description": "Input String Parameter1",
+          "Value": "MyDefaultValue"
         }
       ]
     }

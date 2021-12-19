@@ -380,7 +380,8 @@
                                     $('div.parameters').append(`<div class="form-group row">
                                                                     <label for="${parm.name}" class="col-md-2 col-form-label">${parm.name}</label>
                                                                     <div class="col-md-4">
-                                                                        <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}"
+                                                                        <input type="${parm.type}" class="form-control" id="${parm.name}" name="${parm.name}" 
+                                                                            ${parm.value ? " value='" + parm.value + "'" : ""}
                                                                             ${parm.list ? " custom-select" : ""}
                                                                             ${parm.placeholder ? " placeholder='" + parm.placeholder + "'" : ""}
                                                                             ${parm.required ? " required" : ""}

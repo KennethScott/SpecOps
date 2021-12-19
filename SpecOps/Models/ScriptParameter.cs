@@ -64,6 +64,11 @@ namespace SpecOps.Models
         /// Parameter logging is enabled by default.  Set Logging=false to prevent parameter value from being logged.
         /// </summary>
         public bool Logging { get; set; } = true;
+
+        /// <summary>
+        /// Useful for setting an initial/default value
+        /// </summary>
+        public string Value { get; set; }
         
     }
 }
