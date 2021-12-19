@@ -46,8 +46,9 @@ Scripts are configured in **scriptsettings.json**.
 6) **InputParms** is an array of Input Parameter objects for each parameter to be passed into the script.
     * **Name** should match the parameter name expected in the script
     * **Description** is a brief user-friendly description of the parameter
-    * **Placeholder** optional text to be shown inside the input element (if relevant)
+    * **Placeholder** optional text to be shown inside the input element (if relevant)    
     * **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input).  Proper dropdowns are also supported by using type=**select** in conjunction with the **Options** parameter.  
+    * **Value** can be used to set the initial/default value for the input element 
     * **Min**, **Max**, **Step** are integer values used in combination with Type=**range** to facilitate a slider
     * **List** is an array of values used in combination with Type=**text** to facilitate a combobox (range list)
     * **Options** is a dictionary of key/value pairs used in combination with Type=**select** to facilitate a dropdown
