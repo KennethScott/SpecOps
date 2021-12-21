@@ -9,14 +9,14 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Caching.Memory;
 using System.Threading;
+using Microsoft.AspNetCore.Authorization;
 
-namespace SpecOps.Pages.User
+namespace SpecOps.Pages.Admin
 {
-    // Unnecessary now that we'll restrict the entire site to members of our groups
-    //[AuthorizeOr(new[] { SecurityPolicy.User, SecurityPolicy.Admin })]
-    public class ScriptsModel : PageModel
+    [Authorize("Admin")]
+    public class TerminalModel : PageModel
     {
-        private readonly ILogger<ScriptsModel> Logger;
+        private readonly ILogger<TerminalModel> Logger;
         private readonly IScriptService ScriptService;
         private IMemoryCache MemoryCache { get; set; }
 
@@ -25,7 +25,7 @@ namespace SpecOps.Pages.User
 
         private readonly AppSettings appSettings;
 
-        public ScriptsModel(IScriptService scriptService, ILogger<ScriptsModel> logger, IOptionsSnapshot<AppSettings> appSettings, IMemoryCache memoryCache)
+        public TerminalModel(IScriptService scriptService, ILogger<TerminalModel> logger, IOptionsSnapshot<AppSettings> appSettings, IMemoryCache memoryCache)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
@@ -35,7 +35,7 @@ namespace SpecOps.Pages.User
 
         // TODO: Figure out how to really make these async...
         public async Task OnGetAsync(string rpCategoryId = "", string rpScriptId = "")
-        {        
+        {
             OutputLevels = JsonSerializer.Serialize(appSettings.OutputLevels);
 
             Categories = new SelectList(ScriptService.GetCategories());

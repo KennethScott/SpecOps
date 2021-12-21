@@ -40,12 +40,29 @@ namespace SpecOps.Hubs
             this.MemoryCache = memoryCache;
         }
 
+        public async Task StreamPowerShellRaw(string code)
+        {
+            Script script = new Script() { 
+                CategoryId = "Dynamic", 
+                Id = "Dynamic", 
+                Code = code, 
+                InputParms = new List<ScriptParameter>() 
+            };
+
+            await StreamPowerShell(script, new Dictionary<string, object>(), o =>
+            {
+                PowerShellHubContext.Clients.Client(Context.ConnectionId).SendAsync("OutputReceived", o);
+            });
+        }
+
         public async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters)
         {
             scriptParameters.Add("SpecOpsCurrentUser", Context.User?.Identity?.Name);
             scriptParameters.Add("SpecOpsCurrentUserIP", Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress?.ToString());
 
-            await StreamPowerShell(scriptId, scriptParameters, o =>
+            var script = ScriptService.GetScript(scriptId);
+
+            await StreamPowerShell(script, scriptParameters, o =>
             {
                 PowerShellHubContext.Clients.Client(Context.ConnectionId).SendAsync("OutputReceived", o);
             });
@@ -90,14 +107,12 @@ namespace SpecOps.Hubs
         /// <param name="scriptId">The script file contents.</param>
         /// <param name="scriptParameters">A dictionary of parameter names and parameter values.</param>
         /// <param name="outputHandler">The outputHandler to send the script output to.</param>
-        private async Task StreamPowerShell(string scriptId, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
+        private async Task StreamPowerShell(Script script, Dictionary<string, object> scriptParameters, Action<object> outputHandler)
         {
             string cacheKey = $"{Context.ConnectionId}|CancellationTokenSource";
 
             try
             {
-                var script = ScriptService.GetScript(scriptId);
-
                 var parmsToNotLog = script.InputParms.Where(s => s.Logging == false);
                 var filteredParms = scriptParameters.Where(x => !parmsToNotLog.Any(s => s.Name == x.Key));
 

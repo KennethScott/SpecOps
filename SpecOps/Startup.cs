@@ -101,6 +101,7 @@ namespace SpecOps
                 // Require Authorization for all your Razor Pages
                 endpoints.MapRazorPages().RequireAuthorization();
                 endpoints.MapHub<PowerShellHub>("/streamPowerShell").RequireAuthorization();
+                endpoints.MapHub<PowerShellHub>("/streamPowerShellRaw").RequireAuthorization();
             });
 
             loggerFactory.AddSerilog();

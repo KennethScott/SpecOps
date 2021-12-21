@@ -8,6 +8,8 @@ SpecOps is a .NET6 web application that allows you to centralize and host your *
 
 Scripts are added and configured dynamically through the **scriptsettings.json** configuration file.  Scripts can be added and changed on the fly, and the configuration specified in the json file allows for the dynamic generation of a GUI for users to input parameter values via rudimentary support for [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) (i.e. text, date, number, etc.) and dropdowns via [HTML select elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select).  The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that basic validation is also possible by specifying HTML5-based attributes such as [required](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/required), [pattern](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern), etc.
 
+SpecOps now also contains a realtime PowerShell terminal to aid in script development or to simply execute a quick command.  The terminal is made possible by [jQueryTerminal](https://terminal.jcubic.pl/), and syntax highlighting of input is done via [PrismJS](https://prismjs.com/).  The terminal is restricted to members of the Admin policy. 
+
 The application leverages [Bootstrap4](https://getbootstrap.com/docs/4.0/getting-started/introduction/) and the [AdminLTE](https://adminlte.io/) theme for styling with all plugins available.  
 
 Script output is returned in realtime via [SignalR](https://dotnet.microsoft.com/apps/aspnet/signalr).  [Serilog](https://serilog.net/) is set up for logging to a file, but can easily be extended to log to a database, elasticsearch, etc.
@@ -149,6 +151,19 @@ Example showing each Output Level being mapped to the desired css class:
 ```
 
 <img src="SpecOps/wwwroot/dist/img/log-example.PNG" width="1000">
+<br/><br/>
+
+#### Terminal
+SpecOps now includes a realtime PowerShell terminal to aid in script development or simply executing a quick command.  The terminal leverages the [jQueryTerminal library](https://terminal.jcubic.pl/).  
+Access to the terminal is restricted to members of the Admin policy.  
+Script output is styled the same as the output table on the Script Runner page.  Input is also syntax highlighted via [PrismJS](https://prismjs.com/).  
+
+Any code entered is executed and logged in exactly the same way as the predefined scripts are - meaning they will run under the security context of the App Pool identity.
+
+Please be very careful in allowing access to the Terminal as it could be very dangerous in the hands of unskilled users.
+<br/><br/>
+
+<img src="SpecOps/wwwroot/dist/img/terminal-page-example.PNG" width="1000">
 <br/><br/>
 
 #### Logging

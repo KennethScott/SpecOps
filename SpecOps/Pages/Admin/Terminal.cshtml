@@ -1,0 +1,176 @@
+﻿@page
+@model SpecOps.Pages.Admin.TerminalModel
+@{
+    ViewData["Title"] = "Terminal";
+}
+
+@section head {
+    <!-- jQuery Terminal -->
+    <link rel="stylesheet" href="@Url.Content("~/css/jquery.terminal.min.css")">
+    <!-- PrismJS (configured for dark background and powershell commands) -->
+    <link rel="stylesheet prefetch" href="@Url.Content("~/css/prism.css")">
+
+    <style>
+        /* Log table styles taken from https://windowsterminalthemes.dev/ theme Obsidian */
+        :root {
+            --log-foreground: #bbbbbb;   /*white*/
+            --log-background: #283033;   /*background*/
+        }
+        .so-data { color: #bbbbbb; }     /*white*/
+        .so-error { color: #ff5370; }    /*red*/
+        .so-warning { color: #fecd22; }  /*yellow*/
+        .so-info { color: #ffffff; }     /*brightWhite*/
+        .so-progress { color: #00bb00; } /*green*/
+        .so-verbose { color: #3a9bdb; }  /*blue*/
+        .so-debug { color: #55ffff; }    /*brightCyan*/
+        .so-system { color: #00bbbb; }   /*cyan*/
+        .so-unknown { color: #ffcb6b; }  /*yellow*/
+        /* ----------------------------------------------------------------------------- */
+
+        .logRecord div:nth-of-type(1) { display:inline-block; width:190px; white-space:nowrap; }
+        .logRecord div:nth-of-type(2) { display:inline-block; width:85px; }
+        .logRecord div:nth-of-type(3) { display:inline-block; width:auto; }
+    </style>
+}
+
+@section pageHeader {
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Terminal</h1>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- left column -->
+        <div class="col-md-12">
+            <!-- Horizontal Form -->
+            <div class="callout callout-info">
+                <h5>Tips</h5>
+                <p>
+                    <ul>
+                        <li>Multiline input is accepted (use <span class="font-weight-bold">Shift-Enter</span> to go to next line)</li>
+                        <li><span class="font-weight-bold">Ctrl-C</span> should cancel long running code</li>
+                        <li>You may have to pipe some command output to Write-Host/Information/etc. Example: <span class="font-weight-bold">dir | Write-Host</span></li>
+                    </ul>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <!-- left column -->
+        <div class="col-md-12">
+            <!-- Horizontal Form -->
+            <div class="card card-secondary">
+                <div class="card-body">
+                    <div id="terminal">
+
+                    </div>
+                </div>
+                <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+        </div>
+    </div>
+</div>
+
+@section scripts {
+
+    <!-- SignalR -->
+    <script src="@Url.Content("~/lib/signalr/dist/browser/signalr.min.js")"></script>
+    <!-- jQuery Terminal -->
+    <script src="@Url.Content("~/lib/jquery-terminal/jquery.terminal.min.js")"></script>
+    <!-- PrismJS (configured for dark background and powershell commands) -->
+    <script src="@Url.Content("~/lib/prism/prism.js")"></script>
+    <!-- jQuery Terminal monkey patch for PrismJS -->
+    <script src="@Url.Content("~/lib/jquery-terminal/jquery.terminal.prism.js")"></script>
+
+    <script>
+
+        (function () {
+
+            // Mapping of output log record type to css class for coloring comes from appsettings
+            var dataTypes = @Html.Raw(Model.OutputLevels);
+
+            var connection;
+            var $terminal;
+
+            $(document).ready(function () {
+
+                // dynamically get the hubUrl by including the site's appname if exists, as site could be running from root or as an app.
+                // setup the hub connection
+                connection = new signalR.HubConnectionBuilder().withUrl("@HttpContext.Request.PathBase.Value" + "/streamPowerShellRaw").build();
+
+                // log the output records to the table as they come in
+                connection.on("OutputReceived", logRecord => {
+
+                    if (logRecord.type == 'System' && logRecord.data == "Loading script...") {  
+                        $terminal.pause();
+                    }
+
+                    $terminal.echo(`<div class="logRecord ${ dataTypes.find((o) => { return o["Name"] === logRecord.type }).CssClass ?? "" }">
+                                        <div>${logRecord.timeStamp}</div>
+                                        <div>${logRecord.type}</div>
+                                        <div>${logRecord.data}</div>
+                                    </div>`
+                                   , {raw: true, wrap:false});
+
+                    if (logRecord.type == 'System' && logRecord.data == "Script execution ended.") {
+                        $terminal.resume();
+                    }
+                });
+
+                // enable terminal input once connected
+                connection.start().then(function () {
+
+                    // Setup the terminal
+                    $terminal = $('#terminal').terminal(function(command, term) {
+                        
+                        if (command !== '') {
+
+                            if (command == 'cls') {
+                                $terminal.clear();
+                            }
+                            else {
+
+                                connection
+                                    .invoke("StreamPowerShellRaw", command)
+                                    .catch(function (err) {
+                                        $terminal.echo(`An error occured: ${err}`).resume();
+                                    });
+                            }
+
+                        }
+
+                    }, {
+
+                        keydown: function(e, term) {
+                             if (e.which === 67 && e.ctrlKey) { // CTRL+C
+                                $.getJSON(`?handler=CancelScript&connectionId=${connection.connection.connectionId}`);
+                                $terminal.echo("Canceled...").resume();
+                                return false;
+                             }
+                        },
+                        greetings: 'PowerShell Terminal\n',
+                        height: 500,
+                        pauseEvents: false,
+                        prompt: 'PS > '
+                    });
+
+                    $.terminal.syntax('powershell');
+
+                }).catch(err => $terminal.echo(`An error occured: ${err}`));
+
+            });
+        
+        })();
+    </script>
+    
+}

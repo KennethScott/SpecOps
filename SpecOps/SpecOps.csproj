@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Pages\Admin\" />
     <Content Include="Scripts\Demo.ps1" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

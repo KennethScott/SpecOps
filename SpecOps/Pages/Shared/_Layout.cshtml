@@ -1,4 +1,7 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService AuthorizationService
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -72,12 +75,23 @@
                         <li class="nav-item">
                             <!-- Intentionally use href so link doesnt include route parms when on the page.. asp-page and empty asp-route-id SHOULD have worked..  -->
                             <a class="nav-link" href="@Context.Request.PathBase.Value/User/Scripts">
-                                <i class="nav-icon fas fa-th"></i>
+                                <i class="nav-icon fas fa-running"></i>
                                 <p>
                                     Script Runner
                                 </p>
                             </a>
                         </li>
+                        @if ((await AuthorizationService.AuthorizeAsync(User, "Admin")).Succeeded) {
+                        <li class="nav-item">
+                            <!-- Intentionally use href so link doesnt include route parms when on the page.. asp-page and empty asp-route-id SHOULD have worked..  -->
+                            <a class="nav-link" href="@Context.Request.PathBase.Value/Admin/Terminal">
+                                <i class="nav-icon fas fa-terminal"></i>
+                                <p>
+                                    Terminal
+                                </p>
+                            </a>
+                        </li>
+                        }
                     </ul>
                 </nav>
                 <!-- /.sidebar-menu -->
@@ -114,7 +128,7 @@
                 <!-- Anything you want -->
             </div>
             <!-- Default to the left -->
-            <strong>Copyright &copy; 2021 SpecOps.</strong> All rights reserved.
+            <strong>Copyright &copy; 2022 SpecOps.</strong> All rights reserved.
         </footer>
     </div>
     <!-- ./wrapper -->

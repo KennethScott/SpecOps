@@ -15,9 +15,21 @@ namespace SpecOps.Models
         public List<ScriptParameter> InputParms { get; set; }
         public ScriptRunspace Runspace { get; set; }
 
+        /// <summary>
+        /// Used to hold code sent up realtime from Terminal
+        /// </summary>
+        public string Code { get; set; }
+
         public string GetContents() 
-        { 
-            return System.IO.File.ReadAllText(PathAndFilename);
+        {
+            if (PathAndFilename == null)
+            {
+                return Code;
+            }
+            else
+            {
+                return System.IO.File.ReadAllText(PathAndFilename);
+            }
         }
     }
 }

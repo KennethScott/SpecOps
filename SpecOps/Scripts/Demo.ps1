@@ -3,12 +3,10 @@
     
     Get-Host | Select-Object Version
 
-    Write-Output "Message from inside the running script"
-    Write-Output "This is the value from the first param: $StrParam"
-    Write-Output "This is the value from the second param: $IntParam"
+    Write-Host "Message from inside the running script"
     
-    Write-Output "Here are the loaded modules in the script:" 
-    Get-Module
+    Write-Host "Here are the loaded modules in the script:" 
+    Get-Module | Write-Host
     
     Write-Information "Wait 5 seconds to allow for cancel..." 
     Wait-Event -SourceIdentifier "ProcessStarted" -Timeout 5
