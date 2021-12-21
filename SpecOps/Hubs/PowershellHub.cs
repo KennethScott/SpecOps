@@ -40,6 +40,7 @@ namespace SpecOps.Hubs
             this.MemoryCache = memoryCache;
         }
 
+        [Authorize("Admin")]
         public async Task StreamPowerShellRaw(string code)
         {
             Script script = new Script() { 
