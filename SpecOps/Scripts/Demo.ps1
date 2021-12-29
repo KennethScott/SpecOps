@@ -1,19 +1,21 @@
-﻿    #Normally you would explicitly define your parameters, but for this demo I'll just get them dynamically.  This lets me use this one script as input to multiple scriptsettings for demo purposes.
+﻿    # Normally you would explicitly define your parameters here, but for this demo I'll just get them dynamically.  This lets me use this one script as input to multiple scriptsettings for demo purposes.
     #Param($StrParam, $IntParam, $SpecOpsCurrentUser, $SpecOpsCurrentUserIP)
     
-    Get-Host | Select-Object Version
+    Get-Host | Select-Object Version | Write-Information
 
-    Write-Host "Message from inside the running script"
+    Write-Information "WindowsIdentity Current Name is $([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)"
     
-    Write-Host "Here are the loaded modules in the script:" 
-    Get-Module | Write-Host
+    # Remember modules must be loaded via scriptsettings.json
+    Write-Information "Here are the loaded modules in the script:" 
+    Get-Module | Write-Information
     
     Write-Information "Wait 5 seconds to allow for cancel..." 
     Wait-Event -SourceIdentifier "ProcessStarted" -Timeout 5
 
-    # write some data to the info/warning streams
+    # Write data to the various streams
     
     Write-Host "A message from write-host"
+
     Write-Information "A message from write-information"
     
     Write-Warning "A message from write-warning"
