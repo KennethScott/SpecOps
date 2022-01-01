@@ -15,11 +15,11 @@ namespace SpecOps.Models
         /// <summary>
         /// Minimum number of runspaces for the pool
         /// </summary>
-        public int Min { get; set; }
+        public int? Min { get; set; }
         /// <summary>
         /// Maximum number of runspaces for the pool
         /// </summary>
-        public int Max { get; set; }
+        public int? Max { get; set; }
         /// <summary>
         /// Module names to import into the runspace
         /// </summary>

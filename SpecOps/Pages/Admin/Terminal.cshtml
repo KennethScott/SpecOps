@@ -50,17 +50,75 @@
 <div class="container-fluid">
     <div class="row">
         <!-- left column -->
-        <div class="col-md-12">
+        <div class="col-md-10">
             <!-- Horizontal Form -->
-            <div class="callout callout-info">
-                <h5>Tips</h5>
-                <p>
+            <div class="card card-secondary collapsed-card">
+                <div class="card-header">
+                    <h3 class="card-title">Tips</h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <!-- /.card-tools -->
+                </div>
+                <!-- /.card-header -->
+                <div class="card-body">
                     <ul>
                         <li>Multiline input is accepted (use <span class="font-weight-bold">Shift-Enter</span> to go to next line)</li>
                         <li><span class="font-weight-bold">Ctrl-C</span> should cancel long running code</li>
-                        <li>You may have to pipe some command output to Write-Host/Information/etc. Example: <span class="font-weight-bold">dir | Write-Host</span></li>
+                        <li>You may have to pipe some command output to Write-Host/Information/etc. Example: 
+                            <span class="font-weight-bold">dir | Write-Host</span></li>
                     </ul>
-                </p>
+                </div>
+                <!-- /.card-body -->
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <!-- left column -->
+        <div class="col-md-10">
+            <!-- Horizontal Form -->
+            <div class="card card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title">Runspace Config</h3>
+                </div>
+                <!-- /.card-header -->
+                <form id="dummyForm">
+                    <div class="card-body runspaceConfig">
+                        <div class="form-group row">
+                            <label for="ExecutionPolicy" class="col-md-2 col-form-label">Execution Policy</label>
+                            <div class="col-md-6">
+                                <select id="ExecutionPolicy" name="ExecutionPolicy" class="custom-select">
+                                    <option value="" selected></option>
+                                    <option value="AllSigned">AllSigned</option>
+                                    <option value="Bypass">Bypass</option>
+                                    <option value="Default">Default</option>
+                                    <option value="RemoteSigned">RemoteSigned</option>
+                                    <option value="Restricted">Restricted</option>
+                                    <option value="Undefined">Undefined</option>
+                                    <option value="Unrestricted">Unrestricted</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="Modules" class="col-md-2 col-form-label">Modules</label>
+                            <div class="col-md-6">
+                                <input id="Modules" name="Modules" type="text" class="form-control" placeholder="comma separated" />
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label for="Min" class="col-md-2 col-form-label">Min</label>
+                            <div class="col-md-1">
+                                <input id="Min" name="Min" type="number" class="form-control" />
+                            </div>
+                            <div class="col-md-2"></div>
+                            <label for="Max" class="col-md-2 col-form-label">Max</label>
+                            <div class="col-md-1">
+                                <input id="Max" name="Max" type="number" class="form-control" />
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -140,8 +198,20 @@
                             }
                             else {
 
+                                let runspaceOptions = $("div.runspaceConfig input, div.runspaceConfig select").filter(function() {return this.value;}).length;
+
+                                let runspace = undefined;
+                                if (runspaceOptions > 0) {
+                                    runspace = {
+                                        ExecutionPolicy: $('#ExecutionPolicy option:selected').text(),
+                                        Min: parseInt($('#Min').val()) || undefined,
+                                        Max: parseInt($('#Max').val()) || undefined,
+                                        Modules: $('#Modules').val().split(',').filter(entry => entry.trim() != '')
+                                    }
+                                };
+
                                 connection
-                                    .invoke("StreamPowerShellRaw", command)
+                                    .invoke("StreamPowerShellRaw", command, runspace)
                                     .catch(function (err) {
                                         $terminal.echo(`An error occured: ${err}`).resume();
                                     });

@@ -41,13 +41,14 @@ namespace SpecOps.Hubs
         }
 
         [Authorize("Admin")]
-        public async Task StreamPowerShellRaw(string code)
+        public async Task StreamPowerShellRaw(string code, ScriptRunspace runspace)
         {
             Script script = new Script() { 
                 CategoryId = "Dynamic", 
                 Id = "Dynamic", 
                 Code = code, 
-                InputParms = new List<ScriptParameter>() 
+                InputParms = new List<ScriptParameter>(),
+                Runspace = runspace
             };
 
             await StreamPowerShell(script, new Dictionary<string, object>(), o =>
@@ -91,8 +92,8 @@ namespace SpecOps.Hubs
 
             // use the runspace factory to create a pool of runspaces with a minimum and maximum number of runspaces to maintain.
             RsPool = RunspaceFactory.CreateRunspacePool(defaultSessionState);
-            RsPool.SetMinRunspaces(runspace.Min);
-            RsPool.SetMaxRunspaces(runspace.Max);
+            RsPool.SetMinRunspaces(runspace.Min ?? 1);
+            RsPool.SetMaxRunspaces(runspace.Max ?? 1);
 
             // set the pool options for thread use.
             // we can throw away or re-use the threads depending on the usage scenario.
