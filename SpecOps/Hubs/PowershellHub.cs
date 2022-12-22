@@ -61,6 +61,7 @@ namespace SpecOps.Hubs
         {
             scriptParameters.Add("SpecOpsCurrentUser", Context.User?.Identity?.Name);
             scriptParameters.Add("SpecOpsCurrentUserIP", Context.Features.Get<IHttpConnectionFeature>().RemoteIpAddress?.ToString());
+            scriptParameters.Add("SpecOpsScriptId", scriptId);
 
             var script = ScriptService.GetScript(scriptId);
 
