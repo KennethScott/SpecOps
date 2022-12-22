@@ -213,11 +213,11 @@ namespace SpecOps.Hubs
                     break;
                 case ErrorRecord e:
                     type = OutputLevelName.Error;
-                    data = e.Exception.ToString();
+                    data = e.Exception?.ToString();
                     break;
                 case InformationRecord i:
                     type = OutputLevelName.Info;
-                    data = i.MessageData.ToString();
+                    data = i.MessageData?.ToString();
                     break;
                 case ProgressRecord p:
                     type = OutputLevelName.Progress;
@@ -225,7 +225,7 @@ namespace SpecOps.Hubs
                     break;
                 case PSObject ps:
                     type = OutputLevelName.Data;
-                    data = currentStreamRecord.ToString();
+                    data = currentStreamRecord?.ToString();
                     break;
                 case VerboseRecord v:
                     type = OutputLevelName.Verbose;
@@ -237,7 +237,7 @@ namespace SpecOps.Hubs
                     break;
                 default:
                     type = OutputLevelName.Unknown;
-                    data = currentStreamRecord.ToString();
+                    data = currentStreamRecord?.ToString();
                     break;
             }
 
