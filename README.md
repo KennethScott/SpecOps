@@ -60,6 +60,7 @@ Scripts are configured in **scriptsettings.json**.
     * **System Generated Input Parameters** are automatically available to all scripts.  They could be used for anything, but most commonly for additional custom logging purposes.  See /Scripts/Demo.ps1 for an example of usage.
       * **SpecOpsCurrentUser** is the domain and userid of the user running the script
       * **SpecOpsCurrentUserIP** is the IP address of the user running the script
+      * **SpecOpsScriptId** is the script id of the script being executed
 7) Custom Runspace pools are also supported 
     * **ExecutionPolicy** allows for specifying the desired [Microsoft.PowerShell.ExecutionPolicy](https://docs.microsoft.com/en-us/dotnet/api/microsoft.powershell.executionpolicy?view=powershellsdk-7.0.0) string name such as Unrestricted, Bypass, etc.
     * **Min** is an integer value and specifies the minimum number of runspaces to allocate to the pool
