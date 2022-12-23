@@ -46,14 +46,15 @@ namespace SpecOps.Hubs
         }
 
         [Authorize("Admin")]
-        public async Task StreamPowerShellRaw(string code, ScriptRunspace runspace)
+        public async Task StreamPowerShellRaw(string code, ScriptRunspace runspace, bool enableImpersonation)
         {
             Script script = new Script() { 
                 CategoryId = "Dynamic", 
                 Id = "Dynamic", 
                 Code = code, 
                 InputParms = new List<ScriptParameter>(),
-                Runspace = runspace
+                Runspace = runspace,
+                EnableImpersonation = enableImpersonation
             };
 
             await StreamPowerShell(script, new Dictionary<string, object>(), o =>
