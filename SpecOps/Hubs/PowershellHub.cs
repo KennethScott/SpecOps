@@ -208,6 +208,7 @@ namespace SpecOps.Hubs
             finally
             {
                 outputHandler(new OutputRecord(OutputLevelName.System, "Script execution ended."));
+                RsPool.Dispose();
                 MemoryCache.Remove(cacheKey);
             }
         }
