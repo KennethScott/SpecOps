@@ -16,6 +16,11 @@ namespace SpecOps.Models
         public ScriptRunspace Runspace { get; set; }
 
         /// <summary>
+        /// When set to true, the script will be executed under the security context of the current user instead of that of the AppPoolIdentity
+        /// </summary>
+        public bool EnableImpersonation { get; set; }
+
+        /// <summary>
         /// Used to hold code sent up realtime from Terminal
         /// </summary>
         public string Code { get; set; }

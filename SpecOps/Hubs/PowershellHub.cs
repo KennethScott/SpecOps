@@ -1,20 +1,22 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Management.Automation;
-using System.Management.Automation.Runspaces;
-using System.Threading.Tasks;
+using SpecOps.Classes;
 using SpecOps.Models;
 using SpecOps.Services;
-using Microsoft.Extensions.Configuration;
-using SpecOps.Classes;
-using System.Threading;
-using Microsoft.Extensions.Caching.Memory;
-using System.Text.Json;
-using Microsoft.AspNetCore.Http.Features;
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Management.Automation;
+using System.Management.Automation.Runspaces;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SpecOps.Hubs
 {
@@ -29,15 +31,18 @@ namespace SpecOps.Hubs
         private readonly ILogger<PowerShellHub> Logger;
         private IHubContext<PowerShellHub> PowerShellHubContext { get; }
         private IMemoryCache MemoryCache { get; set; }
+        private readonly IHttpContextAccessor HttpContextAccessor;
 
         private RunspacePool RsPool { get; set; }
 
-        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext, IMemoryCache memoryCache)
+        public PowerShellHub(IScriptService scriptService, ILogger<PowerShellHub> logger, IHubContext<PowerShellHub> powerShellHubContext, IMemoryCache memoryCache,
+                                IHttpContextAccessor httpContextAccessor)
         {
             this.ScriptService = scriptService;
             this.Logger = logger;
             this.PowerShellHubContext = powerShellHubContext;
             this.MemoryCache = memoryCache;
+            this.HttpContextAccessor = httpContextAccessor;
         }
 
         [Authorize("Admin")]
@@ -177,10 +182,19 @@ namespace SpecOps.Hubs
                     };
                     MemoryCache.Set(cacheKey, cancellationTokenSource, cacheExpiryOptions);
 
-                    // NOTE: the 'await' call is gone here so we can access the task object.
-                    Task<PSDataCollection<PSObject>> asyncTask = ps.InvokeAsync();
-                    asyncTask.Wait(cancellationTokenSource.Token); // Wait on the task until natural completion OR cancel token fires.
-                    output = asyncTask.Result; // this object should contain the original PSObject results (pipeline output).
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && script.EnableImpersonation)
+                    {
+                        var user = (WindowsIdentity)HttpContextAccessor.HttpContext.User.Identity;
+
+                        await WindowsIdentity.RunImpersonated(user.AccessToken, async () =>
+                        {
+                            output = InvokeScript(ps, cancellationTokenSource);
+                        });
+                    }
+                    else
+                    {
+                        output = InvokeScript(ps, cancellationTokenSource);
+                    }
                 }
 
                 Logger.Log(LogLevel.Information, @$"'{script.CategoryId}\{script.Name}' ran by {Context.User.Identity.Name} completed normally.");
@@ -196,6 +210,14 @@ namespace SpecOps.Hubs
                 outputHandler(new OutputRecord(OutputLevelName.System, "Script execution ended."));
                 MemoryCache.Remove(cacheKey);
             }
+        }
+
+        private PSDataCollection<PSObject> InvokeScript(PowerShell ps, CancellationTokenSource cancellationTokenSource)
+        {
+            // NOTE: the 'await' call is gone here so we can access the task object.
+            Task<PSDataCollection<PSObject>> asyncTask = ps.InvokeAsync();
+            asyncTask.Wait(cancellationTokenSource.Token); // Wait on the task until natural completion OR cancel token fires.
+            return asyncTask.Result; // this object should contain the original PSObject results (pipeline output).
         }
 
         private void WriteOutput<T>(object sender, DataAddedEventArgs ea, Action<object> outputHandler)
