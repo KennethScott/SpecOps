@@ -118,6 +118,30 @@
           "PSDiagnostics"
         ]
       }
+    },
+    {
+      "CategoryId": "Admin",
+      "Id": "CB3F6AD2-3528-48C7-B521-E71FEE6F19A4",
+      "PathAndFilename": "./Scripts/Demo.ps1",
+      "Name": "Impersonation Demo for Admin",
+      "Summary": "This script has Impersonation enabled",
+      "EnableImpersonation": true,
+      "InputParms": [
+        {
+          "Name": "StrParam",
+          "Type": "text",
+          "Description": "Input String Parameter1",
+          "Value": "MyDefaultValue"
+        }
+      ],
+      "Runspace": {
+        "ExecutionPolicy": "Unrestricted",
+        "Min": 1,
+        "Max": 2,
+        "Modules": [
+          "PSDiagnostics"
+        ]
+      }
     }
   ]
 }
