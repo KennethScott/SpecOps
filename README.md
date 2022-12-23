@@ -66,6 +66,7 @@ Scripts are configured in **scriptsettings.json**.
     * **Min** is an integer value and specifies the minimum number of runspaces to allocate to the pool
     * **Max** is an integer value and specifies the maximum number of runspaces to allocate to the pool.  Recommended at n+1 where n=number of processors.
     * **Modules** allows for an array of strings for specifying PowerShell modules to load into the pool
+8) **EnableImpersonation** is a boolean that when set to true forces the script to run under the security context of the current user.  When not set or false, scripts run under the context of the AppPoolIdentity.
 
 ```json
 "ScriptSettings": [
@@ -75,6 +76,7 @@ Scripts are configured in **scriptsettings.json**.
       "PathAndFilename": "./Scripts/Demo.ps1",
       "Name": "Demo",
       "Summary": "This is a brief summary of what the demo script does....",
+      "EnableImpersonation": true,
       "InputParms": [
         {
           "Name": "StrParam1",
@@ -159,7 +161,7 @@ SpecOps now includes a realtime PowerShell terminal to aid in script development
 Access to the terminal is restricted to members of the Admin policy.  
 Script output is styled the same as the output table on the Script Runner page.  Input is also syntax highlighted via [PrismJS](https://prismjs.com/).  
 
-Any code entered is executed and logged in exactly the same way as the predefined scripts are - meaning they will run under the security context of the App Pool identity.
+Impersonation is supported and is controlled via a dropdown option.  When set to No, any code entered is executed and logged under the security context of the AppPoolIdentity.  When set to Yes, it will be executed under the context of the current user.
 
 Please be very careful in allowing access to the Terminal as it could be very dangerous in the hands of unskilled users.
 <br/><br/>
