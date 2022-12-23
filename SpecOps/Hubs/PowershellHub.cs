@@ -153,8 +153,8 @@ namespace SpecOps.Hubs
                     ps.AddParameters(scriptParameters);
 
                     // Subscribe to events from output
-                    var output = new PSDataCollection<PSObject>();
-                    output.DataAdded += (object sender, DataAddedEventArgs e) => WriteOutput<PSObject>(sender, e, outputHandler);
+                    var pipelineObjects = new PSDataCollection<PSObject>();
+                    pipelineObjects.DataAdded += (object sender, DataAddedEventArgs e) => WriteOutput<PSObject>(sender, e, outputHandler);
 
                     // subscribe to events from some of the streams
 
@@ -189,14 +189,19 @@ namespace SpecOps.Hubs
 
                         await WindowsIdentity.RunImpersonated(user.AccessToken, async () =>
                         {
-                            output = InvokeScript(ps, cancellationTokenSource);
+                            pipelineObjects = InvokeScript(ps, cancellationTokenSource);
                         });
                     }
                     else
                     {
-                        output = InvokeScript(ps, cancellationTokenSource);
+                        pipelineObjects = InvokeScript(ps, cancellationTokenSource);
                     }
-                }
+
+                    foreach (var item in pipelineObjects)
+                    {
+                        outputHandler(new OutputRecord(OutputLevelName.Data, item.BaseObject?.ToString()));
+                    }
+                }                
 
                 Logger.Log(LogLevel.Information, @$"'{script.CategoryId}\{script.Name}' ran by {Context.User.Identity.Name} completed normally.");
 
