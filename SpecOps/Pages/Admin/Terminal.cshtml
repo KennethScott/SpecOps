@@ -29,7 +29,8 @@
 
         .logRecord div:nth-of-type(1) { display:inline-block; width:190px; white-space:nowrap; }
         .logRecord div:nth-of-type(2) { display:inline-block; width:85px; }
-        .logRecord div:nth-of-type(3) { display:inline-block; width:auto; }
+        .logRecord div:nth-of-type(3) { display:inline-block; width:auto; white-space:pre; }
+        .logRecord > div { vertical-align: top; }
     </style>
 }
 
@@ -182,7 +183,7 @@
                         $terminal.pause();
                     }
 
-                    $terminal.echo(`<div class="logRecord ${ dataTypes.find((o) => { return o["Name"] === logRecord.type }).CssClass ?? "" }">
+                    $terminal.echo(`<div class="logRecord ${dataTypes.find((o) => { return o["Name"] === logRecord.type }).CssClass ?? ""}">
                                         <div>${logRecord.timeStamp}</div>
                                         <div>${logRecord.type}</div>
                                         <div>${logRecord.data}</div>
