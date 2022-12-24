@@ -48,9 +48,6 @@ namespace SpecOps.Hubs
         [Authorize("Admin")]
         public async Task StreamPowerShellRaw(string code, ScriptRunspace runspace, bool enableImpersonation)
         {
-            // Pipe the command(s) entered to Out-String.  This allows Format-* commands sent to work as expected.
-            code += " | Out-String";
-
             Script script = new Script() { 
                 CategoryId = "Dynamic", 
                 Id = "Dynamic", 
