@@ -202,7 +202,14 @@ namespace SpecOps.Hubs
 
                     foreach (var item in pipelineObjects)
                     {
-                        outputHandler(new OutputRecord(OutputLevelName.Data, item.BaseObject?.ToString()));
+                        if (item is null)
+                        {
+                            outputHandler(new OutputRecord(OutputLevelName.Error, "An unexpected error occurred.  Null response received."));
+                        }
+                        else
+                        {
+                            outputHandler(new OutputRecord(OutputLevelName.Data, item?.BaseObject?.ToString()));
+                        }
                     }
                 }                
 
