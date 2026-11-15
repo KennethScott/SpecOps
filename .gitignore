@@ -343,3 +343,13 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+# ---- SpecOps v2 ----
+# Runtime data (SQLite DB, logs, DataProtection keys, uploaded scripts/modules)
+/data/
+logs/
+*.db
+*.db-shm
+*.db-wal
+# Local overrides that may contain secrets or machine-specific values
+appsettings.Local.json
+.env

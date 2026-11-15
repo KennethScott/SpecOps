@@ -1,0 +1,5 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain model, PowerShell execution engine, parameter discovery & validation. No ASP.NET dependency. -->
+
+</Project>
