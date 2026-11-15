@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SpecOps.Core\SpecOps.Core.csproj" />
+    <ProjectReference Include="..\..\src\SpecOps.Data\SpecOps.Data.csproj" />
+    <ProjectReference Include="..\..\src\SpecOps.Web\SpecOps.Web.csproj" />
+  </ItemGroup>
+
+</Project>

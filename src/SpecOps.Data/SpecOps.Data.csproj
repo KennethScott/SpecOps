@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- EF Core DbContext, migrations, ASP.NET Core Identity store, JSON import/export. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpecOps.Core\SpecOps.Core.csproj" />
+  </ItemGroup>
+
+</Project>

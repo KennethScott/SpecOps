@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- Central Package Management: set versions here, reference packages without a Version in .csproj files -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="Testing">
+    <!-- Tests run on Microsoft.Testing.Platform (see global.json); xunit.v3 includes the runner -->
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+</Project>

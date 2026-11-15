@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SpecOps.Core/SpecOps.Core.csproj" />
+    <Project Path="src/SpecOps.Data/SpecOps.Data.csproj" />
+    <Project Path="src/SpecOps.Web/SpecOps.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SpecOps.Tests/SpecOps.Tests.csproj" />
+  </Folder>
+</Solution>
