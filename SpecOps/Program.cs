@@ -1,77 +1,105 @@
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Sinks.Elasticsearch;
-using Serilog.AspNetCore;
+using SpecOps.Hubs;
+using SpecOps.Middleware;
+using SpecOps.Models;
+using SpecOps.Services;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
-using SpecOps.Classes;
 
-namespace SpecOps
+// Configure Logging 
+ConfigureLogging();
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+   .AddNegotiate();
+
+// Add services to the container (Previously in ConfigureServices method)
+var appSettingsConfig = builder.Configuration.GetSection(nameof(AppSettings));
+builder.Services.Configure<AppSettings>(appSettingsConfig);
+builder.Services.Configure<ScriptSettings>(options =>
 {
-    public class Program
+    options.Scripts = builder.Configuration.GetSection(nameof(ScriptSettings)).Get<IEnumerable<Script>>();
+});
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddRazorPages().AddRazorRuntimeCompilation();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IScriptService, ScriptService>();
+builder.Services.AddLogging();
+builder.Services.AddMemoryCache();
+
+var securityPolicySettings = appSettingsConfig.Get<AppSettings>().SecurityPolicies;
+var allGroups = securityPolicySettings.SelectMany(p => p.Groups);
+
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var p in securityPolicySettings)
     {
-        public static void Main(string[] args)
-        {
-            //configure logging first
-            ConfigureLogging();
-
-            //then create the host, so that if the host fails we can log errors
-            CreateHost(args);
-        }
-
-        private static void CreateHost(string[] args)
-        {
-            try
-            {
-                CreateHostBuilder(args).Build().Run();
-            }
-            catch (System.Exception ex)
-            {
-                Log.Fatal($"Failed to start {typeof(Program).Assembly.GetName().Name}", ex);
-                throw;
-            }
-        }
-
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                })
-                .ConfigureAppConfiguration(config =>
-                {
-                    config
-                        .AddJsonFile("scriptSettings.json", optional: false, reloadOnChange: true)
-                        .AddJsonFile("appSettings.json", optional: false, reloadOnChange: true)
-                        .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true);
-                })
-                .UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Configuration(context.Configuration)
-                    .ReadFrom.Services(services));
-
-
-        private static void ConfigureLogging()
-        {
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
-                .Build();
-
-            Log.Logger = new LoggerConfiguration()
-                .ReadFrom.Configuration(configuration)
-#if DEBUG
-                // Used to filter out potentially bad data due debugging.
-                // Very useful when doing Seq dashboards and want to remove logs under debugging session.
-                .Enrich.WithProperty("DebuggerAttached", Debugger.IsAttached)
-#endif
-                .CreateBootstrapLogger();
-        }
-
+        options.AddPolicy(p.Name, policy => policy.RequireRole(p.Groups));
     }
+    options.DefaultPolicy = new AuthorizationPolicyBuilder().RequireRole(allGroups).Build();
+});
+
+builder.Configuration.AddJsonFile("scriptSettings.json", optional: false, reloadOnChange: true);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services));
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseSerilogRequestLogging();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapRazorPages().RequireAuthorization();
+app.MapHub<PowerShellHub>("/streamPowerShell").RequireAuthorization();
+app.MapHub<PowerShellHub>("/streamPowerShellRaw").RequireAuthorization();
+
+app.UseErrorLogging();
+
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal($"Failed to start {typeof(Program).Assembly.GetName().Name}", ex);
+    throw;
+}
+
+void ConfigureLogging()
+{
+    var configuration = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
+        .Build();
+
+    Log.Logger = new LoggerConfiguration()
+        .ReadFrom.Configuration(configuration)
+        .CreateBootstrapLogger();
 }

@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "eslint": "^8.57.0",
+    "jquery.terminal": "^2.37.2",
+    "prismjs": "^1.29.0"
+  }
+}

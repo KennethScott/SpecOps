@@ -1,0 +1,93 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+dependencies:
+  jquery.terminal:
+    specifier: ^2.37.2
+    version: 2.37.2
+  prismjs:
+    specifier: ^1.29.0
+    version: 1.29.0
+
+packages:
+
+  /@jcubic/lily@0.3.0:
+    resolution: {integrity: sha512-4z6p4jLGSthc8gQ7wu4nHfGYn/IgCKFr+7hjuf80VdXUs7sm029mZGGDpS8sb29PVZWUBvMMTBCVGFhH2nN4Vw==}
+    dev: false
+
+  /@types/jquery@3.5.29:
+    resolution: {integrity: sha512-oXQQC9X9MOPRrMhPHHOsXqeQDnWeCDT3PelUIg/Oy8FAbzSZtFHRjc7IpbfFVmpLtJ+UOoywpRsuO5Jxjybyeg==}
+    dependencies:
+      '@types/sizzle': 2.3.8
+    dev: false
+
+  /@types/sizzle@2.3.8:
+    resolution: {integrity: sha512-0vWLNK2D5MT9dg0iOo8GlKguPAU02QjmZitPEsXRuJXU/OGIOt9vT9Fc26wtYuavLxtO45v9PGleoL9Z0k1LHg==}
+    dev: false
+
+  /ansidec@0.3.4:
+    resolution: {integrity: sha512-Ydgbey4zqUmmNN2i2OVeVHXig3PxHRbok2X6B2Sogmb92JzZUFfTL806dT7os6tBL1peXItfeFt76CP3zsoXUg==}
+    dev: false
+
+  /clone@1.0.4:
+    resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==}
+    engines: {node: '>=0.8'}
+    dev: false
+
+  /defaults@1.0.4:
+    resolution: {integrity: sha512-eFuaLoy/Rxalv2kr+lqMlUnrDWV+3j4pljOIJgLIhI058IQfWJ7vXhyEIHu+HtC738klGALYxOKDO0bQP3tg8A==}
+    dependencies:
+      clone: 1.0.4
+    dev: false
+
+  /fsevents@2.3.3:
+    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+    requiresBuild: true
+    dev: false
+    optional: true
+
+  /iconv-lite@0.6.3:
+    resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
+    engines: {node: '>=0.10.0'}
+    dependencies:
+      safer-buffer: 2.1.2
+    dev: false
+
+  /jquery.terminal@2.37.2:
+    resolution: {integrity: sha512-1mZLE1TumJDBcgC9ZSKqQTdENioVGZh68PNFk/TQ90EYxtQyEcxzQX5VCRNBnsB6pmyRLopL4u3I2NGbCFrcuw==}
+    hasBin: true
+    dependencies:
+      '@jcubic/lily': 0.3.0
+      '@types/jquery': 3.5.29
+      ansidec: 0.3.4
+      iconv-lite: 0.6.3
+      jquery: 3.7.1
+      prismjs: 1.29.0
+      wcwidth: 1.0.1
+    optionalDependencies:
+      fsevents: 2.3.3
+    dev: false
+
+  /jquery@3.7.1:
+    resolution: {integrity: sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==}
+    dev: false
+
+  /prismjs@1.29.0:
+    resolution: {integrity: sha512-Kx/1w86q/epKcmte75LNrEoT+lX8pBpavuAbvJWRXar7Hz8jrtF+e3vY751p0R8H9HdArwaCTNDDzHg/ScJK1Q==}
+    engines: {node: '>=6'}
+    dev: false
+
+  /safer-buffer@2.1.2:
+    resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
+    dev: false
+
+  /wcwidth@1.0.1:
+    resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
+    dependencies:
+      defaults: 1.0.4
+    dev: false

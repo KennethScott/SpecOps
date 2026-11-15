@@ -1,16 +1,5 @@
 {
-  "iisSettings": {
-    "windowsAuthentication": true,
-    "anonymousAuthentication": false,
-    "iis": {
-      "applicationUrl": "https://localhost/SpecOps",
-      "sslPort": 443
-    },
-    "iisExpress": {
-      "applicationUrl": "http://localhost:52609",
-      "sslPort": 44360
-    }
-  },
+  "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
     "IIS Express": {
       "commandName": "IISExpress",
@@ -34,6 +23,18 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
+    },
+  }
+  "iisSettings": {
+    "windowsAuthentication": true,
+    "anonymousAuthentication": false,
+    "iis": {
+      "applicationUrl": "https://localhost/SpecOps",
+      "sslPort": 443
+    },
+    "iisExpress": {
+      "applicationUrl": "http://localhost:52609",
+      "sslPort": 44360
     }
   }
 }
