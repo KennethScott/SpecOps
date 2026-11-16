@@ -1,13 +1,39 @@
 <Project>
 
-  <!-- Central Package Management: set versions here, reference packages without a Version in .csproj files -->
+  <!--
+    Central Package Management: every package version lives here; .csproj files reference packages without a Version.
+    Policy: always the latest stable release. Dependabot (.github/dependabot.yml) opens weekly update PRs.
+  -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
+  <ItemGroup Label="PowerShell">
+    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.7.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Data">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Authentication">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="11.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Logging">
+    <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.1" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Testing">
     <!-- Tests run on Microsoft.Testing.Platform (see global.json); xunit.v3 includes the runner -->
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,24 @@
+# Keep every dependency on its latest version: weekly PRs, grouped to keep the noise down.
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      microsoft:
+        patterns: ["Microsoft.*", "System.*"]
+      serilog:
+        patterns: ["Serilog*"]
+      testing:
+        patterns: ["xunit*"]
+
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

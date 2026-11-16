@@ -4,7 +4,7 @@
 <img src="docs/images/banner.png" width="800">
 <br/><br/>
 
-> **🚧 v2 in progress (`v2` branch).** SpecOps is being rebuilt on .NET 10 + Blazor + Tailwind: cross-platform (Linux/Docker and Windows), sign-in via Entra ID / Google / OIDC, with run history in a database. See [docs/MODERNIZATION_PLAN.md](docs/MODERNIZATION_PLAN.md). The v1 app (described below) is preserved at tag `v1-final`.
+> **🚧 v2 in progress (`v2` branch).** SpecOps is being rebuilt on .NET 11 + Blazor + Tailwind: cross-platform (Linux/Docker and Windows), sign-in via Entra ID / Google / OIDC, with run history in a database. See [docs/MODERNIZATION_PLAN.md](docs/MODERNIZATION_PLAN.md). The v1 app (described below) is preserved at tag `v1-final`.
 >
 > ```bash
 > dotnet build SpecOps.slnx

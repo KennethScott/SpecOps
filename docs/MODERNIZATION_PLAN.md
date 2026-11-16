@@ -7,7 +7,7 @@ _Analysis of `master` @ c566a87 plus the uncommitted work on `feature/dotnet8`, 
 ## 1. TL;DR
 
 - **Start over, but in the same repo, and port the good parts.** The parts worth keeping are the PowerShell execution engine (about 300 lines in `PowershellHub.cs`), the script/parameter/policy config model, and the overall idea. Everything else is AdminLTE scaffolding or hand-built jQuery. Of the 2,554 tracked files, **2,513 (99 MB) are in `wwwroot`**, and almost all of that is unused AdminLTE plugins and docs.
-- **Target .NET 10 (LTS) + Microsoft.PowerShell.SDK 7.6 (LTS).** Skip .NET 8: its support ends in Nov 2026.
+- **Target .NET 11 + Microsoft.PowerShell.SDK 7.7, with every package on its latest stable version.** PowerShell 7.7 requires .NET 11. .NET 11 is an STS release, but STS now gets 24 months of support (to Nov 2028), the same end date as .NET 10 LTS, so there is no support downside. Plan to move to .NET 12 LTS when it ships (Nov 2027).
 - **Switch the UI to Blazor (Interactive Server) + Tailwind CSS.** The app is already a SignalR app that streams output and builds forms from config. Blazor Server does both natively in C#, so the jQuery, DataTables, string-built HTML and the hub plumbing all go away.
 - **Add a database (SQLite via EF Core). It isn't overkill if you use it for the right thing.** The big benefit is **run history and auditing** (who ran what, with which parameters, the output, and whether it succeeded). Moving scripts and policies into the DB with an admin UI is the second step. It also gets rid of the "restart the app after changing policies" limitation.
 - **Cross-platform from the start: Linux/Docker and Windows/IIS are both first-class.** Auth moves to **ASP.NET Core Identity + external login providers** (Microsoft Entra, Google, any OIDC), with Windows auth as an optional extra provider. Windows-only features (impersonation, AD modules) light up when available and are hidden otherwise (section 7).
@@ -34,7 +34,7 @@ _Analysis of `master` @ c566a87 plus the uncommitted work on `feature/dotnet8`, 
 
 ---
 
-## 3. Bugs & security issues found (fix in v2; the first two are worth fixing on master now)
+## 3. Bugs & security issues found (all fixed by design in v2; no v1 hotfixes)
 
 | # | Severity | Issue | Where |
 |---|---|---|---|
@@ -84,12 +84,13 @@ SpecOps.slnx
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Runtime | .NET 10 LTS | `dotnet new blazor --interactivity Server` |
-| PowerShell | Microsoft.PowerShell.SDK 7.6.x | Check the exact current patch when you scaffold |
+| Runtime | .NET 11 | `dotnet new blazor --interactivity Server`; SDK pinned in `global.json` |
+| PowerShell | Microsoft.PowerShell.SDK 7.7.x | Targets net11.0 |
+| Dependencies | Latest stable everywhere | Central versions in `Directory.Packages.props`; Dependabot weekly PRs for NuGet, the SDK and GitHub Actions |
 | UI | Blazor components + **Tailwind CSS v4** (standalone CLI, no Node needed) | Bootstrap 5 is the zero-build alternative if you'd rather skip a CSS build step. For a small app either works; Tailwind gives you the "modern" look more easily. |
 | Icons | Lucide or Heroicons (inline SVG) | Replaces Font Awesome |
 | Code editor (Terminal) | Monaco editor via a small JS interop (or `BlazorMonaco`) | PowerShell syntax highlighting built in; replaces jQuery Terminal + Prism |
-| Data | EF Core 10 + SQLite (swappable to SQL Server/Postgres) | |
+| Data | EF Core 11 + SQLite (swappable to SQL Server/Postgres) | |
 | Auth | ASP.NET Core Identity (EF Core store) + external providers: Entra ID (OIDC), Google, generic OIDC, optional Windows/Negotiate | See section 7 |
 | Logging | Serilog → console + file; optional OpenTelemetry | |
 | Health | `/healthz` | For Docker/IIS probes |
@@ -178,7 +179,7 @@ Goal: one codebase, one build, running equally well as a **Linux container** or 
 
 ### 7.2 Packaging
 
-- **Linux image** (primary container): multi-stage `Dockerfile` on `mcr.microsoft.com/dotnet/aspnet:10.0`. The PowerShell SDK ships with the app, so no separate pwsh install is needed for hosted runspaces. Extra modules are installed at image build (`Install-PSResource` from a `modules.txt`) or at runtime into `/data/modules`. `/data` is a volume for SQLite, scripts, modules, logs and DataProtection keys. `compose.yaml` included, non-root user, `/healthz` health check.
+- **Linux image** (primary container): multi-stage `Dockerfile` on `mcr.microsoft.com/dotnet/aspnet:11.0`. The PowerShell SDK ships with the app, so no separate pwsh install is needed for hosted runspaces. Extra modules are installed at image build (`Install-PSResource` from a `modules.txt`) or at runtime into `/data/modules`. `/data` is a volume for SQLite, scripts, modules, logs and DataProtection keys. `compose.yaml` included, non-root user, `/healthz` health check.
 - **Windows**: `dotnet publish` → IIS or Windows Service (zip artifact on each release). A Windows container image is optional/later; the demand for it is small.
 - **HTTPS.** OAuth providers require `https` redirect URIs for anything except `localhost`, so this is needed for real use, not optional. Two supported setups:
   - **Reverse proxy terminates TLS (recommended for Docker):** Caddy (automatic Let's Encrypt, simplest), Traefik, nginx, or IIS/ARR on Windows. The app listens on plain HTTP inside the container network.
@@ -252,8 +253,8 @@ Script           …, Platforms[] (Any|Windows|Linux), Credentials[]
 
 Each phase ends with something working and committable.
 
-### Phase 0 — Housekeeping (½ day)
-- Hotfix bugs #1 and #2 on `master` if anyone uses the current app.
+### Phase 0 — Housekeeping (½ day) ✅ done
+- No v1 hotfixes; everything in section 3 is fixed by the v2 overhaul.
 - Tag the archive branches, create `v2` from `master`, remove old `SpecOps/`, scaffold the solution layout above.
 - Add `Directory.Build.props` (nullable on, warnings as errors, analyzers), `.editorconfig`, and an updated `.gitignore` (`logs/`, `*.db`, `node_modules/`).
 
