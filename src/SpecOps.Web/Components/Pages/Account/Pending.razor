@@ -1,0 +1,16 @@
+@page "/account/pending"
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@layout AccountLayout
+
+<PageTitle>Awaiting approval · SpecOps</PageTitle>
+
+<div class="flex flex-col items-center gap-3 text-center">
+    <div class="rounded-full bg-amber-100 p-3 text-amber-700 dark:bg-amber-950 dark:text-amber-300"><Icon Name="hourglass" Class="size-6" /></div>
+    <h2 class="text-lg font-semibold">Waiting for approval</h2>
+    <p class="text-sm text-slate-600 dark:text-slate-400">
+        You've signed in successfully, but an administrator needs to approve your account before you can use SpecOps.
+        Try again once you've been approved.
+    </p>
+    <a href="account/login" class="btn-secondary mt-2">Back to sign in</a>
+</div>

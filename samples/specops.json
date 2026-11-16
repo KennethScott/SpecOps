@@ -1,0 +1,98 @@
+{
+  // SpecOps script configuration. Changes are picked up without a restart.
+  // Copy this file (and the scripts folder) into the data directory (default: ./data, /data in the container).
+  "SpecOps": {
+    // Relative script paths resolve against this folder (relative to this file).
+    "ScriptsRoot": "scripts",
+
+    "Runner": {
+      "MaxConcurrentRuns": 10,
+      "DefaultTimeout": "00:30:00"
+    },
+
+    "Categories": [
+      { "Id": "demo", "Name": "Demos", "Description": "Examples that show what SpecOps can do.", "SortOrder": 1 },
+      { "Id": "server", "Name": "Server", "Description": "Information about the SpecOps server.", "SortOrder": 2 }
+    ],
+
+    // Who can run what. Members of the built-in "Admin" role can run everything and use the Terminal and Users pages.
+    // Roles are assigned on the Users page; Groups come from the sign-in provider (e.g. Entra group object IDs).
+    "Policies": [
+      {
+        "Name": "Help desk",
+        "Roles": [ "HelpDesk" ],
+        "Groups": [ "00000000-0000-0000-0000-000000000000" ],
+        "Categories": [ "demo" ]
+      },
+      {
+        "Name": "Operators",
+        "Roles": [ "Operator" ],
+        "Categories": [ "*" ]
+      }
+    ],
+
+    // Optional warm runspace pools. Scripts without a profile run in a fresh, isolated runspace.
+    "RunspaceProfiles": [
+      { "Name": "warm", "MinRunspaces": 1, "MaxRunspaces": 4, "Modules": [] }
+    ],
+
+    "Scripts": [
+      {
+        "Id": "demo",
+        "Name": "Demo",
+        "CategoryId": "demo",
+        "Summary": "Every parameter type, all output streams, progress, formatted objects and cancellation.",
+        "Path": "Demo.ps1",
+        "Parameters": [
+          { "Name": "Message", "Type": "Text", "Required": true, "Placeholder": "Hello from SpecOps", "Description": "Printed once per step." },
+          { "Name": "Count", "Label": "Steps", "Type": "Range", "Min": 1, "Max": 10, "Step": 1, "Default": "3" },
+          { "Name": "When", "Type": "Date" },
+          { "Name": "At", "Type": "Time" },
+          {
+            "Name": "Environment",
+            "Type": "Select",
+            "Options": [
+              { "Value": "dev", "Label": "Development" },
+              { "Value": "test", "Label": "Test" },
+              { "Value": "prod", "Label": "Production" }
+            ]
+          },
+          { "Name": "Email", "Type": "Email", "Placeholder": "someone@example.com" },
+          { "Name": "IncludeErrors", "Label": "Include errors", "Type": "Checkbox", "Description": "Write a couple of non-terminating errors." },
+          { "Name": "DelaySeconds", "Label": "Delay (seconds)", "Type": "Number", "Min": 0, "Max": 120, "Default": "5", "Description": "Time to try the Cancel button." }
+        ]
+      },
+      {
+        "Id": "demo-pooled",
+        "Name": "Demo (warm runspace)",
+        "CategoryId": "demo",
+        "Summary": "The same demo, run from a pre-warmed runspace pool for faster starts.",
+        "Path": "Demo.ps1",
+        "RunspaceProfile": "warm",
+        "Parameters": [
+          { "Name": "Message", "Type": "Text", "Required": true, "Default": "Warm start", "Pattern": "[A-Za-z ]{3,40}", "Description": "Letters and spaces, 3-40 characters." },
+          { "Name": "DelaySeconds", "Type": "Number", "Default": "1", "Min": 0, "Max": 30 }
+        ]
+      },
+      {
+        "Id": "system-info",
+        "Name": "System info",
+        "CategoryId": "server",
+        "Summary": "Machine name, OS, PowerShell and .NET versions, uptime.",
+        "Path": "SystemInfo.ps1"
+      },
+      {
+        "Id": "windows-services",
+        "Name": "Windows services",
+        "CategoryId": "server",
+        "Summary": "List running or stopped Windows services.",
+        "Path": "WindowsServices.ps1",
+        "Platforms": "Windows",
+        "Parameters": [
+          { "Name": "Status", "Type": "Select", "Default": "Running", "Options": [ { "Value": "Running" }, { "Value": "Stopped" } ] },
+          { "Name": "NameFilter", "Label": "Name filter", "Type": "Text", "Default": "*", "Suggestions": [ "*", "Win*", "*Update*" ] }
+        ]
+      }
+    ]
+  }
+}

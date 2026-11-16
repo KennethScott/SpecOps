@@ -1,6 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- EF Core DbContext, migrations, ASP.NET Core Identity store, JSON import/export. -->
+  <!-- EF Core DbContext, migrations and the ASP.NET Core Identity store. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SpecOps.Core\SpecOps.Core.csproj" />

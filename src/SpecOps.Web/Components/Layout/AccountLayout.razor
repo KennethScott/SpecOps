@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+
+<div class="flex min-h-screen items-center justify-center px-4 py-12">
+    <div class="w-full max-w-sm">
+        <div class="mb-8 flex flex-col items-center gap-3 text-center">
+            <img src="img/logo.png" alt="" class="size-14 rounded-full shadow" />
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight">SpecOps</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Tactical scripting</p>
+            </div>
+        </div>
+        <div class="card p-6">
+            @Body
+        </div>
+    </div>
+</div>

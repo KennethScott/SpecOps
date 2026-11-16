@@ -1,0 +1,243 @@
+@using System.Collections.Concurrent
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<section class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-800 bg-console-bg shadow-sm">
+    <div class="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 text-xs text-slate-300">
+        @if (Run is not null)
+        {
+            <RunStatusBadge Status="Run.Status" />
+            <span class="tabular-nums text-console-muted">@FormatDuration(Run.Duration)</span>
+        }
+        else
+        {
+            <span class="text-console-muted">Output</span>
+        }
+
+        <div class="ml-auto flex flex-wrap items-center gap-1">
+            @foreach (var kind in FilterableKinds.Where(k => _counts.GetValueOrDefault(k) > 0))
+            {
+                var hidden = _hidden.Contains(kind);
+                <button type="button" @onclick="() => ToggleKind(kind)" title="@(hidden ? "Show" : "Hide") @kind"
+                        class="@($"rounded px-1.5 py-0.5 font-medium transition {(hidden ? "opacity-40 line-through" : "")} {KindCss(kind)} hover:bg-white/10")">
+                    @kind <span class="tabular-nums opacity-70">@_counts[kind]</span>
+                </button>
+            }
+
+            <span class="mx-1 h-4 w-px bg-white/10"></span>
+            <button type="button" class="rounded p-1 hover:bg-white/10 @(_autoScroll ? "text-white" : "text-console-muted")" title="Auto-scroll" @onclick="ToggleAutoScroll">
+                <Icon Name="arrow-down" Class="size-3.5" />
+            </button>
+            <button type="button" class="rounded p-1 hover:bg-white/10" title="Copy output" @onclick="CopyAsync" disabled="@(_records.Count == 0)">
+                <Icon Name="@(_copied ? "check" : "copy")" Class="size-3.5" />
+            </button>
+            <button type="button" class="rounded p-1 hover:bg-white/10" title="Download output" @onclick="DownloadAsync" disabled="@(_records.Count == 0)">
+                <Icon Name="download" Class="size-3.5" />
+            </button>
+            @if (OnCancel.HasDelegate && Run is { IsFinished: false })
+            {
+                <button type="button" class="ml-1 inline-flex items-center gap-1 rounded bg-rose-600 px-2 py-1 font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+                        @onclick="OnCancel" disabled="@Run.CancelRequested">
+                    <Icon Name="square" Class="size-3" /> @(Run.CancelRequested ? "Stopping…" : "Cancel")
+                </button>
+            }
+        </div>
+    </div>
+
+    <div @ref="_scroller" class="@($"{HeightClass} overflow-auto px-3 py-2 font-mono text-[13px] leading-5 text-console-fg")" role="log" aria-live="polite">
+        @if (_records.Count == 0)
+        {
+            <div class="py-8 text-center text-console-muted">@(Run is null ? EmptyText : "Waiting for output…")</div>
+        }
+        else
+        {
+            <Virtualize Items="_visible" ItemSize="20" OverscanCount="30" Context="record">
+                <div class="@($"flex gap-3 {KindCss(record.Stream)}")">
+                    <span class="shrink-0 select-none text-console-muted tabular-nums">@record.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
+                    <span class="whitespace-pre">@record.Text</span>
+                </div>
+            </Virtualize>
+        }
+    </div>
+</section>
+
+@code {
+    private static readonly OutputKind[] FilterableKinds =
+        [OutputKind.Output, OutputKind.Information, OutputKind.Warning, OutputKind.Error, OutputKind.Verbose, OutputKind.Debug, OutputKind.Progress, OutputKind.System];
+
+    private readonly List<OutputRecord> _records = [];
+    private List<OutputRecord> _visible = [];
+    private readonly Dictionary<OutputKind, int> _counts = [];
+    private readonly HashSet<OutputKind> _hidden = [];
+    private readonly ConcurrentQueue<OutputRecord> _incoming = new();
+    private ElementReference _scroller;
+    private CancellationTokenSource? _watchCts;
+    private ScriptRun? _watching;
+    private bool _autoScroll = true;
+    private bool _copied;
+    private int _flushScheduled;
+    private Timer? _ticker;
+
+    [Parameter]
+    public ScriptRun? Run { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>Raised when the watched run finishes; invoking it re-renders the parent.</summary>
+    [Parameter]
+    public EventCallback<ScriptRun> RunFinished { get; set; }
+
+    [Parameter]
+    public string HeightClass { get; set; } = "h-[32rem]";
+
+    [Parameter]
+    public string EmptyText { get; set; } = "No output yet. Run the script to see results here.";
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Run, _watching))
+        {
+            return;
+        }
+
+        _watchCts?.Cancel();
+        _watchCts?.Dispose();
+        _watchCts = null;
+        _watching = Run;
+        _records.Clear();
+        _visible = [];
+        _counts.Clear();
+        _incoming.Clear();
+
+        if (Run is not null)
+        {
+            _watchCts = new CancellationTokenSource();
+            _ = WatchAsync(Run, _watchCts.Token);
+        }
+
+        // Refresh the header (duration, status) while a run is active.
+        _ticker ??= new Timer(_ => { if (_watching is { IsFinished: false }) { _ = InvokeAsync(StateHasChanged); } }, null, 1000, 1000);
+    }
+
+    private async Task WatchAsync(ScriptRun run, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var record in run.WatchAsync(cancellationToken))
+            {
+                _incoming.Enqueue(record);
+                ScheduleFlush();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        ScheduleFlush();
+
+        // Let the page update (e.g. re-enable its Run button) now the run is over.
+        await InvokeAsync(() => RunFinished.InvokeAsync(run));
+    }
+
+    // Batch incoming output: at most ~10 renders per second, however chatty the script is.
+    private void ScheduleFlush()
+    {
+        if (Interlocked.Exchange(ref _flushScheduled, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Delay(100).ContinueWith(_ => InvokeAsync(FlushAsync), TaskScheduler.Default);
+    }
+
+    private async Task FlushAsync()
+    {
+        Interlocked.Exchange(ref _flushScheduled, 0);
+        var added = false;
+        while (_incoming.TryDequeue(out var record))
+        {
+            _records.Add(record);
+            _counts[record.Stream] = _counts.GetValueOrDefault(record.Stream) + 1;
+            added = true;
+        }
+
+        if (added)
+        {
+            ApplyFilter();
+        }
+
+        StateHasChanged();
+        if (added && _autoScroll)
+        {
+            await JS.TryInvokeVoidAsync("specops.scrollToBottom", _scroller);
+        }
+    }
+
+    private void ApplyFilter() =>
+        _visible = _hidden.Count == 0 ? [.. _records] : [.. _records.Where(r => !_hidden.Contains(r.Stream))];
+
+    private void ToggleKind(OutputKind kind)
+    {
+        if (!_hidden.Remove(kind))
+        {
+            _hidden.Add(kind);
+        }
+
+        ApplyFilter();
+    }
+
+    private async Task ToggleAutoScroll()
+    {
+        _autoScroll = !_autoScroll;
+        if (_autoScroll)
+        {
+            await JS.TryInvokeVoidAsync("specops.scrollToBottom", _scroller);
+        }
+    }
+
+    private string AllText() =>
+        string.Join(Environment.NewLine, _visible.Select(r => $"{r.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} [{r.Stream}] {r.Text}"));
+
+    private async Task CopyAsync()
+    {
+        await JS.TryInvokeVoidAsync("specops.copyText", AllText());
+        _copied = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        _copied = false;
+    }
+
+    private async Task DownloadAsync()
+    {
+        var name = Run is null ? "output" : $"{Run.ScriptId}-{Run.QueuedAt.ToLocalTime():yyyyMMdd-HHmmss}";
+        await JS.TryInvokeVoidAsync("specops.downloadText", $"{name}.log", AllText());
+    }
+
+    private static string KindCss(OutputKind kind) => kind switch
+    {
+        OutputKind.Error => "text-console-error",
+        OutputKind.Warning => "text-console-warning",
+        OutputKind.Information => "text-console-info",
+        OutputKind.Verbose => "text-console-verbose",
+        OutputKind.Debug => "text-console-debug",
+        OutputKind.Progress => "text-console-progress",
+        OutputKind.System => "text-console-system",
+        _ => "text-console-fg",
+    };
+
+    private static string FormatDuration(TimeSpan? duration) =>
+        duration is { } d ? (d.TotalHours >= 1 ? d.ToString(@"h\:mm\:ss") : d.ToString(@"m\:ss")) : "";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_ticker is not null)
+        {
+            await _ticker.DisposeAsync();
+        }
+
+        _watchCts?.Cancel();
+        _watchCts?.Dispose();
+    }
+}

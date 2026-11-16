@@ -55,13 +55,25 @@ public class SpecOpsAuthorizerTests
     }
 
     [Fact]
-    public void Admin_policy_sets_admin_flag()
+    public void Configured_admin_policy_sets_admin_flag_for_its_group()
     {
-        var access = Authorizer.GetAccess(User(roles: ["Admin"]));
+        var authorizer = new SpecOpsAuthorizer(TestOptions.Create(o =>
+            o.Policies.Add(new PolicyDefinition { Name = "Ops", IsAdmin = true, Groups = ["ops-admins"], Categories = ["Ops"] })));
+
+        var access = authorizer.GetAccess(User(groups: ["ops-admins"]));
 
         Assert.True(access.IsAdmin);
-        Assert.True(access.CanAccessCategory("Admin"));
+        Assert.True(access.CanAccessCategory("Ops"));
         Assert.False(access.CanAccessCategory("Users"));
+    }
+
+    [Fact]
+    public void Built_in_admin_role_is_admin_with_every_category_even_without_policies()
+    {
+        var access = new SpecOpsAuthorizer(TestOptions.Create()).GetAccess(User(roles: [SpecOpsAuthorizer.AdminRole]));
+
+        Assert.True(access.IsAdmin);
+        Assert.True(access.CanAccessCategory("anything"));
     }
 
     [Fact]
@@ -73,11 +85,10 @@ public class SpecOpsAuthorizerTests
     [Fact]
     public void Multiple_policies_combine()
     {
-        var access = Authorizer.GetAccess(User(roles: ["Admin", "HelpDesk"]));
+        var access = Authorizer.GetAccess(User(roles: ["HelpDesk", "SuperUser"]));
 
-        Assert.True(access.IsAdmin);
-        Assert.True(access.CanAccessCategory("Admin"));
-        Assert.True(access.CanAccessCategory("Users"));
+        Assert.True(access.AllCategories);
+        Assert.Equal(["HelpDesk", "Everything"], access.Policies);
     }
 
     [Fact]

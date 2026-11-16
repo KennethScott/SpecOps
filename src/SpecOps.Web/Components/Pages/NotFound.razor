@@ -1,5 +1,9 @@
 ﻿@page "/not-found"
+@attribute [AllowAnonymous]
 @layout MainLayout
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<PageTitle>Not found · SpecOps</PageTitle>
+
+<EmptyState Title="Page not found" Icon="search">
+    There's nothing here. <a href="" class="font-medium text-brand-700 underline dark:text-brand-500">Back to scripts</a>
+</EmptyState>

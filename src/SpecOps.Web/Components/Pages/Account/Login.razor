@@ -1,0 +1,85 @@
+@page "/account/login"
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@layout AccountLayout
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Options
+@using SpecOps.Data
+@inject SignInManager<SpecOpsUser> SignIn
+@inject IOptions<AuthSettings> Settings
+@inject IHostEnvironment Environment
+
+<PageTitle>Sign in · SpecOps</PageTitle>
+
+<h2 class="mb-1 text-lg font-semibold">Sign in</h2>
+<p class="mb-5 text-sm text-slate-500 dark:text-slate-400">Use your organization account to continue.</p>
+
+@if (ErrorMessage is not null)
+{
+    <p class="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">@ErrorMessage</p>
+}
+@if (SignedOut)
+{
+    <p class="mb-4 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">You've been signed out.</p>
+}
+
+<div class="grid gap-2">
+    @foreach (var provider in _providers)
+    {
+        <form method="post" action="account/external-login">
+            <AntiforgeryToken />
+            <input type="hidden" name="provider" value="@provider.Name" />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <button type="submit" class="btn-secondary w-full justify-center py-2.5">
+                Continue with @provider.DisplayName
+            </button>
+        </form>
+    }
+
+    @if (_devSignIn)
+    {
+        <form method="post" action="account/dev-login" class="mt-2 border-t border-dashed border-slate-300 pt-4 dark:border-slate-700">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <button type="submit" class="btn w-full justify-center border border-amber-400 bg-amber-50 py-2.5 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                Sign in as dev user (Development only)
+            </button>
+        </form>
+    }
+
+    @if (_providers.Count == 0 && !_devSignIn)
+    {
+        <div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            No sign-in providers are configured. Add one under <code>Auth:Providers</code> in appsettings (Microsoft Entra ID, Google or any OpenID Connect provider).
+        </div>
+    }
+</div>
+
+@code {
+    private List<AuthenticationScheme> _providers = [];
+    private bool _devSignIn;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
+
+    [SupplyParameterFromQuery]
+    private bool SignedOut { get; set; }
+
+    private string? ErrorMessage => Error switch
+    {
+        null => null,
+        "provider" => "The sign-in provider reported an error. Please try again.",
+        "unknown-provider" => "That sign-in option isn't available.",
+        _ => "Sign-in didn't complete. Please try again.",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _providers = [.. (await SignIn.GetExternalAuthenticationSchemesAsync()).OrderBy(s => s.DisplayName)];
+        _devSignIn = Settings.Value.DevSignIn && Environment.IsDevelopment();
+    }
+}

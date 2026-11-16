@@ -1,0 +1,18 @@
+<div class="card flex flex-col items-center gap-3 px-6 py-12 text-center">
+    <div class="rounded-full bg-slate-100 p-3 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+        <Icon Name="@Icon" Class="size-6" />
+    </div>
+    <h2 class="text-lg font-semibold">@Title</h2>
+    <div class="max-w-md text-sm text-slate-600 dark:text-slate-400">@ChildContent</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string Icon { get; set; } = "file-code";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

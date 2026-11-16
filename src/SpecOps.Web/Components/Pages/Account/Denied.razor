@@ -1,0 +1,13 @@
+@page "/account/denied"
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@layout AccountLayout
+
+<PageTitle>Access denied · SpecOps</PageTitle>
+
+<div class="flex flex-col items-center gap-3 text-center">
+    <div class="rounded-full bg-rose-100 p-3 text-rose-700 dark:bg-rose-950 dark:text-rose-300"><Icon Name="lock" Class="size-6" /></div>
+    <h2 class="text-lg font-semibold">Access denied</h2>
+    <p class="text-sm text-slate-600 dark:text-slate-400">Your account doesn't have access to this. Contact a SpecOps administrator if you think that's a mistake.</p>
+    <a href="" class="btn-secondary mt-2">Home</a>
+</div>

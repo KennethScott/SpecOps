@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Dark mode follows the .dark class on <html> (set from the user's choice or the OS preference). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: oklch(0.979 0.021 166.113);
+  --color-brand-100: oklch(0.95 0.052 163.051);
+  --color-brand-500: oklch(0.696 0.17 162.48);
+  --color-brand-600: oklch(0.596 0.145 163.225);
+  --color-brand-700: oklch(0.508 0.118 165.612);
+
+  /* Console palette (Obsidian terminal theme, carried over from v1) */
+  --color-console-bg: #22292c;
+  --color-console-fg: #bbbbbb;
+  --color-console-error: #ff5370;
+  --color-console-warning: #fecd22;
+  --color-console-info: #ffffff;
+  --color-console-progress: #2fd15a;
+  --color-console-verbose: #4aa8e8;
+  --color-console-debug: #55ffff;
+  --color-console-system: #00bbbb;
+  --color-console-muted: #6b7a80;
+}
+
+@utility card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+}
+
+@utility input {
+  @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-xs
+    placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30
+    disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950 dark:placeholder:text-slate-500;
+}
+
+@utility input-invalid {
+  @apply border-rose-500 focus:border-rose-500 focus:ring-rose-500/30;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+}
+
+@utility btn-secondary {
+  @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50
+    dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+}
+
+@utility btn-danger {
+  @apply btn bg-rose-600 text-white hover:bg-rose-700;
+}
+
+@utility btn-ghost {
+  @apply btn text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800;
+}
+
+@utility badge {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+@layer components {
+  .nav-link {
+    @apply rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900
+      dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white;
+  }
+  .nav-link.active {
+    @apply bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white;
+  }
+}
+
+/* Hide the browser's own datalist arrow; inputs with suggestions look like normal inputs. */
+[list]::-webkit-calendar-picker-indicator {
+  display: none !important;
+}

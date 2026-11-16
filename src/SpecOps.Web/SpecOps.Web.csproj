@@ -5,8 +5,45 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BlazorMonaco" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <PackageReference Include="Serilog.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpecOps.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SpecOps.Core\SpecOps.Core.csproj" />
     <ProjectReference Include="..\SpecOps.Data\SpecOps.Data.csproj" />
   </ItemGroup>
+
+  <!--
+    Tailwind CSS: Styles/app.css -> wwwroot/css/app.css (generated, not committed).
+    Needs Node.js; `npm ci` runs automatically the first time. Use `npm run watch:css` while editing markup.
+    Pass -p:SkipTailwind=true to skip (e.g. when the CSS was built in an earlier step).
+  -->
+  <ItemGroup>
+    <TailwindInputs Include="Styles/**/*.css;Components/**/*.razor;package.json" />
+  </ItemGroup>
+
+  <Target Name="BuildTailwindCss" BeforeTargets="BeforeBuild" Condition="'$(SkipTailwind)' != 'true'"
+          Inputs="@(TailwindInputs)" Outputs="wwwroot/css/app.css">
+    <Exec Command="npm ci --no-audit --no-fund" Condition="!Exists('node_modules/@tailwindcss/cli')" />
+    <Exec Command="npm run build:css" />
+  </Target>
+
+  <Target Name="IncludeTailwindOutput" AfterTargets="BuildTailwindCss" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <Content Include="wwwroot/css/app.css" Exclude="@(Content)" />
+    </ItemGroup>
+  </Target>
 
 </Project>

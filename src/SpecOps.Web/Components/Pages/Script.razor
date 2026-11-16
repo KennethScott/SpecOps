@@ -1,0 +1,146 @@
+@page "/scripts/{ScriptId}"
+@inject ScriptService Scripts
+@inject NavigationManager Navigation
+
+<PageTitle>@(_script?.Name ?? "Script") · SpecOps</PageTitle>
+
+@if (_script is null)
+{
+    <EmptyState Title="Script not found" Icon="file-code">
+        This script doesn't exist, or you don't have access to it. <a href="" class="font-medium text-brand-700 underline dark:text-brand-500">Back to scripts</a>
+    </EmptyState>
+    return;
+}
+
+<div class="mb-6">
+    <a href="" class="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
+        <Icon Name="chevron-left" Class="size-4" /> @(_category?.DisplayName ?? _script.CategoryId)
+    </a>
+    <h1 class="text-2xl font-semibold tracking-tight">@_script.Name</h1>
+    @if (!string.IsNullOrEmpty(_script.Summary))
+    {
+        <p class="mt-1 max-w-3xl text-slate-600 dark:text-slate-400">@_script.Summary</p>
+    }
+</div>
+
+<div class="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <form class="card flex h-fit flex-col gap-4 p-5" @onsubmit="RunAsync">
+        @if (_script.Parameters.Count == 0)
+        {
+            <p class="text-sm text-slate-500 dark:text-slate-400">This script has no parameters.</p>
+        }
+
+        @foreach (var parameter in _script.Parameters)
+        {
+            <ParameterField Definition="parameter"
+                            Value="@_values.GetValueOrDefault(parameter.Name)"
+                            ValueChanged="v => _values[parameter.Name] = v"
+                            Error="@_fieldErrors.GetValueOrDefault(parameter.Name)"
+                            Disabled="IsRunning" />
+        }
+
+        @if (_error is not null)
+        {
+            <p class="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">@_error</p>
+        }
+
+        <div class="flex gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <button type="submit" class="btn-primary flex-1" disabled="@(IsRunning || !_script.IsSupportedOnHost)">
+                <Icon Name="play" /> @(IsRunning ? "Running…" : "Run")
+            </button>
+            <button type="button" class="btn-secondary" @onclick="Reset" disabled="@IsRunning" title="Reset parameters">Reset</button>
+        </div>
+        @if (!_script.IsSupportedOnHost)
+        {
+            <p class="text-xs text-amber-700 dark:text-amber-400">Requires @_script.Platforms; this server can't run it.</p>
+        }
+    </form>
+
+    <div class="flex min-w-0 flex-col gap-2">
+        <OutputConsole Run="_run" OnCancel="Cancel" RunFinished="() => { }" HeightClass="h-[36rem]" />
+        @if (_run is not null)
+        {
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                Run <a href="runs/@_run.Id" class="font-mono underline">@_run.Id.ToString()[..8]</a>; you can leave this page and come back.
+            </p>
+        }
+    </div>
+</div>
+
+@code {
+    private ScriptDefinition? _script;
+    private CategoryDefinition? _category;
+    private ScriptRun? _run;
+    private Dictionary<string, string?> _values = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, string> _fieldErrors = new Dictionary<string, string>();
+    private string? _error;
+    private ClaimsPrincipal _user = new();
+
+    [Parameter]
+    public string ScriptId { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "run")]
+    public Guid? RunId { get; set; }
+
+    [CascadingParameter(Name = "ClientIp")]
+    private string? ClientIp { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private bool IsRunning => _run is { IsFinished: false };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _user = (await AuthState).User;
+        if (_script?.Id != ScriptId)
+        {
+            _script = Scripts.GetScript(_user, ScriptId);
+            _category = _script is null ? null : Scripts.GetCategory(_script.CategoryId);
+            Reset();
+        }
+
+        // ?run=<id> re-attaches to a run (e.g. after a refresh).
+        if (RunId is { } id && _run?.Id != id && Scripts.FindRun(_user, id) is { } run && run.ScriptId == _script?.Id)
+        {
+            _run = run;
+        }
+    }
+
+    private void Reset()
+    {
+        _values = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in _script?.Parameters ?? [])
+        {
+            _values[p.Name] = p.Default ?? (p.Type == ParameterType.Range ? (p.Min ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+        }
+
+        _fieldErrors = new Dictionary<string, string>();
+        _error = null;
+    }
+
+    private void RunAsync()
+    {
+        if (_script is null || IsRunning)
+        {
+            return;
+        }
+
+        var result = Scripts.StartScript(_user, _script.Id, _values, ClientIp);
+        _error = result.Error;
+        _fieldErrors = result.FieldErrors;
+        if (result.Run is { } run)
+        {
+            _run = run;
+            Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("run", run.Id), replace: true);
+        }
+    }
+
+    private void Cancel()
+    {
+        if (_run is not null)
+        {
+            Scripts.Cancel(_user, _run.Id);
+        }
+    }
+}

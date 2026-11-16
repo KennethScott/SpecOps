@@ -1,0 +1,222 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Options
+@using SpecOps.Core.Configuration
+@using SpecOps.Data
+@inject IServiceScopeFactory ScopeFactory
+@inject IOptionsMonitor<SpecOpsOptions> Options
+
+<PageTitle>Users · SpecOps</PageTitle>
+
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Users</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            People appear here after they first sign in. Approve them and assign roles; policies in specops.json map roles and groups to script categories.
+        </p>
+    </div>
+    <div class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-900">
+        @foreach (var filter in new[] { "All", "Pending", "Active", "Disabled" })
+        {
+            <button type="button" @onclick="() => _filter = filter"
+                    class="@($"rounded-md px-3 py-1 font-medium {(_filter == filter ? "bg-white shadow-sm dark:bg-slate-800" : "text-slate-500")}")">
+                @filter
+                @if (filter == "Pending" && _users.Count(u => u.User.Status == UserStatus.Pending) is > 0 and var pending)
+                {
+                    <span class="ml-1 rounded-full bg-amber-500 px-1.5 text-xs text-white">@pending</span>
+                }
+            </button>
+        }
+    </div>
+</div>
+
+@if (_message is not null)
+{
+    <p class="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">@_message</p>
+}
+
+@if (!_loaded)
+{
+    <p class="text-sm text-slate-500">Loading…</p>
+}
+else if (!Visible.Any())
+{
+    <EmptyState Title="No users" Icon="lock">Nobody matches this filter.</EmptyState>
+}
+else
+{
+    <div class="grid gap-3">
+        @foreach (var row in Visible)
+        {
+            var user = row.User;
+            <div class="card flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="font-medium">@user.Label</span>
+                        <span class="badge @StatusCss(user.Status)">@user.Status</span>
+                        @foreach (var login in row.Providers)
+                        {
+                            <span class="badge bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">@login</span>
+                        }
+                    </div>
+                    <p class="truncate text-sm text-slate-500 dark:text-slate-400">
+                        @user.Email · last sign-in @(user.LastSignInAtUtc?.ToLocalTime().ToString("g") ?? "never")
+                        @if (row.Groups.Count > 0)
+                        {
+                            <span title="@string.Join(", ", row.Groups)"> · @row.Groups.Count group(s)</span>
+                        }
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5">
+                    @foreach (var role in _roles)
+                    {
+                        var has = row.Roles.Contains(role);
+                        <button type="button" @onclick="() => ToggleRoleAsync(row, role)" disabled="@(_busy || (IsSelf(user) && role == SpecOpsAuthorizer.AdminRole))"
+                                class="@($"badge border transition disabled:opacity-50 {(has ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 text-slate-600 hover:border-brand-500 dark:border-slate-700 dark:text-slate-300")}")">
+                            @if (has)
+                            {
+                                <Icon Name="check" Class="size-3" />
+                            }
+                            @role
+                        </button>
+                    }
+                </div>
+
+                <div class="flex gap-2">
+                    @if (user.Status != UserStatus.Active)
+                    {
+                        <button type="button" class="btn-primary py-1.5" @onclick="() => SetStatusAsync(row, UserStatus.Active)" disabled="@_busy">
+                            <Icon Name="check" /> @(user.Status == UserStatus.Pending ? "Approve" : "Enable")
+                        </button>
+                    }
+                    @if (user.Status != UserStatus.Disabled && !IsSelf(user))
+                    {
+                        <button type="button" class="btn-secondary py-1.5" @onclick="() => SetStatusAsync(row, UserStatus.Disabled)" disabled="@_busy">
+                            <Icon Name="x" /> @(user.Status == UserStatus.Pending ? "Reject" : "Disable")
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private sealed record UserRow(SpecOpsUser User, List<string> Roles, List<string> Providers, List<string> Groups);
+
+    private List<UserRow> _users = [];
+    private List<string> _roles = [];
+    private string _filter = "All";
+    private string? _message;
+    private bool _loaded;
+    private bool _busy;
+    private string? _currentUserId;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IEnumerable<UserRow> Visible => _filter == "All" ? _users : _users.Where(u => u.User.Status.ToString() == _filter);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUserId = (await AuthState).User.UserId();
+        await LoadAsync();
+    }
+
+    private bool IsSelf(SpecOpsUser user) => user.Id == _currentUserId;
+
+    private async Task LoadAsync()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>();
+
+        var users = await db.Users.AsNoTracking().ToListAsync();
+        var roleNames = await db.Roles.AsNoTracking().ToDictionaryAsync(r => r.Id, r => r.Name!);
+        var userRoles = await db.UserRoles.AsNoTracking().ToListAsync();
+        var logins = await db.UserLogins.AsNoTracking().ToListAsync();
+        var groups = await db.UserClaims.AsNoTracking().Where(c => c.ClaimType == SpecOpsAuthorizer.GroupClaimType).ToListAsync();
+
+        _users = [.. users
+            .OrderBy(u => u.Status == UserStatus.Pending ? 0 : 1)
+            .ThenBy(u => u.Label, StringComparer.CurrentCultureIgnoreCase)
+            .Select(u => new UserRow(
+                u,
+                [.. userRoles.Where(r => r.UserId == u.Id).Select(r => roleNames[r.RoleId])],
+                [.. logins.Where(l => l.UserId == u.Id).Select(l => l.ProviderDisplayName ?? l.LoginProvider)],
+                [.. groups.Where(g => g.UserId == u.Id).Select(g => g.ClaimValue!)]))];
+
+        // Roles worth offering: the built-in Admin role, roles used by policies, and roles that already exist.
+        _roles = [.. new[] { SpecOpsAuthorizer.AdminRole }
+            .Concat(Options.CurrentValue.Policies.SelectMany(p => p.Roles))
+            .Concat(roleNames.Values)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)];
+        _loaded = true;
+    }
+
+    private async Task SetStatusAsync(UserRow row, UserStatus status)
+    {
+        await MutateAsync(row, async (users, _, user) =>
+        {
+            user.Status = status;
+            await users.UpdateAsync(user);
+            _message = $"{user.Label} is now {status.ToString().ToLowerInvariant()}.";
+        });
+    }
+
+    private async Task ToggleRoleAsync(UserRow row, string role)
+    {
+        await MutateAsync(row, async (users, roles, user) =>
+        {
+            if (await users.IsInRoleAsync(user, role))
+            {
+                await users.RemoveFromRoleAsync(user, role);
+                _message = $"Removed {role} from {user.Label}.";
+            }
+            else
+            {
+                if (!await roles.RoleExistsAsync(role))
+                {
+                    await roles.CreateAsync(new IdentityRole(role));
+                }
+
+                await users.AddToRoleAsync(user, role);
+                _message = $"Added {role} to {user.Label}.";
+            }
+        });
+    }
+
+    // Each change gets its own scope (no long-lived DbContext in the circuit) and a new security stamp,
+    // so the user's open sessions pick up the change within a minute.
+    private async Task MutateAsync(UserRow row, Func<UserManager<SpecOpsUser>, RoleManager<IdentityRole>, SpecOpsUser, Task> change)
+    {
+        _busy = true;
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<SpecOpsUser>>();
+            var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            if (await users.FindByIdAsync(row.User.Id) is { } user)
+            {
+                await change(users, roles, user);
+                await users.UpdateSecurityStampAsync(user);
+            }
+
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string StatusCss(UserStatus status) => status switch
+    {
+        UserStatus.Active => "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+        UserStatus.Pending => "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+        _ => "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    };
+}

@@ -1,0 +1,73 @@
+@page "/runs/{RunId:guid}"
+@inject ScriptService Scripts
+
+<PageTitle>@(_run?.ScriptName ?? "Run") · SpecOps</PageTitle>
+
+@if (_run is null)
+{
+    <EmptyState Title="Run not found" Icon="clock">
+        This run doesn't exist, has expired from memory, or belongs to someone else.
+        <a href="runs" class="font-medium text-brand-700 underline dark:text-brand-500">See recent runs</a>
+    </EmptyState>
+    return;
+}
+
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+        <a href="runs" class="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
+            <Icon Name="chevron-left" Class="size-4" /> Runs
+        </a>
+        <h1 class="text-2xl font-semibold tracking-tight">@_run.ScriptName</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            Started by @_run.UserName · @_run.QueuedAt.ToLocalTime().ToString("f") · <span class="font-mono">@_run.Id</span>
+        </p>
+    </div>
+    @if (_run.ScriptId == ScriptService.TerminalScriptId)
+    {
+        <a href="terminal" class="btn-secondary"><Icon Name="terminal" /> Open Terminal</a>
+    }
+    else
+    {
+        <a href="scripts/@_run.ScriptId" class="btn-secondary"><Icon Name="play" /> Run again</a>
+    }
+</div>
+
+@if (_run.Parameters.Count > 0)
+{
+    <dl class="card mb-6 grid gap-x-6 gap-y-3 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        @foreach (var (name, value) in _run.Parameters)
+        {
+            <div class="min-w-0">
+                <dt class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">@name</dt>
+                <dd class="truncate font-mono" title="@value">@value</dd>
+            </div>
+        }
+    </dl>
+}
+
+<OutputConsole Run="_run" OnCancel="Cancel" RunFinished="() => { }" HeightClass="h-[40rem]" />
+
+@code {
+    private ScriptRun? _run;
+    private ClaimsPrincipal _user = new();
+
+    [Parameter]
+    public Guid RunId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _user = (await AuthState).User;
+        _run = Scripts.FindRun(_user, RunId);
+    }
+
+    private void Cancel()
+    {
+        if (_run is not null)
+        {
+            Scripts.Cancel(_user, _run.Id);
+        }
+    }
+}
