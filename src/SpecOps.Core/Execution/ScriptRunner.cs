@@ -47,18 +47,21 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     private readonly IOptionsMonitor<SpecOpsOptions> _options;
     private readonly ILogger<ScriptRunner> _logger;
     private readonly TimeProvider _time;
+    private readonly IRunHistory? _history;
     private volatile bool _stopping;
 
     public ScriptRunner(
         IOptionsMonitor<SpecOpsOptions> options,
         ILogger<ScriptRunner> logger,
-        TimeProvider? time = null
+        TimeProvider? time = null,
+        IRunHistory? history = null
     )
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
         _logger = logger;
         _time = time ?? TimeProvider.System;
+        _history = history;
         _gate = new RunGate(() => RunnerOptions.MaxConcurrentRuns);
         // A raised MaxConcurrentRuns admits queued runs straight away.
         _optionsChange = options.OnChange((_, _) => _gate.Pump());
@@ -96,10 +99,21 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         {
             try
             {
+                if (_history is not null)
+                {
+                    await _history.RunStartedAsync(run).ConfigureAwait(false);
+                }
+
                 await ExecuteAsync(run, request).ConfigureAwait(false);
             }
             finally
             {
+                // Saved before the execution is forgotten, so a graceful shutdown (StopAsync) waits for it.
+                if (_history is not null)
+                {
+                    await _history.RunFinishedAsync(run).ConfigureAwait(false);
+                }
+
                 _executions.TryRemove(run.Id, out _);
             }
         });

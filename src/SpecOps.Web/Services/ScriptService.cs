@@ -24,7 +24,8 @@ public sealed class ScriptService(
     IScriptCatalog catalog,
     ISpecOpsAuthorizer authorizer,
     IScriptRunner runner,
-    AuditLog audit
+    AuditLog audit,
+    RunHistory history
 )
 {
     public const string TerminalScriptId = "terminal";
@@ -153,15 +154,48 @@ public sealed class ScriptService(
             || authorizer.GetAccess(user).IsAdmin;
     }
 
-    public ScriptRun? FindRun(ClaimsPrincipal user, Guid runId) =>
-        runner.Find(runId) is { } run && CanView(user, run) ? run : null;
+    /// <summary>A live run from the runner, or a finished one from run history; null if missing or not visible.</summary>
+    public async Task<ScriptRun?> FindRunAsync(ClaimsPrincipal user, Guid runId)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var run = runner.Find(runId);
+        if (run is null && await history.FindAsync(runId) is { } stored)
+        {
+            run = ScriptRun.FromSnapshot(stored);
+        }
 
-    public IReadOnlyList<ScriptRun> GetVisibleRuns(ClaimsPrincipal user) =>
-        [.. runner.Runs.Where(r => CanView(user, r))];
+        return run is not null && CanView(user, run) ? run : null;
+    }
+
+    /// <summary>The user's most recent runs (everyone's for admins), newest first, with live status for active ones.</summary>
+    public async Task<IReadOnlyList<RunSummary>> GetRunsAsync(ClaimsPrincipal user, int take)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        var isAdmin = authorizer.GetAccess(user).IsAdmin;
+        if (!isAdmin && user.UserId() is null)
+        {
+            return [];
+        }
+
+        var stored = await history.ListAsync(isAdmin ? null : user.UserId(), take);
+        // The runner has the up-to-date status of active runs (and any not saved yet).
+        var live = runner.Runs.Where(r => CanView(user, r)).ToDictionary(r => r.Id);
+        return
+        [
+            .. stored
+                .Select(s => live.Remove(s.Id, out var run) ? RunSummary.From(run) : s)
+                .Concat(live.Values.Select(RunSummary.From))
+                .OrderByDescending(r => r.QueuedAt)
+                .Take(take),
+        ];
+    }
+
+    /// <summary>True while any run this user can see is queued or running (cheap: the runner's memory only).</summary>
+    public bool HasActiveRuns(ClaimsPrincipal user) => runner.Runs.Any(r => !r.IsFinished && CanView(user, r));
 
     public async Task<bool> CancelAsync(ClaimsPrincipal user, Guid runId)
     {
-        if (FindRun(user, runId) is not { } run || !runner.Cancel(runId))
+        if (runner.Find(runId) is not { } run || !CanView(user, run) || !runner.Cancel(runId))
         {
             return false;
         }

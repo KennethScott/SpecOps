@@ -102,7 +102,7 @@
         }
 
         // ?run=<id> re-attaches to a run (e.g. after a refresh).
-        if (RunId is { } id && _run?.Id != id && Scripts.FindRun(_user, id) is { } run && run.ScriptId == _script?.Id)
+        if (RunId is { } id && _run?.Id != id && await Scripts.FindRunAsync(_user, id) is { } run && run.ScriptId == _script?.Id)
         {
             _run = run;
         }

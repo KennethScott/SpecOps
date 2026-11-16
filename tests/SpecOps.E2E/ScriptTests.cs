@@ -52,7 +52,7 @@ public sealed partial class ScriptTests(SpecOpsApp app)
     }
 
     [Fact]
-    public async Task A_run_can_be_reopened_from_its_own_page()
+    public async Task A_run_can_be_reopened_and_is_listed_in_run_history()
     {
         var page = await app.SignedInPageAsync();
         await page.GotoAsync("scripts/system-info");
@@ -64,6 +64,11 @@ public sealed partial class ScriptTests(SpecOpsApp app)
         await Expect(page).ToHaveURLAsync(RunUrl());
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "System info" })).ToBeVisibleAsync();
         await Expect(page.GetByRole(AriaRole.Log)).ToContainTextAsync("PowerShell");
+
+        // ...and it's in the run history list.
+        var runPath = new Uri(page.Url).AbsolutePath.TrimStart('/');
+        await page.GotoAsync("runs");
+        await Expect(page.Locator($"a[href='{runPath}']")).ToHaveTextAsync("System info");
     }
 
     [GeneratedRegex("/runs/[0-9a-f-]{36}$")]

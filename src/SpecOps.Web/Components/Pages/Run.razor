@@ -6,7 +6,7 @@
 @if (_run is null)
 {
     <EmptyState Title="Run not found" Icon="clock">
-        This run doesn't exist, has expired from memory, or belongs to someone else.
+        This run doesn't exist, was removed from run history, or belongs to someone else.
         <a href="runs" class="font-medium text-brand-700 underline dark:text-brand-500">See recent runs</a>
     </EmptyState>
     return;
@@ -68,7 +68,10 @@
     protected override async Task OnParametersSetAsync()
     {
         _user = (await AuthState).User;
-        _run = Scripts.FindRun(_user, RunId);
+        if (_run?.Id != RunId)
+        {
+            _run = await Scripts.FindRunAsync(_user, RunId);
+        }
     }
 
     private async Task Cancel()

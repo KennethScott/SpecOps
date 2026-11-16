@@ -162,6 +162,15 @@ public static class HostingSetup
 
         var paths = app.Services.GetRequiredService<SpecOpsPaths>();
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("SpecOps.Startup");
+        if (
+            await app.Services.GetRequiredService<Services.RunHistory>().MarkInterruptedAsync()
+            is > 0
+                and var interrupted
+        )
+        {
+            StartupLog.RunsInterrupted(logger, interrupted);
+        }
+
         if (!File.Exists(paths.ConfigFile))
         {
             StartupLog.NoConfigFile(logger, paths.ConfigFile);
@@ -222,6 +231,12 @@ public static class HostingSetup
 
 internal static partial class StartupLog
 {
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "{Count} runs were still in progress when SpecOps last stopped; marked as interrupted"
+    )]
+    public static partial void RunsInterrupted(ILogger logger, int count);
+
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "No script configuration found at {ConfigFile}. Copy samples/specops.json there to get started."

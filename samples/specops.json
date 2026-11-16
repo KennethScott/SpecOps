@@ -10,7 +10,9 @@
       "DefaultTimeout": "00:30:00",
       // Per-user limits: runs queued/running at once, and runs started per minute.
       "MaxActiveRunsPerUser": 5,
-      "MaxRunsPerMinutePerUser": 20
+      "MaxRunsPerMinutePerUser": 20,
+      // How long run history (status, parameters, output, results) is kept in the database (days.hh:mm:ss).
+      "HistoryRetention": "90.00:00:00"
     },
 
     "Categories": [

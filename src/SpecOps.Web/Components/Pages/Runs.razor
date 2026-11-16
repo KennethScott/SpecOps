@@ -7,13 +7,13 @@
 <div class="mb-6">
     <h1 class="text-2xl font-semibold tracking-tight">Runs</h1>
     <p class="text-sm text-slate-500 dark:text-slate-400">
-        Active and recent runs@(_isAdmin ? " for everyone" : ""). Permanent run history is coming in the next release.
+        @(_isAdmin ? "Everyone's runs" : "Your runs"), newest first.
     </p>
 </div>
 
 @if (_runs.Count == 0)
 {
-    <EmptyState Title="No recent runs" Icon="clock">Runs you start will show up here.</EmptyState>
+    <EmptyState Title="No runs yet" Icon="clock">Runs you start will show up here.</EmptyState>
 }
 else
 {
@@ -48,10 +48,19 @@ else
             </tbody>
         </table>
     </div>
+
+    @if (_runs.Count >= _limit)
+    {
+        <div class="mt-4 text-center">
+            <button type="button" class="btn-secondary" @onclick="ShowMoreAsync" disabled="@(!RendererInfo.IsInteractive)">Show more</button>
+        </div>
+    }
 }
 
 @code {
-    private IReadOnlyList<ScriptRun> _runs = [];
+    private const int PageSize = 50;
+    private IReadOnlyList<RunSummary> _runs = [];
+    private int _limit = PageSize;
     private bool _isAdmin;
     private ClaimsPrincipal _user = new();
     private Timer? _refresh;
@@ -63,11 +72,27 @@ else
     {
         _user = (await AuthState).User;
         _isAdmin = Scripts.GetAccess(_user).IsAdmin;
-        Load();
-        _refresh = new Timer(_ => InvokeAsync(() => { Load(); StateHasChanged(); }), null, 2000, 2000);
+        await LoadAsync();
+        _refresh = new Timer(_ => InvokeAsync(RefreshAsync), null, 2000, 2000);
     }
 
-    private void Load() => _runs = Scripts.GetVisibleRuns(_user);
+    private async Task LoadAsync() => _runs = await Scripts.GetRunsAsync(_user, _limit);
+
+    // Only while something is (or just was) in progress: otherwise nothing on the page can change.
+    private async Task RefreshAsync()
+    {
+        if (Scripts.HasActiveRuns(_user) || _runs.Any(r => !r.IsFinished))
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowMoreAsync()
+    {
+        _limit += PageSize;
+        await LoadAsync();
+    }
 
     public void Dispose() => _refresh?.Dispose();
 }
