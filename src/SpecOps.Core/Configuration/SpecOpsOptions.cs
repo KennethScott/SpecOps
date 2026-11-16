@@ -36,6 +36,15 @@ public sealed class RunnerOptions
     /// <summary>Output records kept per run; further output is dropped with a notice.</summary>
     public int MaxOutputRecords { get; set; } = 50_000;
 
+    /// <summary>Runs one user can have queued or running at once.</summary>
+    public int MaxActiveRunsPerUser { get; set; } = 5;
+
+    /// <summary>Runs one user can start per minute.</summary>
+    public int MaxRunsPerMinutePerUser { get; set; } = 20;
+
+    /// <summary>Finished runs kept in memory in total; the oldest are dropped first.</summary>
+    public int MaxRetainedRuns { get; set; } = 500;
+
     /// <summary>How long finished runs stay available in memory.</summary>
     public TimeSpan CompletedRunRetention { get; set; } = TimeSpan.FromHours(4);
 

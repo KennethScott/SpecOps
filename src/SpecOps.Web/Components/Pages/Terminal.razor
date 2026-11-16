@@ -131,20 +131,19 @@
         var code = await _editor.GetValue();
         await JS.TryInvokeVoidAsync("specops.storage.set", StorageKey, code);
 
-        var result = Scripts.StartCode(_user, code, _profile, ClientIp);
+        var result = await Scripts.StartCodeAsync(_user, code, _profile, ClientIp);
         _error = result.Error;
         if (result.Run is not null)
         {
             _run = result.Run;
         }
-
     }
 
-    private void Cancel()
+    private async Task Cancel()
     {
         if (_run is not null)
         {
-            Scripts.Cancel(_user, _run.Id);
+            await Scripts.CancelAsync(_user, _run.Id);
         }
     }
 }

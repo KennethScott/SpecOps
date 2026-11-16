@@ -90,6 +90,13 @@
 
   window.specops = specops;
 
+  // Any element with data-theme-toggle switches the theme (works for static and interactive pages, CSP-safe).
+  document.addEventListener('click', (event) => {
+    if (event.target instanceof Element && event.target.closest('[data-theme-toggle]')) {
+      specops.toggleTheme();
+    }
+  });
+
   // Keep the theme after Blazor enhanced navigation, which can reset <html> attributes.
   document.addEventListener('DOMContentLoaded', () => {
     window.Blazor?.addEventListener?.('enhancedload', specops.applyTheme);

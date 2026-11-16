@@ -6,9 +6,22 @@ using SpecOps.Core.Configuration;
 
 namespace SpecOps.Core.Execution;
 
+/// <summary>A run was refused before it started (per-user limits). The message is safe to show to the user.</summary>
+public sealed class RunRejectedException : Exception
+{
+    public RunRejectedException() { }
+
+    public RunRejectedException(string message)
+        : base(message) { }
+
+    public RunRejectedException(string message, Exception innerException)
+        : base(message, innerException) { }
+}
+
 public interface IScriptRunner
 {
     /// <summary>Queues the run and returns immediately; watch progress via <see cref="ScriptRun.WatchAsync"/>.</summary>
+    /// <exception cref="RunRejectedException">The user has too many active runs or started too many recently.</exception>
     ScriptRun Start(ScriptRunRequest request);
 
     ScriptRun? Find(Guid runId);
@@ -23,6 +36,8 @@ public interface IScriptRunner
 public sealed partial class ScriptRunner : IScriptRunner, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, ScriptRun> _runs = new();
+    private readonly ConcurrentDictionary<Guid, Task> _executions = new();
+    private readonly Lock _startLock = new();
     private readonly RunspacePoolCache _pools = new();
     private readonly SemaphoreSlim _concurrency;
     private readonly IOptionsMonitor<SpecOpsOptions> _options;
@@ -56,13 +71,50 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             throw new ArgumentException("Exactly one of ScriptPath or Code must be set.", nameof(request));
         }
 
-        PruneFinishedRuns();
+        ScriptRun run;
+        lock (_startLock)
+        {
+            PruneFinishedRuns();
+            EnforceUserLimits(request);
+            run = new ScriptRun(request, RunnerOptions.MaxOutputRecords, _time);
+            _runs[run.Id] = run;
+        }
 
-        var run = new ScriptRun(request, RunnerOptions.MaxOutputRecords, _time);
-        _runs[run.Id] = run;
-        _ = Task.Run(() => ExecuteAsync(run, request));
+        _executions[run.Id] = Task.Run(async () =>
+        {
+            try
+            {
+                await ExecuteAsync(run, request).ConfigureAwait(false);
+            }
+            finally
+            {
+                _executions.TryRemove(run.Id, out _);
+            }
+        });
         return run;
     }
+
+    private void EnforceUserLimits(ScriptRunRequest request)
+    {
+        var options = RunnerOptions;
+        var user = UserKey(request.UserId, request.UserName);
+        var mine = _runs.Values.Where(r => UserKey(r.UserId, r.UserName) == user).ToList();
+
+        if (mine.Count(r => !r.IsFinished) >= options.MaxActiveRunsPerUser)
+        {
+            throw new RunRejectedException(
+                $"You already have {options.MaxActiveRunsPerUser} runs in progress. Wait for one to finish or cancel one."
+            );
+        }
+
+        var oneMinuteAgo = _time.GetUtcNow().AddMinutes(-1);
+        if (mine.Count(r => r.QueuedAt > oneMinuteAgo) >= options.MaxRunsPerMinutePerUser)
+        {
+            throw new RunRejectedException("You're starting runs too quickly. Try again in a minute.");
+        }
+    }
+
+    private static string UserKey(string? userId, string userName) => userId ?? $"name:{userName}";
 
     public bool Cancel(Guid runId)
     {
@@ -110,10 +162,18 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(run.Cancellation.Token, timeoutCts.Token);
 
         run.MarkRunning();
-        LogRunStarted(run.Id, run.UserName, run.ScriptId, run.Parameters);
+        LogRunStarted(run.Id, run.UserName, run.ScriptId, run.Parameters, request.ClientIp);
+        if (request.Code is not null)
+        {
+            // Ad-hoc code is the most powerful thing SpecOps can run: always keep a record of exactly what ran.
+            LogCodeRun(run.Id, run.UserName, request.ClientIp, request.Code);
+        }
+
         run.Append(OutputKind.System, "Starting...");
 
         RunStatus status;
+        WarmRunspacePool? pool = null;
+        PooledRunspace? rented = null;
         try
         {
             if (request.ScriptPath is not null && !File.Exists(request.ScriptPath))
@@ -121,10 +181,20 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
                 throw new FileNotFoundException($"Script file not found: {request.ScriptPath}");
             }
 
-            using var ps = request.RunspaceProfile is { } profile
-                ? CreateWithPool(profile)
-                : PowerShell.Create(RunspacePoolCache.CreateSessionState(RunnerOptions.ExecutionPolicy, []));
+            PowerShell ps;
+            if (request.RunspaceProfile is { } profile)
+            {
+                pool = _pools.Get(profile, RunnerOptions.ExecutionPolicy);
+                rented = await pool.RentAsync(linked.Token).ConfigureAwait(false);
+                ps = PowerShell.Create();
+                ps.Runspace = rented.Runspace;
+            }
+            else
+            {
+                ps = PowerShell.Create(RunspacePoolCache.CreateSessionState(RunnerOptions.ExecutionPolicy, []));
+            }
 
+            using var _ = ps;
             AttachStreams(ps, run);
 
             var parameters = new System.Collections.Hashtable(StringComparer.OrdinalIgnoreCase);
@@ -187,6 +257,13 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             run.Append(OutputKind.Error, $"Unexpected error: {ex.Message}");
             status = RunStatus.Failed;
         }
+        finally
+        {
+            if (rented is not null)
+            {
+                pool!.Return(rented);
+            }
+        }
 
         run.Append(OutputKind.System, $"Finished: {status} in {run.Duration:hh\\:mm\\:ss\\.f}.");
         run.Complete(status);
@@ -203,13 +280,6 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         if ($__SpecOpsIsFile) { & $__SpecOpsScript @__SpecOpsParameters }
         else { & ([scriptblock]::Create($__SpecOpsScript)) @__SpecOpsParameters }
         """;
-
-    private PowerShell CreateWithPool(Scripts.RunspaceProfile profile)
-    {
-        var ps = PowerShell.Create();
-        ps.RunspacePool = _pools.Get(profile, RunnerOptions.ExecutionPolicy);
-        return ps;
-    }
 
     private static RunStatus CancelledStatus(CancellationTokenSource timeoutCts, ScriptRun run, TimeSpan timeout)
     {
@@ -246,15 +316,24 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         };
     }
 
+    /// <summary>Drops finished runs past their retention, then the oldest finished runs beyond the retained-run cap.</summary>
     private void PruneFinishedRuns()
     {
-        var cutoff = _time.GetUtcNow() - RunnerOptions.CompletedRunRetention;
-        foreach (var run in _runs.Values.Where(r => r.EndedAt is { } ended && ended < cutoff))
+        var options = RunnerOptions;
+        var cutoff = _time.GetUtcNow() - options.CompletedRunRetention;
+        var finished = _runs.Values.Where(r => r.IsFinished).OrderBy(r => r.EndedAt).ToList();
+        var excess = Math.Max(0, _runs.Count - options.MaxRetainedRuns + 1);
+
+        foreach (var run in finished)
         {
-            _runs.TryRemove(run.Id, out _);
+            if (run.EndedAt < cutoff || excess-- > 0)
+            {
+                _runs.TryRemove(run.Id, out _);
+            }
         }
     }
 
+    /// <summary>Stops active runs and waits briefly for them before releasing runspaces.</summary>
     public void Dispose()
     {
         foreach (var run in _runs.Values.Where(r => !r.IsFinished))
@@ -262,20 +341,25 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             run.Cancellation.Cancel();
         }
 
+        Task.WaitAll([.. _executions.Values], TimeSpan.FromSeconds(10));
         _pools.Dispose();
         _concurrency.Dispose();
     }
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Run {RunId}: {User} started '{ScriptId}' with {Parameters}"
+        Message = "Run {RunId}: {User} from {ClientIp} started '{ScriptId}' with {Parameters}"
     )]
     private partial void LogRunStarted(
         Guid runId,
         string user,
         string scriptId,
-        IReadOnlyDictionary<string, string> parameters
+        IReadOnlyDictionary<string, string> parameters,
+        string? clientIp
     );
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Run {RunId}: {User} from {ClientIp} ran ad-hoc code:\n{Code}")]
+    private partial void LogCodeRun(Guid runId, string user, string? clientIp, string code);
 
     [LoggerMessage(
         Level = LogLevel.Information,

@@ -59,6 +59,7 @@ public sealed class ScriptRun
         UserName = request.UserName;
         UserId = request.UserId;
         Parameters = request.DisplayParameters();
+        Code = request.Code;
         _maxRecords = maxRecords;
         _time = time;
         QueuedAt = time.GetUtcNow();
@@ -76,6 +77,9 @@ public sealed class ScriptRun
 
     /// <summary>Parameter values as text, with sensitive values masked. Safe to display and log.</summary>
     public IReadOnlyDictionary<string, string> Parameters { get; }
+
+    /// <summary>The ad-hoc code for Terminal runs (null for script runs).</summary>
+    public string? Code { get; }
 
     public DateTimeOffset QueuedAt { get; }
 

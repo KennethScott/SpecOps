@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSpecOpsHosting();
 builder.AddSpecOpsAuthentication();
+builder.Services.AddSpecOpsRateLimiting();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IScriptCatalog, ConfigurationScriptCatalog>();
@@ -28,10 +29,12 @@ if (app.Configuration["PathBase"] is { Length: > 0 } pathBase)
     app.UsePathBase(pathBase);
 }
 
+// CSP, HSTS (HTTPS only), frame/content-type/referrer/permissions headers.
+app.UseSpecOpsSecurityHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
@@ -43,6 +46,7 @@ if (app.Configuration.GetValue("HttpsRedirection", true))
 app.UseSerilogRequestLogging();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets().AllowAnonymous();

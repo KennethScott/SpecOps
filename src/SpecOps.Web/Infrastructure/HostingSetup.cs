@@ -40,6 +40,9 @@ public static class HostingSetup
         var paths = SpecOpsPaths.Resolve(builder.Configuration, builder.Environment);
         builder.Services.AddSingleton(paths);
 
+        // Don't advertise the server software (Kestrel adds this header after middleware runs).
+        builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
+
         // Script/category/policy config lives in its own file and reloads on change.
         builder.Configuration.AddJsonFile(paths.ConfigFile, optional: true, reloadOnChange: true);
         builder.Services.Configure<SpecOpsOptions>(builder.Configuration.GetSection(SpecOpsOptions.SectionName));
@@ -116,6 +119,48 @@ public static class HostingSetup
         foreach (var problem in app.Services.GetRequiredService<Core.Scripts.IScriptCatalog>().Validate())
         {
             StartupLog.ConfigProblem(logger, problem);
+        }
+
+        foreach (var problem in SecurityConfigurationProblems(app.Configuration, app.Environment))
+        {
+            StartupLog.ConfigProblem(logger, problem);
+        }
+    }
+
+    /// <summary>Settings that are fine for development but risky in production.</summary>
+    internal static IEnumerable<string> SecurityConfigurationProblems(
+        IConfiguration configuration,
+        IHostEnvironment environment
+    )
+    {
+        if (environment.IsDevelopment())
+        {
+            yield break;
+        }
+
+        if (configuration["AllowedHosts"] is null or "*")
+        {
+            yield return "AllowedHosts is '*'. Set it to the host name(s) SpecOps is served on (e.g. \"specops.contoso.com\").";
+        }
+
+        var auth = configuration.GetSection(Auth.AuthSettings.SectionName).Get<Auth.AuthSettings>();
+        foreach (var (name, provider) in auth?.Providers.Where(p => p.Value.IsConfigured) ?? [])
+        {
+            var isEntra =
+                provider.Authority?.Contains("login.microsoftonline.com", StringComparison.OrdinalIgnoreCase) == true;
+            if (isEntra && provider.AllowedTenantIds.Count == 0)
+            {
+                yield return $"Auth provider '{name}' is Microsoft Entra ID without AllowedTenantIds; restrict it to your tenant.";
+            }
+
+            if (
+                provider.TrustEmail == true
+                && provider.Type == Auth.ExternalProviderType.OpenIdConnect
+                && provider.AllowedTenantIds.Count == 0
+            )
+            {
+                yield return $"Auth provider '{name}' has TrustEmail=true without AllowedTenantIds; emails may not be verified.";
+            }
         }
     }
 }

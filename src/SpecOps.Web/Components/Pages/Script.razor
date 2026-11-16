@@ -119,14 +119,14 @@
         _error = null;
     }
 
-    private void RunAsync()
+    private async Task RunAsync()
     {
         if (_script is null || IsRunning)
         {
             return;
         }
 
-        var result = Scripts.StartScript(_user, _script.Id, _values, ClientIp);
+        var result = await Scripts.StartScriptAsync(_user, _script.Id, _values, ClientIp);
         _error = result.Error;
         _fieldErrors = result.FieldErrors;
         if (result.Run is { } run)
@@ -136,11 +136,11 @@
         }
     }
 
-    private void Cancel()
+    private async Task Cancel()
     {
         if (_run is not null)
         {
-            Scripts.Cancel(_user, _run.Id);
+            await Scripts.CancelAsync(_user, _run.Id);
         }
     }
 }

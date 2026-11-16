@@ -197,6 +197,100 @@ public sealed class ScriptRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task Pooled_runspaces_are_reused_but_reset_between_runs()
+    {
+        // One runspace, so the second run is guaranteed to reuse it.
+        var profile = new RunspaceProfile
+        {
+            Name = "reset-test",
+            MinRunspaces = 1,
+            MaxRunspaces = 1,
+        };
+        ScriptRunRequest Pooled(string code) => Code(code) with { RunspaceProfile = profile };
+
+        var first = _runner.Start(
+            Pooled(
+                """
+                $global:Leak = 'secret'
+                function global:Get-Leak { 'leaked' }
+                Set-Alias -Name leak -Value Get-Date -Scope Global
+                New-PSDrive -Name LeakDrive -PSProvider FileSystem -Root ([IO.Path]::GetTempPath()) -Scope Global | Out-Null
+                Set-Location ([IO.Path]::GetTempPath())
+                $ErrorActionPreference = 'Stop'
+                "id=$([runspace]::DefaultRunspace.InstanceId)"
+                """
+            )
+        );
+        var firstOutput = Lines(await CompleteAsync(first), OutputKind.Output);
+
+        var second = _runner.Start(
+            Pooled(
+                """
+                "variable=$([bool](Get-Variable Leak -Scope Global -ErrorAction SilentlyContinue))"
+                "function=$([bool](Get-Command Get-Leak -ErrorAction SilentlyContinue))"
+                "alias=$([bool](Get-Alias leak -ErrorAction SilentlyContinue))"
+                "drive=$([bool](Get-PSDrive LeakDrive -ErrorAction SilentlyContinue))"
+                "preference=$($global:ErrorActionPreference)"
+                "id=$([runspace]::DefaultRunspace.InstanceId)"
+                """
+            )
+        );
+        var secondOutput = Lines(await CompleteAsync(second), OutputKind.Output);
+
+        Assert.Equal(RunStatus.Succeeded, first.Status);
+        Assert.Equal(firstOutput.Single(l => l.StartsWith("id=", StringComparison.Ordinal)), secondOutput[^1]);
+        Assert.Equal(
+            ["variable=False", "function=False", "alias=False", "drive=False", "preference=Continue"],
+            secondOutput[..^1]
+        );
+    }
+
+    [Fact]
+    public async Task Rejects_runs_beyond_the_per_user_active_limit()
+    {
+        using var runner = new ScriptRunner(
+            TestOptions.Create(o => o.Runner.MaxActiveRunsPerUser = 1),
+            NullLogger<ScriptRunner>.Instance
+        );
+        var running = runner.Start(Code("Start-Sleep -Seconds 30"));
+
+        var ex = Assert.Throws<RunRejectedException>(() => runner.Start(Code("'second'")));
+        Assert.Contains("in progress", ex.Message, StringComparison.Ordinal);
+
+        // Someone else is unaffected.
+        var other = runner.Start(Code("'other user'") with { UserName = "someone-else" });
+
+        runner.Cancel(running.Id);
+        await CompleteAsync(running);
+        await CompleteAsync(other);
+        Assert.Equal(RunStatus.Succeeded, other.Status);
+    }
+
+    [Fact]
+    public async Task Rejects_runs_beyond_the_per_user_rate()
+    {
+        using var runner = new ScriptRunner(
+            TestOptions.Create(o => o.Runner.MaxRunsPerMinutePerUser = 2),
+            NullLogger<ScriptRunner>.Instance
+        );
+        var a = runner.Start(Code("'a'"));
+        var b = runner.Start(Code("'b'"));
+
+        Assert.Throws<RunRejectedException>(() => runner.Start(Code("'c'")));
+        await CompleteAsync(a);
+        await CompleteAsync(b);
+    }
+
+    [Fact]
+    public async Task Keeps_terminal_code_on_the_run()
+    {
+        var run = _runner.Start(Code("'hi'"));
+        await CompleteAsync(run);
+
+        Assert.Equal("'hi'", run.Code);
+    }
+
+    [Fact]
     public async Task Runs_script_files_with_PSScriptRoot_and_strict_params()
     {
         var dir = Directory.CreateTempSubdirectory("specops-tests-");

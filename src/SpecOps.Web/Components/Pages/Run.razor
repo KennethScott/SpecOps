@@ -32,6 +32,14 @@
     }
 </div>
 
+@if (_run.Code is not null)
+{
+    <section class="card mb-6 overflow-hidden">
+        <h2 class="border-b border-slate-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">Code</h2>
+        <pre class="max-h-64 overflow-auto bg-slate-50 p-4 font-mono text-[13px] leading-5 dark:bg-slate-950">@_run.Code</pre>
+    </section>
+}
+
 @if (_run.Parameters.Count > 0)
 {
     <dl class="card mb-6 grid gap-x-6 gap-y-3 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -63,11 +71,11 @@
         _run = Scripts.FindRun(_user, RunId);
     }
 
-    private void Cancel()
+    private async Task Cancel()
     {
         if (_run is not null)
         {
-            Scripts.Cancel(_user, _run.Id);
+            await Scripts.CancelAsync(_user, _run.Id);
         }
     }
 }

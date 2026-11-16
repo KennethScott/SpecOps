@@ -1,0 +1,127 @@
+@page "/admin/audit"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using Microsoft.EntityFrameworkCore
+@using SpecOps.Data
+@inject IServiceScopeFactory ScopeFactory
+
+<PageTitle>Audit log · SpecOps</PageTitle>
+
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Audit log</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Sign-ins, admin changes and every script and Terminal run. Newest first; showing up to @PageSize events.</p>
+    </div>
+    <div class="flex gap-2">
+        <select class="input w-44" value="@_action" @onchange="OnActionChanged" aria-label="Filter by action">
+            <option value="">All actions</option>
+            @foreach (var action in Actions)
+            {
+                <option value="@action">@action</option>
+            }
+        </select>
+        <div class="relative w-56">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon Name="search" /></span>
+            <input type="search" class="input pl-9" placeholder="Search…" @bind="_search" @bind:event="oninput" @bind:after="LoadAsync" aria-label="Search audit log" />
+        </div>
+    </div>
+</div>
+
+@if (_events is null)
+{
+    <p class="text-sm text-slate-500">Loading…</p>
+}
+else if (_events.Count == 0)
+{
+    <EmptyState Title="No audit events" Icon="clock">Nothing matches.</EmptyState>
+}
+else
+{
+    <div class="card overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                <tr>
+                    <th class="px-4 py-3 font-medium">When</th>
+                    <th class="px-4 py-3 font-medium">Who</th>
+                    <th class="px-4 py-3 font-medium">Action</th>
+                    <th class="px-4 py-3 font-medium">Target</th>
+                    <th class="px-4 py-3 font-medium">Details</th>
+                    <th class="px-4 py-3 font-medium">IP</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 align-top dark:divide-slate-800">
+                @foreach (var e in _events)
+                {
+                    <tr>
+                        <td class="whitespace-nowrap px-4 py-2 tabular-nums text-slate-600 dark:text-slate-400">@DateTime.SpecifyKind(e.TimestampUtc, DateTimeKind.Utc).ToLocalTime().ToString("g")</td>
+                        <td class="px-4 py-2">@e.Actor</td>
+                        <td class="whitespace-nowrap px-4 py-2"><span class="badge @ActionCss(e.Action)">@e.Action</span></td>
+                        <td class="px-4 py-2 font-mono text-xs">@e.Target</td>
+                        <td class="max-w-md px-4 py-2">
+                            @if (!string.IsNullOrEmpty(e.Details))
+                            {
+                                <pre class="max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-xs text-slate-600 dark:text-slate-400">@e.Details</pre>
+                            }
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-2 font-mono text-xs text-slate-500">@e.ClientIp</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private const int PageSize = 500;
+
+    private static readonly string[] Actions =
+    [
+        AuditActions.SignIn, AuditActions.SignInPending, AuditActions.SignInDenied, AuditActions.SignOut,
+        AuditActions.UserCreated, AuditActions.UserAutoApproved, AuditActions.BootstrapAdmin,
+        AuditActions.UserStatusChanged, AuditActions.RoleAdded, AuditActions.RoleRemoved,
+        AuditActions.ScriptRun, AuditActions.ScriptDenied, AuditActions.TerminalRun, AuditActions.RunCancelled,
+    ];
+
+    private List<AuditEvent>? _events;
+    private string _search = "";
+    private string _action = "";
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task OnActionChanged(ChangeEventArgs e)
+    {
+        _action = e.Value?.ToString() ?? "";
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>();
+        var query = db.AuditEvents.AsNoTracking();
+        if (_action.Length > 0)
+        {
+            query = query.Where(e => e.Action == _action);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim();
+            query = query.Where(e =>
+                e.Actor.Contains(term)
+                || (e.Target != null && e.Target.Contains(term))
+                || (e.Details != null && e.Details.Contains(term))
+                || (e.ClientIp != null && e.ClientIp.Contains(term)));
+        }
+
+        _events = await query.OrderByDescending(e => e.Id).Take(PageSize).ToListAsync();
+    }
+
+    private static string ActionCss(string action) => action switch
+    {
+        AuditActions.TerminalRun => "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
+        AuditActions.ScriptDenied or AuditActions.SignInDenied => "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300",
+        AuditActions.ScriptRun => "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
+        _ when action.StartsWith("user.", StringComparison.Ordinal) => "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+        _ => "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    };
+}
