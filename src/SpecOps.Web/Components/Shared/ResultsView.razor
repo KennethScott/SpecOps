@@ -1,0 +1,190 @@
+@using System.Globalization
+@using System.Text
+@using System.Text.Json
+@inject IJSRuntime JS
+
+@* Objects a run emitted, as sortable/filterable tables (one per object type), with CSV/JSON export. *@
+<div class="@($"{HeightClass} flex flex-col overflow-hidden text-[13px] text-slate-200")">
+    <div class="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2">
+        @if (_sets.Count > 1)
+        {
+            @foreach (var set in _sets)
+            {
+                <button type="button" @onclick="() => Select(set)"
+                        class="@($"rounded px-2 py-0.5 text-xs font-medium {(set == _current ? "bg-white/15 text-white" : "text-console-muted hover:bg-white/10")}")">
+                    @set.DisplayName <span class="tabular-nums opacity-70">@set.Rows.Count</span>
+                </button>
+            }
+        }
+        else if (_current is not null)
+        {
+            <span class="text-xs text-console-muted">@_current.DisplayName · @_current.Rows.Count rows</span>
+        }
+
+        <input type="search" class="ml-auto w-48 rounded border border-white/15 bg-black/20 px-2 py-1 text-xs placeholder:text-console-muted focus:border-white/40 focus:outline-none"
+               placeholder="Filter rows…" aria-label="Filter result rows" @bind="_filter" @bind:event="oninput" />
+        <button type="button" class="rounded px-2 py-1 text-xs hover:bg-white/10" @onclick="ExportCsvAsync" disabled="@(_current is null)">CSV</button>
+        <button type="button" class="rounded px-2 py-1 text-xs hover:bg-white/10" @onclick="ExportJsonAsync" disabled="@(_current is null)">JSON</button>
+    </div>
+
+    @if (_current is null)
+    {
+        <div class="py-8 text-center text-console-muted">No objects yet.</div>
+    }
+    else
+    {
+        var rows = VisibleRows().ToList();
+        <div class="min-h-0 flex-1 overflow-auto">
+            <table class="w-full border-collapse font-mono">
+                <thead class="sticky top-0 bg-console-bg">
+                    <tr>
+                        @foreach (var column in _current.Columns)
+                        {
+                            <th class="cursor-pointer select-none whitespace-nowrap border-b border-white/10 px-3 py-1.5 text-left font-semibold text-white hover:bg-white/5"
+                                @onclick="() => SortBy(column)" title="Sort by @column">
+                                @column
+                                @if (_sortColumn == column)
+                                {
+                                    <span class="text-console-muted">@(_descending ? " ▼" : " ▲")</span>
+                                }
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in rows.Take(DisplayLimit))
+                    {
+                        <tr class="hover:bg-white/5">
+                            @foreach (var column in _current.Columns)
+                            {
+                                <td class="max-w-md truncate whitespace-nowrap border-b border-white/5 px-3 py-1" title="@row[column]">@row[column]</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="border-t border-white/10 px-3 py-1.5 text-xs text-console-muted">
+            @if (rows.Count > DisplayLimit)
+            {
+                <span>Showing @DisplayLimit of @rows.Count rows; export to get them all.</span>
+            }
+            else
+            {
+                <span>@rows.Count row(s)</span>
+            }
+            @if (Run.ResultsTruncated)
+            {
+                <span class="ml-2 text-console-warning">The script emitted more objects than are kept; the rest are only in the Output tab.</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const int DisplayLimit = 500;
+
+    private IReadOnlyList<ResultSet> _sets = [];
+    private ResultSet? _current;
+    private int _loadedCount = -1;
+    private string _filter = "";
+    private string? _sortColumn;
+    private bool _descending;
+
+    [Parameter, EditorRequired]
+    public ScriptRun Run { get; set; } = default!;
+
+    [Parameter]
+    public string HeightClass { get; set; } = "h-[32rem]";
+
+    protected override void OnParametersSet()
+    {
+        // Results grow while a run is active; regroup only when there's something new.
+        if (Run.ResultCount == _loadedCount)
+        {
+            return;
+        }
+
+        _loadedCount = Run.ResultCount;
+        _sets = ResultSet.Group(Run.Results());
+        _current = _sets.FirstOrDefault(s => s.TypeName == _current?.TypeName) ?? _sets.MaxBy(s => s.Rows.Count);
+    }
+
+    private void Select(ResultSet set)
+    {
+        _current = set;
+        _sortColumn = null;
+    }
+
+    private void SortBy(string column)
+    {
+        _descending = _sortColumn == column && !_descending;
+        _sortColumn = column;
+    }
+
+    private IEnumerable<ResultRow> VisibleRows()
+    {
+        IEnumerable<ResultRow> rows = _current?.Rows ?? [];
+        if (!string.IsNullOrWhiteSpace(_filter))
+        {
+            var term = _filter.Trim();
+            rows = rows.Where(r => r.Values.Any(v => v?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true));
+        }
+
+        if (_sortColumn is { } column)
+        {
+            rows = _descending
+                ? rows.OrderByDescending(r => r[column], ValueComparer.Instance)
+                : rows.OrderBy(r => r[column], ValueComparer.Instance);
+        }
+
+        return rows;
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        if (_current is null)
+        {
+            return;
+        }
+
+        var csv = new StringBuilder();
+        csv.AppendLine(string.Join(",", _current.Columns.Select(Csv)));
+        foreach (var row in VisibleRows())
+        {
+            csv.AppendLine(string.Join(",", _current.Columns.Select(c => Csv(row[c]))));
+        }
+
+        await JS.TryInvokeVoidAsync("specops.downloadText", $"{FileName()}.csv", csv.ToString());
+    }
+
+    private async Task ExportJsonAsync()
+    {
+        if (_current is null)
+        {
+            return;
+        }
+
+        var rows = VisibleRows().Select(r => _current.Columns.ToDictionary(c => c, c => r[c]));
+        var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
+        await JS.TryInvokeVoidAsync("specops.downloadText", $"{FileName()}.json", json);
+    }
+
+    private string FileName() =>
+        $"{Run.ScriptId}-{_current?.DisplayName.ToLowerInvariant()}-{Run.QueuedAt.ToLocalTime():yyyyMMdd-HHmmss}";
+
+    private static string Csv(string? value) =>
+        value is null ? "" : value.IndexOfAny([',', '"', '\n', '\r']) >= 0 ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"" : value;
+
+    /// <summary>Sorts numbers numerically and everything else as text.</summary>
+    private sealed class ValueComparer : IComparer<string?>
+    {
+        public static readonly ValueComparer Instance = new();
+
+        public int Compare(string? x, string? y) =>
+            double.TryParse(x, NumberStyles.Float, CultureInfo.InvariantCulture, out var a)
+            && double.TryParse(y, NumberStyles.Float, CultureInfo.InvariantCulture, out var b)
+                ? a.CompareTo(b)
+                : string.Compare(x, y, StringComparison.CurrentCultureIgnoreCase);
+    }
+}

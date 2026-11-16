@@ -54,6 +54,9 @@ public sealed class RunnerOptions
     /// <summary>How long finished runs stay available in memory.</summary>
     public TimeSpan CompletedRunRetention { get; set; } = TimeSpan.FromHours(4);
 
+    /// <summary>Objects kept per run for the Results view and CSV/JSON export.</summary>
+    public int MaxResultRows { get; set; } = 10_000;
+
     /// <summary>Console width used when formatting objects (tables, lists) to text.</summary>
     public int OutputWidth { get; set; } = 160;
 

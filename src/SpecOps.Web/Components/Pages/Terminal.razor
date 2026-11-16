@@ -1,7 +1,6 @@
 @page "/terminal"
 @attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
-@using BlazorMonaco
-@using BlazorMonaco.Editor
+@implements IAsyncDisposable
 @inject ScriptService Scripts
 @inject IJSRuntime JS
 
@@ -23,7 +22,7 @@
                 <option value="@profile.Name">Profile: @profile.Name</option>
             }
         </select>
-        <button type="button" class="btn-primary" @onclick="RunAsync" disabled="@IsRunning">
+        <button type="button" class="btn-primary" @onclick="RunAsync" disabled="@(IsRunning || _editor is null)">
             <Icon Name="play" /> @(IsRunning ? "Running…" : "Run")
         </button>
     </div>
@@ -35,14 +34,11 @@
 }
 
 <div class="grid gap-4 xl:grid-cols-2">
-    <div class="overflow-hidden rounded-xl border border-slate-800 bg-[#1e1e1e] shadow-sm">
-        @if (_editorState == EditorState.Ready)
+    <div class="relative overflow-hidden rounded-xl border border-slate-200 shadow-sm dark:border-slate-800">
+        <div @ref="_editorHost" class="h-[36rem]"></div>
+        @if (_editorState != EditorState.Ready)
         {
-            <StandaloneCodeEditor @ref="_editor" Id="specops-terminal" CssClass="h-[36rem]" ConstructionOptions="EditorOptions" OnDidInit="OnEditorInitAsync" />
-        }
-        else
-        {
-            <div class="flex h-[36rem] items-center justify-center text-sm text-slate-400">
+            <div class="absolute inset-0 flex items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                 @(_editorState == EditorState.Failed ? "The code editor couldn't load. Reload the page to try again." : "Loading editor…")
             </div>
         }
@@ -53,6 +49,9 @@
 @code {
     private const string StorageKey = "specops-terminal-code";
 
+    // Monaco (ES modules), bundled by esbuild from Client/editor; see Client/build-editor.mjs.
+    private const string EditorModule = "./lib/editor/specops-editor.js";
+
     private const string Starter = """
         # Ad-hoc PowerShell. Output, errors, warnings, verbose and progress all stream live.
         $PSVersionTable.PSVersion
@@ -61,7 +60,10 @@
 
     private enum EditorState { Loading, Ready, Failed }
 
-    private StandaloneCodeEditor? _editor;
+    private ElementReference _editorHost;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _editor;
+    private DotNetObjectReference<Terminal>? _self;
     private EditorState _editorState = EditorState.Loading;
     private ScriptRun? _run;
     private string _profile = "";
@@ -80,42 +82,39 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            _editorState = await JS.TryInvokeAsync<bool>("specops.whenMonacoReady") ? EditorState.Ready : EditorState.Failed;
-            StateHasChanged();
-        }
-    }
-
-    private StandaloneEditorConstructionOptions EditorOptions(StandaloneCodeEditor editor) => new()
-    {
-        Language = "powershell",
-        Theme = "vs-dark",
-        AutomaticLayout = true,
-        FontSize = 13,
-        Minimap = new EditorMinimapOptions { Enabled = false },
-        ScrollBeyondLastLine = false,
-        Value = Starter,
-    };
-
-    private async Task OnEditorInitAsync()
-    {
-        if (_editor is null)
+        if (!firstRender)
         {
             return;
         }
 
-        // Restore what was in the editor last time (kept in this browser only).
-        if (await JS.TryInvokeAsync<string?>("specops.storage.get", StorageKey) is { Length: > 0 } saved)
+        try
         {
-            await _editor.SetValue(saved);
+            // Restore what was in the editor last time (kept in this browser only).
+            var saved = await JS.TryInvokeAsync<string?>("specops.storage.get", StorageKey);
+            _self = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", EditorModule);
+            _editor = await _module.InvokeAsync<IJSObjectReference>(
+                "createEditor",
+                _editorHost,
+                string.IsNullOrEmpty(saved) ? Starter : saved,
+                _self);
+            _editorState = EditorState.Ready;
+        }
+        catch (JSException)
+        {
+            _editorState = EditorState.Failed;
+        }
+        catch (JSDisconnectedException)
+        {
+            return;
         }
 
-        await _editor.AddCommand((int)KeyMod.CtrlCmd | (int)KeyCode.Enter, args => { _ = InvokeAsync(RunFromShortcutAsync); });
+        StateHasChanged();
     }
 
-    // The editor shortcut isn't a Blazor UI event, so it has to ask for a re-render itself.
-    private async Task RunFromShortcutAsync()
+    /// <summary>Ctrl/Cmd+Enter in the editor. Not a Blazor UI event, so it asks for a re-render itself.</summary>
+    [JSInvokable]
+    public async Task RunFromShortcut()
     {
         await RunAsync();
         StateHasChanged();
@@ -128,7 +127,17 @@
             return;
         }
 
-        var code = await _editor.GetValue();
+        string code;
+        try
+        {
+            code = await _editor.InvokeAsync<string>("getValue");
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException)
+        {
+            _error = "Couldn't read the editor contents. Reload the page and try again.";
+            return;
+        }
+
         await JS.TryInvokeVoidAsync("specops.storage.set", StorageKey, code);
 
         var result = await Scripts.StartCodeAsync(_user, code, _profile, ClientIp);
@@ -145,5 +154,28 @@
         {
             await Scripts.CancelAsync(_user, _run.Id);
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_editor is not null)
+            {
+                await _editor.InvokeVoidAsync("dispose");
+                await _editor.DisposeAsync();
+            }
+
+            if (_module is not null)
+            {
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser is gone; nothing to clean up on that side.
+        }
+
+        _self?.Dispose();
     }
 }

@@ -282,6 +282,61 @@ public sealed class ScriptRunnerTests : IDisposable
     }
 
     [Fact]
+    public async Task Captures_emitted_objects_as_result_rows_without_changing_the_text()
+    {
+        var run = _runner.Start(
+            Code(
+                """
+                'just text'
+                42
+                [pscustomobject]@{ Name = 'alpha'; Size = 1; Tags = @('a', 'b') }
+                [pscustomobject]@{ Name = 'beta'; Size = 22 }
+                Get-Item -LiteralPath ([IO.Path]::GetTempPath())
+                """
+            )
+        );
+
+        var records = await CompleteAsync(run);
+        var rows = run.Results();
+
+        Assert.Equal(3, rows.Count);
+        var objects = ResultSet.Group(rows).Single(s => s.Rows.Count == 2);
+        Assert.Equal(["Name", "Size", "Tags"], objects.Columns);
+        Assert.Equal("alpha", objects.Rows[0]["Name"]);
+        Assert.Equal("a, b", objects.Rows[0]["Tags"]);
+        Assert.Equal("22", objects.Rows[1]["Size"]);
+
+        // Same columns as Format-Table (the type's table view), not every property.
+        var directory = rows.Single(r => r.TypeName.Contains("DirectoryInfo", StringComparison.Ordinal));
+        Assert.InRange(directory.Columns.Count, 1, 10);
+        Assert.Contains("Mode", directory.Columns);
+        Assert.Contains("Name", directory.Columns);
+
+        // The console still shows everything as it would in a terminal.
+        var text = string.Join('\n', Lines(records, OutputKind.Output));
+        Assert.Contains("just text", text, StringComparison.Ordinal);
+        Assert.Contains("alpha", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Formatted_output_and_plain_values_are_not_captured_and_rows_are_capped()
+    {
+        using var runner = new ScriptRunner(
+            TestOptions.Create(o => o.Runner.MaxResultRows = 2),
+            NullLogger<ScriptRunner>.Instance
+        );
+
+        var formatted = runner.Start(Code("[pscustomobject]@{ A = 1 } | Format-Table; 'text'; 1..3"));
+        await CompleteAsync(formatted);
+        Assert.Equal(0, formatted.ResultCount);
+
+        var many = runner.Start(Code("1..5 | ForEach-Object { [pscustomobject]@{ N = $_ } }"));
+        await CompleteAsync(many);
+        Assert.Equal(2, many.ResultCount);
+        Assert.True(many.ResultsTruncated);
+    }
+
+    [Fact]
     public async Task Keeps_terminal_code_on_the_run()
     {
         var run = _runner.Start(Code("'hi'"));

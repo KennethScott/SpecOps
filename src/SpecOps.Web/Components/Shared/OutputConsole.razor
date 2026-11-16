@@ -8,6 +8,18 @@
         {
             <RunStatusBadge Status="Run.Status" />
             <span class="tabular-nums text-console-muted">@FormatDuration(Run.Duration)</span>
+            @if (Run.ResultCount > 0)
+            {
+                <span class="mx-1 h-4 w-px bg-white/10"></span>
+                <div class="flex gap-1" role="tablist">
+                    <button type="button" role="tab" aria-selected="@(!_showResults)" @onclick="() => _showResults = false"
+                            class="@($"rounded px-2 py-0.5 font-medium {(_showResults ? "text-console-muted hover:bg-white/10" : "bg-white/15 text-white")}")">Output</button>
+                    <button type="button" role="tab" aria-selected="@_showResults" @onclick="() => _showResults = true"
+                            class="@($"rounded px-2 py-0.5 font-medium {(_showResults ? "bg-white/15 text-white" : "text-console-muted hover:bg-white/10")}")">
+                        Results <span class="tabular-nums opacity-70">@Run.ResultCount</span>
+                    </button>
+                </div>
+            }
         }
         else
         {
@@ -15,6 +27,8 @@
         }
 
         <div class="ml-auto flex flex-wrap items-center gap-1">
+            @if (!_showResults)
+            {
             @foreach (var kind in FilterableKinds.Where(k => _counts.GetValueOrDefault(k) > 0))
             {
                 var hidden = _hidden.Contains(kind);
@@ -36,6 +50,7 @@
             <button type="button" class="rounded p-1 hover:bg-white/10" title="Download output" @onclick="DownloadAsync" disabled="@(_records.Count == 0)">
                 <Icon Name="download" Class="size-3.5" />
             </button>
+            }
             @if (OnCancel.HasDelegate && Run is { IsFinished: false })
             {
                 <button type="button" class="ml-1 inline-flex items-center gap-1 rounded bg-rose-600 px-2 py-1 font-medium text-white hover:bg-rose-700 disabled:opacity-50"
@@ -46,21 +61,28 @@
         </div>
     </div>
 
-    <div @ref="_scroller" class="@($"{HeightClass} overflow-auto px-3 py-2 font-mono text-[13px] leading-5 text-console-fg")" role="log" aria-live="polite">
-        @if (_records.Count == 0)
-        {
-            <div class="py-8 text-center text-console-muted">@(Run is null ? EmptyText : "Waiting for output…")</div>
-        }
-        else
-        {
-            <Virtualize Items="Visible" ItemSize="20" OverscanCount="30" Context="record">
-                <div class="@($"flex gap-3 {KindCss(record.Stream)}")">
-                    <span class="shrink-0 select-none text-console-muted tabular-nums">@record.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
-                    <span class="whitespace-pre">@record.Text</span>
-                </div>
-            </Virtualize>
-        }
-    </div>
+    @if (_showResults && Run is not null)
+    {
+        <ResultsView Run="Run" HeightClass="@HeightClass" />
+    }
+    else
+    {
+        <div @ref="_scroller" class="@($"{HeightClass} overflow-auto px-3 py-2 font-mono text-[13px] leading-5 text-console-fg")" role="log" aria-live="polite">
+            @if (_records.Count == 0)
+            {
+                <div class="py-8 text-center text-console-muted">@(Run is null ? EmptyText : "Waiting for output…")</div>
+            }
+            else
+            {
+                <Virtualize Items="Visible" ItemSize="20" OverscanCount="30" Context="record">
+                    <div class="@($"flex gap-3 {KindCss(record.Stream)}")">
+                        <span class="shrink-0 select-none text-console-muted tabular-nums">@record.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
+                        <span class="whitespace-pre">@record.Text</span>
+                    </div>
+                </Virtualize>
+            }
+        </div>
+    }
 </section>
 
 @code {
@@ -79,6 +101,7 @@
     private CancellationTokenSource? _watchCts;
     private ScriptRun? _watching;
     private bool _autoScroll = true;
+    private bool _showResults;
     // null = idle, true = copied, false = the browser refused (no HTTPS, or clipboard permission denied).
     private bool? _copyResult;
     private int _flushScheduled;
@@ -113,6 +136,7 @@
         _watching = Run;
         _records.Clear();
         _filtered = null;
+        _showResults = false;
         _counts.Clear();
         _incoming.Clear();
 
@@ -176,7 +200,7 @@
         }
 
         StateHasChanged();
-        if (added && _autoScroll)
+        if (added && _autoScroll && !_showResults)
         {
             await JS.TryInvokeVoidAsync("specops.scrollToBottom", _scroller);
         }
