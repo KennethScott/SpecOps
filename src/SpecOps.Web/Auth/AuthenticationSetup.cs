@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using SpecOps.Core.Security;
 using SpecOps.Data;
+using SpecOps.Web.Services;
 
 namespace SpecOps.Web.Auth;
 
@@ -63,6 +65,8 @@ public static class AuthenticationSetup
                         o.ClientId = provider.ClientId!;
                         o.ClientSecret = provider.ClientSecret ?? "";
                         o.CallbackPath = callbackPath;
+                        // Lets ExternalIdentity see Google's own "is this email verified" answer.
+                        o.ClaimActions.MapJsonKey("email_verified", "email_verified");
                     });
                     break;
 
@@ -89,19 +93,43 @@ public static class AuthenticationSetup
                         o.TokenValidationParameters.NameClaimType = "name";
                         // Keep the groups claim even when it only arrives in the id_token.
                         o.ClaimActions.Remove(provider.GroupsClaim);
+
+                        if (provider.AllowedTenantIds.Count > 0)
+                        {
+                            var allowed = provider.AllowedTenantIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                            o.Events.OnTokenValidated = context =>
+                            {
+                                var tenant = context.Principal?.FindFirstValue("tid");
+                                if (tenant is null || !allowed.Contains(tenant))
+                                {
+                                    context.Fail($"Sign-ins from tenant '{tenant ?? "(none)"}' are not allowed.");
+                                }
+
+                                return Task.CompletedTask;
+                            };
+                        }
                     });
                     break;
             }
         }
 
+        // Outside Development, cookies are only ever sent over HTTPS (behind a TLS proxy this relies on X-Forwarded-Proto).
+        var securePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+
         builder.Services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.Name = "SpecOps";
+            options.Cookie.SecurePolicy = securePolicy;
+            options.Cookie.SameSite = SameSiteMode.Lax;
             options.LoginPath = "/account/login";
             options.AccessDeniedPath = "/account/denied";
             options.ExpireTimeSpan = TimeSpan.FromHours(12);
             options.SlidingExpiration = true;
         });
+        builder.Services.ConfigureExternalCookie(options => options.Cookie.SecurePolicy = securePolicy);
+        builder.Services.AddAntiforgery(options => options.Cookie.SecurePolicy = securePolicy);
 
         // Disabling a user or changing their roles takes effect within a minute (security stamp check).
         builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
@@ -115,6 +143,7 @@ public static class AuthenticationSetup
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingIdentityAuthenticationStateProvider>();
         builder.Services.AddScoped<ExternalSignInService>();
+        builder.Services.AddSingleton<AuditLog>();
 
         return builder;
     }

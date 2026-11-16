@@ -3,7 +3,7 @@ using SpecOps.Core.Scripts;
 
 namespace SpecOps.Core.Execution;
 
-public sealed class ScriptRunRequest
+public sealed record ScriptRunRequest
 {
     public const string MaskedValue = "••••••";
 

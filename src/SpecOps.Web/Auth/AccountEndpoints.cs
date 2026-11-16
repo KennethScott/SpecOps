@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SpecOps.Data;
+using SpecOps.Web.Infrastructure;
+using SpecOps.Web.Services;
 
 namespace SpecOps.Web.Auth;
 
@@ -10,7 +12,7 @@ public static class AccountEndpoints
 {
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var account = endpoints.MapGroup("/account").AllowAnonymous();
+        var account = endpoints.MapGroup("/account").AllowAnonymous().RequireRateLimiting(RateLimiting.AuthPolicy);
 
         account.MapPost(
             "/external-login",
@@ -55,13 +57,16 @@ public static class AccountEndpoints
                     return Results.LocalRedirect("~/account/login?error=no-login-info");
                 }
 
-                var (outcome, _) = await externalSignIn.SignInExternalAsync(info);
+                var result = await externalSignIn.SignInExternalAsync(info, http.ClientIp());
                 await http.SignOutAsync(IdentityConstants.ExternalScheme);
 
-                return outcome switch
+                return result.Outcome switch
                 {
                     SignInOutcome.SignedIn => Results.LocalRedirect(SafeReturnUrl(returnUrl)),
-                    SignInOutcome.PendingApproval => Results.LocalRedirect("~/account/pending"),
+                    // The sign-in ID lets an admin add this person to Auth:BootstrapAdmins or find them on the Users page.
+                    SignInOutcome.PendingApproval => Results.LocalRedirect(
+                        $"~/account/pending{QueryString.Create("id", result.SignInId ?? "")}"
+                    ),
                     SignInOutcome.Disabled => Results.LocalRedirect("~/account/denied"),
                     _ => Results.LocalRedirect("~/account/login?error=failed"),
                 };
@@ -71,6 +76,7 @@ public static class AccountEndpoints
         account.MapPost(
             "/dev-login",
             async (
+                HttpContext http,
                 [FromForm] string? returnUrl,
                 IOptions<AuthSettings> settings,
                 IHostEnvironment environment,
@@ -82,13 +88,18 @@ public static class AccountEndpoints
                     return Results.NotFound();
                 }
 
-                await externalSignIn.SignInDevUserAsync();
+                await externalSignIn.SignInDevUserAsync(http.ClientIp());
                 return Results.LocalRedirect(SafeReturnUrl(returnUrl));
             }
         );
 
-        account.MapPost("/logout", async (SignInManager<SpecOpsUser> signIn) =>
+        account.MapPost("/logout", async (HttpContext http, SignInManager<SpecOpsUser> signIn, AuditLog audit) =>
         {
+            if (http.User.Identity?.IsAuthenticated == true)
+            {
+                await audit.RecordAsync(http.User, AuditActions.SignOut, clientIp: http.ClientIp());
+            }
+
             await signIn.SignOutAsync();
             return Results.LocalRedirect("~/account/login?signedOut=true");
         });

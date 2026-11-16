@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using SpecOps.Core.Security;
 using SpecOps.Data;
+using SpecOps.Web.Services;
 
 namespace SpecOps.Web.Auth;
 
@@ -14,6 +15,8 @@ public enum SignInOutcome
     Failed,
 }
 
+public sealed record SignInResult(SignInOutcome Outcome, string? SignInId = null, string? Error = null);
+
 /// <summary>
 /// Turns an external login (Entra, Google, OIDC) into a SpecOps user: creates the user on first sign-in,
 /// refreshes profile and group memberships every sign-in, applies bootstrap/auto-approval rules, and signs in only active users.
@@ -24,88 +27,122 @@ public sealed partial class ExternalSignInService(
     SignInManager<SpecOpsUser> signIn,
     ISpecOpsAuthorizer authorizer,
     IOptionsMonitor<AuthSettings> settings,
+    AuditLog audit,
     ILogger<ExternalSignInService> logger
 )
 {
     public const string DevUserName = "dev@localhost";
 
-    public async Task<(SignInOutcome Outcome, string? Error)> SignInExternalAsync(ExternalLoginInfo info)
+    public async Task<SignInResult> SignInExternalAsync(ExternalLoginInfo info, string? clientIp)
     {
         ArgumentNullException.ThrowIfNull(info);
-        var principal = info.Principal;
-        var email = FindEmail(principal);
-        var emailVerified = !string.Equals(
-            principal.FindFirstValue("email_verified"),
-            "false",
-            StringComparison.OrdinalIgnoreCase
-        );
-        var displayName = principal.FindFirstValue("name") ?? principal.FindFirstValue(ClaimTypes.Name) ?? email;
-        var groupsClaim = settings.CurrentValue.Providers.TryGetValue(info.LoginProvider, out var provider)
-            ? provider.GroupsClaim
-            : "groups";
-        var groups = principal
-            .FindAll(groupsClaim)
-            .Select(c => c.Value)
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var current = settings.CurrentValue;
+        current.Providers.TryGetValue(info.LoginProvider, out var provider);
+        var identity = ExternalIdentity.Create(info.LoginProvider, info.ProviderKey, info.Principal, provider);
 
         var user = await users.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
         if (user is null)
         {
             user = new SpecOpsUser
             {
-                UserName = await UniqueUserNameAsync(
-                    email ?? $"{info.LoginProvider}:{info.ProviderKey}",
-                    info.LoginProvider
-                ),
-                Email = email,
-                EmailConfirmed = email is not null && emailVerified,
-                DisplayName = displayName,
+                UserName = await UniqueUserNameAsync(identity.Email ?? identity.SignInId, info.LoginProvider),
+                Email = identity.Email,
+                EmailConfirmed = identity.TrustedEmail is not null,
+                DisplayName = identity.DisplayName,
             };
 
             var created = await users.CreateAsync(user);
             if (!created.Succeeded)
             {
-                return (SignInOutcome.Failed, string.Join(" ", created.Errors.Select(e => e.Description)));
+                return new SignInResult(
+                    SignInOutcome.Failed,
+                    identity.SignInId,
+                    string.Join(" ", created.Errors.Select(e => e.Description))
+                );
             }
 
             await users.AddLoginAsync(user, info);
             LogUserCreated(user.UserName!, info.LoginProvider);
+            await audit.RecordAsync(user.Id, user.Label, AuditActions.UserCreated, identity.SignInId, null, clientIp);
         }
 
-        user.DisplayName = displayName ?? user.DisplayName;
-        user.Email = email ?? user.Email;
+        user.DisplayName = identity.DisplayName ?? user.DisplayName;
+        user.Email = identity.Email ?? user.Email;
+        user.EmailConfirmed = identity.TrustedEmail is not null;
         user.LastSignInAtUtc = DateTime.UtcNow;
-        await SyncGroupsAsync(user, groups);
+        await SyncGroupsAsync(user, identity.Groups);
 
-        var trustedEmail = emailVerified ? email : null;
-        if (IsBootstrapAdmin(trustedEmail))
+        if (identity.IsBootstrapAdmin(current))
         {
-            await EnsureRoleAsync(user, SpecOpsAuthorizer.AdminRole);
+            if (await EnsureRoleAsync(user, SpecOpsAuthorizer.AdminRole) || user.Status != UserStatus.Active)
+            {
+                await audit.RecordAsync(
+                    user.Id,
+                    user.Label,
+                    AuditActions.BootstrapAdmin,
+                    identity.SignInId,
+                    null,
+                    clientIp
+                );
+            }
+
             user.Status = UserStatus.Active;
         }
         else if (
             user.Status == UserStatus.Pending
-            && ShouldAutoApprove(trustedEmail, groups, await users.GetRolesAsync(user))
+            && (
+                identity.MatchesAutoApproveDomain(current)
+                || authorizer.MatchesAnyPolicy(await users.GetRolesAsync(user), identity.Groups)
+            )
         )
         {
             user.Status = UserStatus.Active;
             LogAutoApproved(user.UserName!);
+            await audit.RecordAsync(
+                user.Id,
+                user.Label,
+                AuditActions.UserAutoApproved,
+                identity.SignInId,
+                null,
+                clientIp
+            );
         }
 
         await users.UpdateAsync(user);
 
-        return user.Status switch
+        switch (user.Status)
         {
-            UserStatus.Active => await CompleteSignInAsync(user, info.LoginProvider),
-            UserStatus.Disabled => (SignInOutcome.Disabled, null),
-            _ => (SignInOutcome.PendingApproval, null),
-        };
+            case UserStatus.Active:
+                await signIn.SignInAsync(user, isPersistent: true, authenticationMethod: info.LoginProvider);
+                await audit.RecordAsync(user.Id, user.Label, AuditActions.SignIn, identity.SignInId, null, clientIp);
+                return new SignInResult(SignInOutcome.SignedIn, identity.SignInId);
+
+            case UserStatus.Disabled:
+                await audit.RecordAsync(
+                    user.Id,
+                    user.Label,
+                    AuditActions.SignInDenied,
+                    identity.SignInId,
+                    null,
+                    clientIp
+                );
+                return new SignInResult(SignInOutcome.Disabled, identity.SignInId);
+
+            default:
+                await audit.RecordAsync(
+                    user.Id,
+                    user.Label,
+                    AuditActions.SignInPending,
+                    identity.SignInId,
+                    null,
+                    clientIp
+                );
+                return new SignInResult(SignInOutcome.PendingApproval, identity.SignInId);
+        }
     }
 
     /// <summary>Development-only shortcut: signs in as an active admin without any identity provider.</summary>
-    public async Task SignInDevUserAsync()
+    public async Task SignInDevUserAsync(string? clientIp)
     {
         var user = await users.FindByNameAsync(DevUserName);
         if (user is null)
@@ -126,12 +163,7 @@ public sealed partial class ExternalSignInService(
         user.LastSignInAtUtc = DateTime.UtcNow;
         await users.UpdateAsync(user);
         await signIn.SignInAsync(user, isPersistent: true, authenticationMethod: "Development");
-    }
-
-    private async Task<(SignInOutcome, string?)> CompleteSignInAsync(SpecOpsUser user, string provider)
-    {
-        await signIn.SignInAsync(user, isPersistent: true, authenticationMethod: provider);
-        return (SignInOutcome.SignedIn, null);
+        await audit.RecordAsync(user.Id, user.Label, AuditActions.SignIn, "Development", null, clientIp);
     }
 
     private async Task SyncGroupsAsync(SpecOpsUser user, IReadOnlyCollection<string> groups)
@@ -156,29 +188,21 @@ public sealed partial class ExternalSignInService(
         }
     }
 
-    private async Task EnsureRoleAsync(SpecOpsUser user, string role)
+    /// <summary>Returns true when the role was newly granted.</summary>
+    private async Task<bool> EnsureRoleAsync(SpecOpsUser user, string role)
     {
         if (!await roles.RoleExistsAsync(role))
         {
             await roles.CreateAsync(new IdentityRole(role));
         }
 
-        if (!await users.IsInRoleAsync(user, role))
+        if (await users.IsInRoleAsync(user, role))
         {
-            await users.AddToRoleAsync(user, role);
+            return false;
         }
-    }
 
-    private bool IsBootstrapAdmin(string? email) =>
-        email is not null && settings.CurrentValue.BootstrapAdmins.Contains(email, StringComparer.OrdinalIgnoreCase);
-
-    private bool ShouldAutoApprove(string? email, IEnumerable<string> groups, IEnumerable<string> userRoles)
-    {
-        var domain = email?.Split('@') is [_, var d] ? d : null;
-        return (
-                domain is not null
-                && settings.CurrentValue.AutoApproveEmailDomains.Contains(domain, StringComparer.OrdinalIgnoreCase)
-            ) || authorizer.MatchesAnyPolicy(userRoles, groups);
+        await users.AddToRoleAsync(user, role);
+        return true;
     }
 
     private async Task<string> UniqueUserNameAsync(string preferred, string provider)
@@ -190,21 +214,6 @@ public sealed partial class ExternalSignInService(
         }
 
         return name;
-    }
-
-    private static string? FindEmail(ClaimsPrincipal principal)
-    {
-        var email = principal.FindFirstValue("email") ?? principal.FindFirstValue(ClaimTypes.Email);
-        if (
-            email is null
-            && principal.FindFirstValue("preferred_username") is { } upn
-            && upn.Contains('@', StringComparison.Ordinal)
-        )
-        {
-            email = upn;
-        }
-
-        return email;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "New user {UserName} signed in with {Provider}")]

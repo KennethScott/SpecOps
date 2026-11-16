@@ -5,10 +5,14 @@ public sealed class AuthSettings
 {
     public const string SectionName = "Auth";
 
-    /// <summary>Emails that get the built-in Admin role (and are approved) when they sign in. Use for the first admin and lockout recovery.</summary>
+    /// <summary>
+    /// People who get the built-in Admin role (and are approved) when they sign in: first admin and lockout recovery.
+    /// Each entry is either a sign-in ID ("Provider:subject", shown on the approval page; works with any provider)
+    /// or an email address (only matches a verified/trusted email, see <see cref="ExternalProviderSettings.TrustEmail"/>).
+    /// </summary>
     public IList<string> BootstrapAdmins { get; init; } = [];
 
-    /// <summary>New users with a verified email in one of these domains are approved automatically (e.g. "contoso.com").</summary>
+    /// <summary>New users with a verified/trusted email in one of these domains are approved automatically (e.g. "contoso.com").</summary>
     public IList<string> AutoApproveEmailDomains { get; init; } = [];
 
     /// <summary>"Sign in as dev user" button. Development environment only; startup fails if enabled elsewhere.</summary>
@@ -45,5 +49,17 @@ public sealed class ExternalProviderSettings
     /// <summary>Extra scopes beyond openid/profile/email.</summary>
     public IList<string> Scopes { get; init; } = [];
 
+    /// <summary>
+    /// Whether this provider's email claim can be trusted when it doesn't send email_verified. Defaults to true for
+    /// Google (verified accounts only) and false for OpenID Connect. Only enable for an OIDC provider whose emails
+    /// users can't change, e.g. Entra restricted to your tenant via <see cref="AllowedTenantIds"/>.
+    /// </summary>
+    public bool? TrustEmail { get; set; }
+
+    /// <summary>Entra ID: only accept sign-ins whose "tid" claim is one of these tenant IDs. Strongly recommended.</summary>
+    public IList<string> AllowedTenantIds { get; init; } = [];
+
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId);
+
+    public bool EmailIsTrusted => TrustEmail ?? Type == ExternalProviderType.Google;
 }

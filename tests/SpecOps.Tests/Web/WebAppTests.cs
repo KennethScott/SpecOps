@@ -2,7 +2,13 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using SpecOps.Data;
 using SpecOps.Web.Auth;
+using SpecOps.Web.Infrastructure;
+using SpecOps.Web.Services;
 
 namespace SpecOps.Tests.Web;
 
@@ -139,4 +145,72 @@ public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecO
     {
         Assert.Equal(expected, AccountEndpoints.SafeReturnUrl(input));
     }
+
+    [Fact]
+    public async Task Pages_send_security_headers_with_a_nonce_that_matches_the_inline_scripts()
+    {
+        var response = await Client().GetAsync("/account/login", TestContext.Current.CancellationToken);
+        var html = WebUtility.HtmlDecode(
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
+        );
+
+        var csp = string.Join(";", response.Headers.GetValues("Content-Security-Policy"));
+        Assert.Contains("frame-ancestors 'none'", csp, StringComparison.Ordinal);
+        Assert.Contains("object-src 'none'", csp, StringComparison.Ordinal);
+        Assert.DoesNotContain("unsafe-eval", csp, StringComparison.Ordinal);
+
+        var nonce = Regex.Match(csp, "'nonce-([^']+)'").Groups[1].Value;
+        Assert.NotEmpty(nonce);
+        Assert.Contains($"nonce=\"{nonce}\"", html, StringComparison.Ordinal);
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.False(response.Headers.Contains("Server"));
+    }
+
+    [Fact]
+    public async Task Sign_in_is_recorded_in_the_audit_log()
+    {
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var ct = TestContext.Current.CancellationToken;
+        var token = SpecOpsWebFactory.AntiforgeryToken(await client.GetStringAsync("/account/login", ct));
+
+        await client.PostAsync(
+            "/account/dev-login",
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = token! }),
+            ct
+        );
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>();
+        Assert.Contains(await db.AuditEvents.AsNoTracking().ToListAsync(ct), e =>
+            e.Action == AuditActions.SignIn && e.Actor == "Dev User"
+        );
+    }
+
+    [Fact]
+    public void Production_warns_about_risky_security_settings()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["AllowedHosts"] = "*",
+                    ["Auth:Providers:Microsoft:ClientId"] = "id",
+                    ["Auth:Providers:Microsoft:Authority"] = "https://login.microsoftonline.com/tenant/v2.0",
+                }
+            )
+            .Build();
+
+        var production = HostingSetup.SecurityConfigurationProblems(configuration, Environment("Production")).ToList();
+        var development = HostingSetup
+            .SecurityConfigurationProblems(configuration, Environment("Development"))
+            .ToList();
+
+        Assert.Contains(production, p => p.Contains("AllowedHosts", StringComparison.Ordinal));
+        Assert.Contains(production, p => p.Contains("AllowedTenantIds", StringComparison.Ordinal));
+        Assert.Empty(development);
+    }
+
+    private static Microsoft.Extensions.Hosting.Internal.HostingEnvironment Environment(string name) =>
+        new Microsoft.Extensions.Hosting.Internal.HostingEnvironment { EnvironmentName = name };
 }

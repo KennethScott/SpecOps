@@ -1,3 +1,4 @@
+@using NetEscapades.AspNetCore.SecurityHeaders
 ﻿<!DOCTYPE html>
 <html lang="en">
 
@@ -6,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <base href="@BaseHref" />
-    <script>
+    <script nonce="@Nonce">
         // Apply the theme before first paint (user choice, else OS preference).
         (function () {
             try {
@@ -19,7 +20,7 @@
     <link rel="icon" type="image/png" href="img/logo.png" />
     <link rel="stylesheet" href="@Assets["css/app.css"]" />
     <link rel="stylesheet" href="@Assets["SpecOps.Web.styles.css"]" />
-    <ImportMap />
+    <ImportMap nonce="@Nonce" />
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
@@ -27,7 +28,7 @@
     <Routes @rendermode="PageRenderMode" ClientIp="@ClientIp" />
     <ReconnectModal />
     <script src="_content/BlazorMonaco/jsInterop.js"></script>
-    <script>var require = { paths: { vs: '_content/BlazorMonaco/lib/monaco-editor/min/vs' } };</script>
+    <script nonce="@Nonce">var require = { paths: { vs: '_content/BlazorMonaco/lib/monaco-editor/min/vs' } };</script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/loader.js"></script>
     <script src="_content/BlazorMonaco/lib/monaco-editor/min/vs/editor/editor.main.js"></script>
     <script src="@Assets["js/specops.js"]"></script>
@@ -43,6 +44,9 @@
     // Account pages render as static HTML (they set cookies); everything else is interactive.
     private IComponentRenderMode? PageRenderMode =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+
+    // Per-request CSP nonce for the inline scripts above (see Infrastructure/SecurityHeaders.cs).
+    private string Nonce => HttpContext.GetNonce();
 
     private string BaseHref => $"{HttpContext.Request.PathBase}/";
 

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using SpecOps.Core.Execution;
 using SpecOps.Core.Scripts;
 using SpecOps.Core.Security;
@@ -16,9 +17,14 @@ public sealed record StartRunResult(ScriptRun? Run, string? Error, IReadOnlyDict
 
 /// <summary>
 /// The single place the UI asks "what can this user see/run" and starts runs.
-/// Every check happens here, server-side, no matter what the browser sends.
+/// Every check happens here, server-side, no matter what the browser sends, and every run is audited.
 /// </summary>
-public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer authorizer, IScriptRunner runner)
+public sealed class ScriptService(
+    IScriptCatalog catalog,
+    ISpecOpsAuthorizer authorizer,
+    IScriptRunner runner,
+    AuditLog audit
+)
 {
     public const string TerminalScriptId = "terminal";
 
@@ -52,7 +58,7 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
 
     public IReadOnlyList<RunspaceProfile> RunspaceProfiles => catalog.RunspaceProfiles;
 
-    public StartRunResult StartScript(
+    public async Task<StartRunResult> StartScriptAsync(
         ClaimsPrincipal user,
         string scriptId,
         IReadOnlyDictionary<string, string?> input,
@@ -63,6 +69,12 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
         var script = GetScript(user, scriptId);
         if (script is null)
         {
+            if (catalog.FindScript(scriptId) is not null)
+            {
+                // The script exists but the user isn't allowed to run it: worth knowing about.
+                await audit.RecordAsync(user, AuditActions.ScriptDenied, scriptId, clientIp: clientIp);
+            }
+
             return StartRunResult.Fail("Script not found, or you don't have access to it.");
         }
 
@@ -89,16 +101,27 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
             catalog.ResolveScriptPath(script),
             validation.Values,
             catalog.FindRunspaceProfile(script.RunspaceProfile)
-        );
-        var run = runner.Start(WithUser(request, user, clientIp));
-        return new StartRunResult(run, null, new Dictionary<string, string>());
+        ) with
+        {
+            UserName = user.DisplayName(),
+            UserId = user.UserId(),
+            ClientIp = clientIp,
+        };
+
+        return await StartAsync(user, request, AuditActions.ScriptRun, run => JsonSerializer.Serialize(run.Parameters));
     }
 
-    public StartRunResult StartCode(ClaimsPrincipal user, string code, string? runspaceProfile, string? clientIp)
+    public async Task<StartRunResult> StartCodeAsync(
+        ClaimsPrincipal user,
+        string code,
+        string? runspaceProfile,
+        string? clientIp
+    )
     {
         ArgumentNullException.ThrowIfNull(user);
         if (!authorizer.GetAccess(user).IsAdmin)
         {
+            await audit.RecordAsync(user, AuditActions.ScriptDenied, TerminalScriptId, code, clientIp);
             return StartRunResult.Fail("Only administrators can use the Terminal.");
         }
 
@@ -107,19 +130,18 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
             return StartRunResult.Fail("Enter some PowerShell to run.");
         }
 
-        var run = runner.Start(
-            new ScriptRunRequest
-            {
-                ScriptId = TerminalScriptId,
-                ScriptName = "Terminal",
-                Code = code,
-                RunspaceProfile = catalog.FindRunspaceProfile(runspaceProfile),
-                UserName = user.DisplayName(),
-                UserId = user.UserId(),
-                ClientIp = clientIp,
-            }
-        );
-        return new StartRunResult(run, null, new Dictionary<string, string>());
+        var request = new ScriptRunRequest
+        {
+            ScriptId = TerminalScriptId,
+            ScriptName = "Terminal",
+            Code = code,
+            RunspaceProfile = catalog.FindRunspaceProfile(runspaceProfile),
+            UserName = user.DisplayName(),
+            UserId = user.UserId(),
+            ClientIp = clientIp,
+        };
+
+        return await StartAsync(user, request, AuditActions.TerminalRun, _ => code);
     }
 
     /// <summary>Owners see their own runs; admins see everyone's.</summary>
@@ -135,21 +157,35 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
     public IReadOnlyList<ScriptRun> GetVisibleRuns(ClaimsPrincipal user) =>
         [.. runner.Runs.Where(r => CanView(user, r))];
 
-    public bool Cancel(ClaimsPrincipal user, Guid runId) => FindRun(user, runId) is not null && runner.Cancel(runId);
-
-    private static ScriptRunRequest WithUser(ScriptRunRequest request, ClaimsPrincipal user, string? clientIp) =>
-        new()
+    public async Task<bool> CancelAsync(ClaimsPrincipal user, Guid runId)
+    {
+        if (FindRun(user, runId) is not { } run || !runner.Cancel(runId))
         {
-            ScriptId = request.ScriptId,
-            ScriptName = request.ScriptName,
-            ScriptPath = request.ScriptPath,
-            Code = request.Code,
-            Parameters = request.Parameters,
-            SensitiveParameters = request.SensitiveParameters,
-            RunspaceProfile = request.RunspaceProfile,
-            Timeout = request.Timeout,
-            UserName = user.DisplayName(),
-            UserId = user.UserId(),
-            ClientIp = clientIp,
-        };
+            return false;
+        }
+
+        await audit.RecordAsync(user, AuditActions.RunCancelled, $"{run.ScriptId} {run.Id}");
+        return true;
+    }
+
+    private async Task<StartRunResult> StartAsync(
+        ClaimsPrincipal user,
+        ScriptRunRequest request,
+        string auditAction,
+        Func<ScriptRun, string> auditDetails
+    )
+    {
+        ScriptRun run;
+        try
+        {
+            run = runner.Start(request);
+        }
+        catch (RunRejectedException ex)
+        {
+            return StartRunResult.Fail(ex.Message);
+        }
+
+        await audit.RecordAsync(user, auditAction, $"{request.ScriptId} {run.Id}", auditDetails(run), request.ClientIp);
+        return new StartRunResult(run, null, new Dictionary<string, string>());
+    }
 }

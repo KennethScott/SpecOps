@@ -15,7 +15,7 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261116005317_InitialIdentity";
+    public override string LastMigrationId => "20261116024059_AuditEvents";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -148,6 +148,49 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("UserId", "LoginProvider", "Name");
 
                 b.ToTable("AspNetUserTokens");
+            });
+
+        modelBuilder.Entity("SpecOps.Data.AuditEvent", b =>
+            {
+                b.Property<long>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("Action")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Actor")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ActorId")
+                    .HasMaxLength(450)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ClientIp")
+                    .HasMaxLength(64)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Details")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Target")
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime>("TimestampUtc")
+                    .HasColumnType("TEXT");
+
+                b.HasKey("Id");
+
+                b.HasIndex("Action");
+
+                b.HasIndex("TimestampUtc");
+
+                b.ToTable("AuditEvents");
             });
 
         modelBuilder.Entity("SpecOps.Data.SpecOpsUser", b =>

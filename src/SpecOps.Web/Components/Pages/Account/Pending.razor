@@ -12,5 +12,17 @@
         You've signed in successfully, but an administrator needs to approve your account before you can use SpecOps.
         Try again once you've been approved.
     </p>
+    @if (!string.IsNullOrEmpty(SignInId))
+    {
+        <div class="w-full rounded-lg bg-slate-100 p-3 text-left text-xs dark:bg-slate-800">
+            <p class="mb-1 font-medium text-slate-600 dark:text-slate-300">Your sign-in ID (give this to your administrator)</p>
+            <code class="break-all font-mono">@SignInId</code>
+        </div>
+    }
     <a href="account/login" class="btn-secondary mt-2">Back to sign in</a>
 </div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")]
+    private string? SignInId { get; set; }
+}

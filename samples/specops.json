@@ -7,7 +7,10 @@
 
     "Runner": {
       "MaxConcurrentRuns": 10,
-      "DefaultTimeout": "00:30:00"
+      "DefaultTimeout": "00:30:00",
+      // Per-user limits: runs queued/running at once, and runs started per minute.
+      "MaxActiveRunsPerUser": 5,
+      "MaxRunsPerMinutePerUser": 20
     },
 
     "Categories": [
@@ -31,7 +34,9 @@
       }
     ],
 
-    // Optional warm runspace pools. Scripts without a profile run in a fresh, isolated runspace.
+    // Optional warm runspace pools (faster starts). Each runspace is reset between runs, so variables, functions,
+    // aliases, modules and drives don't carry over. Note: environment variables are process-wide and are not reset.
+    // Scripts without a profile run in a fresh, isolated runspace.
     "RunspaceProfiles": [{ "Name": "warm", "MinRunspaces": 1, "MaxRunspaces": 4, "Modules": [] }],
 
     "Scripts": [
