@@ -28,8 +28,10 @@
             <button type="button" class="rounded p-1 hover:bg-white/10 @(_autoScroll ? "text-white" : "text-console-muted")" title="Auto-scroll" @onclick="ToggleAutoScroll">
                 <Icon Name="arrow-down" Class="size-3.5" />
             </button>
-            <button type="button" class="rounded p-1 hover:bg-white/10" title="Copy output" @onclick="CopyAsync" disabled="@(_records.Count == 0)">
-                <Icon Name="@(_copied ? "check" : "copy")" Class="size-3.5" />
+            <button type="button" class="@($"rounded p-1 hover:bg-white/10 {(_copyResult == false ? "text-console-error" : "")}")"
+                    title="@(_copyResult == false ? "The browser blocked clipboard access (it requires HTTPS and permission); use Download instead" : "Copy output")"
+                    @onclick="CopyAsync" disabled="@(_records.Count == 0)">
+                <Icon Name="@(_copyResult switch { true => "check", false => "x", _ => "copy" })" Class="size-3.5" />
             </button>
             <button type="button" class="rounded p-1 hover:bg-white/10" title="Download output" @onclick="DownloadAsync" disabled="@(_records.Count == 0)">
                 <Icon Name="download" Class="size-3.5" />
@@ -74,7 +76,8 @@
     private CancellationTokenSource? _watchCts;
     private ScriptRun? _watching;
     private bool _autoScroll = true;
-    private bool _copied;
+    // null = idle, true = copied, false = the browser refused (no HTTPS, or clipboard permission denied).
+    private bool? _copyResult;
     private int _flushScheduled;
     private Timer? _ticker;
 
@@ -202,11 +205,10 @@
 
     private async Task CopyAsync()
     {
-        await JS.TryInvokeVoidAsync("specops.copyText", AllText());
-        _copied = true;
+        _copyResult = await JS.TryInvokeAsync<bool>("specops.copyText", AllText());
         StateHasChanged();
-        await Task.Delay(1500);
-        _copied = false;
+        await Task.Delay(_copyResult == true ? 1500 : 4000);
+        _copyResult = null;
     }
 
     private async Task DownloadAsync()
