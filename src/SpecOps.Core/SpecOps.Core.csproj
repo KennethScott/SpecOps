@@ -1,5 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Domain model, PowerShell execution engine, parameter discovery & validation. No ASP.NET dependency. -->
+  <!-- Domain model, PowerShell execution engine, parameter validation and authorization. No ASP.NET dependency. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.PowerShell.SDK" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpecOps.Tests" />
+  </ItemGroup>
 
 </Project>
