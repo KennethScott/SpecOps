@@ -1,12 +1,16 @@
 {
   "name": "specops-web",
   "private": true,
+  "description": "Client tooling: Tailwind builds the CSS; Prettier formats JS, CSS, JSON, YAML and Markdown across the whole repo (config in the repo root).",
   "scripts": {
     "build:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --minify",
-    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch"
+    "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
+    "format": "prettier --write ../.. --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
+    "format:check": "prettier --check ../.. --ignore-path ../../.gitignore --ignore-path ../../.prettierignore"
   },
   "devDependencies": {
     "@tailwindcss/cli": "4.3.5",
+    "prettier": "3.10.1",
     "tailwindcss": "4.3.5"
   }
 }
