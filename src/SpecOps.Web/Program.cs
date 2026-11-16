@@ -18,6 +18,7 @@ builder.Services.AddSingleton<IScriptCatalog, ConfigurationScriptCatalog>();
 builder.Services.AddSingleton<ISpecOpsAuthorizer, SpecOpsAuthorizer>();
 builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
+builder.Services.AddHostedService<ScriptRunnerLifetime>();
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 

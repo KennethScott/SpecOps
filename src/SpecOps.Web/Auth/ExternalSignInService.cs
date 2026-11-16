@@ -15,7 +15,7 @@ public enum SignInOutcome
     Failed,
 }
 
-public sealed record SignInResult(SignInOutcome Outcome, string? SignInId = null, string? Error = null);
+public sealed record ExternalSignInResult(SignInOutcome Outcome, string? SignInId = null, string? Error = null);
 
 /// <summary>
 /// Turns an external login (Entra, Google, OIDC) into a SpecOps user: creates the user on first sign-in,
@@ -33,7 +33,7 @@ public sealed partial class ExternalSignInService(
 {
     public const string DevUserName = "dev@localhost";
 
-    public async Task<SignInResult> SignInExternalAsync(ExternalLoginInfo info, string? clientIp)
+    public async Task<ExternalSignInResult> SignInExternalAsync(ExternalLoginInfo info, string? clientIp)
     {
         ArgumentNullException.ThrowIfNull(info);
         var current = settings.CurrentValue;
@@ -54,7 +54,7 @@ public sealed partial class ExternalSignInService(
             var created = await users.CreateAsync(user);
             if (!created.Succeeded)
             {
-                return new SignInResult(
+                return new ExternalSignInResult(
                     SignInOutcome.Failed,
                     identity.SignInId,
                     string.Join(" ", created.Errors.Select(e => e.Description))
@@ -115,7 +115,7 @@ public sealed partial class ExternalSignInService(
             case UserStatus.Active:
                 await signIn.SignInAsync(user, isPersistent: true, authenticationMethod: info.LoginProvider);
                 await audit.RecordAsync(user.Id, user.Label, AuditActions.SignIn, identity.SignInId, null, clientIp);
-                return new SignInResult(SignInOutcome.SignedIn, identity.SignInId);
+                return new ExternalSignInResult(SignInOutcome.SignedIn, identity.SignInId);
 
             case UserStatus.Disabled:
                 await audit.RecordAsync(
@@ -126,7 +126,7 @@ public sealed partial class ExternalSignInService(
                     null,
                     clientIp
                 );
-                return new SignInResult(SignInOutcome.Disabled, identity.SignInId);
+                return new ExternalSignInResult(SignInOutcome.Disabled, identity.SignInId);
 
             default:
                 await audit.RecordAsync(
@@ -137,7 +137,7 @@ public sealed partial class ExternalSignInService(
                     null,
                     clientIp
                 );
-                return new SignInResult(SignInOutcome.PendingApproval, identity.SignInId);
+                return new ExternalSignInResult(SignInOutcome.PendingApproval, identity.SignInId);
         }
     }
 

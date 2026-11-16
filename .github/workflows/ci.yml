@@ -69,5 +69,30 @@ jobs:
       - name: Build
         run: dotnet build SpecOps.slnx --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test --solution SpecOps.slnx --no-build --configuration Release
+      - name: Test (with coverage)
+        run: >-
+          dotnet test --solution SpecOps.slnx --no-build --configuration Release
+          --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}
+          path: TestResults/coverage.cobertura.xml
+          if-no-files-found: warn
+
+  dependency-review:
+    name: Dependency review
+    # Blocks pull requests that add dependencies with known vulnerabilities.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: low
+          comment-summary-in-pr: on-failure

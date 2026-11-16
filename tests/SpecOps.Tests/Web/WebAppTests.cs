@@ -12,7 +12,7 @@ using SpecOps.Web.Services;
 
 namespace SpecOps.Tests.Web;
 
-public sealed partial class SpecOpsWebFactory : WebApplicationFactory<Program>
+public partial class SpecOpsWebFactory : WebApplicationFactory<Program>
 {
     private readonly DirectoryInfo _dataDirectory = Directory.CreateTempSubdirectory("specops-web-tests-");
 

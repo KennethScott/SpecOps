@@ -16,6 +16,10 @@
 > Open http://localhost:5065 and choose **Sign in as dev user** (Development only). Scripts come from [samples/specops.json](samples/specops.json) and [samples/scripts](samples/scripts). Tests: `dotnet test`. Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
 >
 > Sign-in providers (Entra ID, Google, any OIDC) are configured under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json); put secrets in user-secrets or environment variables.
+>
+> **Configuration** is checked at startup: invalid `specops.json` or `Auth` settings stop the app with a list of problems. Edits to `specops.json` apply live; an invalid edit is rejected (logged) and the last good configuration keeps running.
+>
+> **Run one instance.** Active runs live in the app's memory and the default database is SQLite, so SpecOps isn't designed to run behind a load balancer with several instances.
 
 SpecOps is a .NET7 web application that allows you to centralize and host your **PowerShell 7** scripts for execution by anyone, particularly non-technical staff. The application is written with PowerShell in mind, but could easily be extended to allow other types. The application is intended to be used in a Windows-based Intranet environment.
 

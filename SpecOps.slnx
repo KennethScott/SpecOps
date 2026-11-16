@@ -19,6 +19,7 @@
   </Folder>
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/ci.yml" />
+    <File Path=".github/workflows/codeql.yml" />
   </Folder>
   <Folder Name="/samples/">
     <File Path="samples/scriptsettings.v1.json" />

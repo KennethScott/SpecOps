@@ -41,6 +41,11 @@ public sealed record SpecOpsRunContext(Guid RunId, string ScriptId, string Scrip
 /// A script execution: status plus its output, which any number of viewers can watch live
 /// (replaying what they missed), so a page refresh or reconnect doesn't lose anything.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The cancellation source is disposed in Complete(), which every run reaches (the runner guarantees a final status)."
+)]
 public sealed class ScriptRun
 {
     private readonly Lock _lock = new();
@@ -100,9 +105,34 @@ public sealed class ScriptRun
     /// <summary>Raised (outside the lock) when the status changes.</summary>
     public event Action<ScriptRun>? StatusChanged;
 
-    internal CancellationTokenSource Cancellation { get; } = new();
+    // Disposed when the run completes; only touched through TryCancel/CancellationToken while the run is active.
+    private readonly CancellationTokenSource _cancellation = new();
+    private volatile bool _cancelRequested;
 
-    public bool CancelRequested => Cancellation.IsCancellationRequested;
+    internal CancellationToken CancellationToken => _cancellation.Token;
+
+    public bool CancelRequested => _cancelRequested;
+
+    /// <summary>Requests cancellation. Returns false if the run already finished.</summary>
+    internal bool TryCancel()
+    {
+        if (IsFinished)
+        {
+            return false;
+        }
+
+        try
+        {
+            _cancelRequested = true;
+            _cancellation.Cancel();
+            return true;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Finished between the check and the cancel.
+            return false;
+        }
+    }
 
     public IReadOnlyList<OutputRecord> Snapshot()
     {
@@ -224,6 +254,7 @@ public sealed class ScriptRun
             _watchers.Clear();
         }
 
+        _cancellation.Dispose();
         StatusChanged?.Invoke(this);
     }
 }
