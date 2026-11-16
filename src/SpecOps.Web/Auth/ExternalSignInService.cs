@@ -33,9 +33,28 @@ public sealed partial class ExternalSignInService(
 {
     public const string DevUserName = "dev@localhost";
 
+    /// <summary>
+    /// Sign-ins are processed one at a time, so two at once for the same new user (two tabs, a double click) can't both
+    /// create the user or add the same role. They're infrequent and SpecOps runs as a single instance.
+    /// </summary>
+    private static readonly SemaphoreSlim ProvisioningLock = new(1, 1);
+
     public async Task<ExternalSignInResult> SignInExternalAsync(ExternalLoginInfo info, string? clientIp)
     {
         ArgumentNullException.ThrowIfNull(info);
+        await ProvisioningLock.WaitAsync();
+        try
+        {
+            return await SignInExternalCoreAsync(info, clientIp);
+        }
+        finally
+        {
+            ProvisioningLock.Release();
+        }
+    }
+
+    private async Task<ExternalSignInResult> SignInExternalCoreAsync(ExternalLoginInfo info, string? clientIp)
+    {
         var current = settings.CurrentValue;
         current.Providers.TryGetValue(info.LoginProvider, out var provider);
         var identity = ExternalIdentity.Create(info.LoginProvider, info.ProviderKey, info.Principal, provider);
@@ -144,6 +163,19 @@ public sealed partial class ExternalSignInService(
     /// <summary>Development-only shortcut: signs in as an active admin without any identity provider.</summary>
     public async Task SignInDevUserAsync(string? clientIp)
     {
+        await ProvisioningLock.WaitAsync();
+        try
+        {
+            await SignInDevUserCoreAsync(clientIp);
+        }
+        finally
+        {
+            ProvisioningLock.Release();
+        }
+    }
+
+    private async Task SignInDevUserCoreAsync(string? clientIp)
+    {
         var user = await users.FindByNameAsync(DevUserName);
         if (user is null)
         {
@@ -169,7 +201,7 @@ public sealed partial class ExternalSignInService(
     private async Task SyncGroupsAsync(SpecOpsUser user, IReadOnlyCollection<string> groups)
     {
         var current = (await users.GetClaimsAsync(user))
-            .Where(c => c.Type == SpecOpsAuthorizer.GroupClaimType)
+            .Where(c => string.Equals(c.Type, SpecOpsAuthorizer.GroupClaimType, StringComparison.Ordinal))
             .ToList();
         var stale = current.Where(c => !groups.Contains(c.Value, StringComparer.OrdinalIgnoreCase)).ToList();
         var added = groups

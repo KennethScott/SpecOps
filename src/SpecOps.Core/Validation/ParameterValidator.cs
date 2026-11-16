@@ -96,7 +96,10 @@ public static class ParameterValidator
                 return MatchesPattern(def, raw) is { } patternError ? (null, patternError) : (raw, null);
 
             case ParameterType.Email:
-                if (!MailAddress.TryCreate(raw, out var address) || address.Address != raw)
+                if (
+                    !MailAddress.TryCreate(raw, out var address)
+                    || !string.Equals(address.Address, raw, StringComparison.Ordinal)
+                )
                 {
                     return (null, "Enter a valid email address.");
                 }
@@ -104,7 +107,9 @@ public static class ParameterValidator
                 return MatchesPattern(def, raw) is { } emailPatternError ? (null, emailPatternError) : (raw, null);
 
             case ParameterType.Select:
-                return def.Options.Any(o => o.Value == raw) ? (raw, null) : (null, "Choose one of the listed options.");
+                return def.Options.Any(o => string.Equals(o.Value, raw, StringComparison.Ordinal))
+                    ? (raw, null)
+                    : (null, "Choose one of the listed options.");
 
             case ParameterType.Number:
             case ParameterType.Range:

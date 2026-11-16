@@ -18,7 +18,8 @@ public sealed record ScriptRunRequest
     public string? Code { get; init; }
 
     /// <summary>Validated, typed parameter values.</summary>
-    public IReadOnlyDictionary<string, object> Parameters { get; init; } = new Dictionary<string, object>();
+    public IReadOnlyDictionary<string, object> Parameters { get; init; } =
+        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Names of parameters whose values must never be shown or logged.</summary>
     public IReadOnlySet<string> SensitiveParameters { get; init; } =

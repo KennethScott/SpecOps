@@ -3,13 +3,13 @@
 #   docker build --build-arg PS_MODULES="VCF.PowerCLI Microsoft.Graph Az.Accounts" -t specops .   (full PowerCLI + Graph)
 # More modules can be added at runtime under /data/modules without rebuilding.
 
-# ---- 1. Client assets: Tailwind CSS and the code editor bundle (Node) -----------------------------
+# ---- 1. Client assets: Tailwind CSS and the TypeScript bundles (Node) -----------------------------
 FROM node:22-slim AS client
 WORKDIR /src/src/SpecOps.Web
 COPY src/SpecOps.Web/package.json src/SpecOps.Web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY src/SpecOps.Web/ ./
-RUN npm run build:css && npm run build:editor
+RUN npm run build:css && npm run build:client
 
 # ---- 2. Build and publish the app (.NET SDK) -------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
@@ -22,6 +22,7 @@ COPY src/SpecOps.Web/SpecOps.Web.csproj src/SpecOps.Web/
 RUN dotnet restore src/SpecOps.Web/SpecOps.Web.csproj
 COPY src/ src/
 COPY --from=client /src/src/SpecOps.Web/wwwroot/css src/SpecOps.Web/wwwroot/css
+COPY --from=client /src/src/SpecOps.Web/wwwroot/js src/SpecOps.Web/wwwroot/js
 COPY --from=client /src/src/SpecOps.Web/wwwroot/lib/editor src/SpecOps.Web/wwwroot/lib/editor
 # No --no-restore: restore again now the sources are here. The SDK only adds the Blazor framework assets package
 # (which provides _framework/blazor.web.js) when it can see Razor components, which the csproj-only restore above

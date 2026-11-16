@@ -19,7 +19,7 @@ public static class HostPlatform
         : OperatingSystem.IsMacOS() ? ScriptPlatforms.MacOS
         : ScriptPlatforms.None;
 
-    public static bool Supports(ScriptPlatforms platforms) => (platforms & Current) != 0;
+    public static bool Supports(ScriptPlatforms platforms) => (platforms & Current) != ScriptPlatforms.None;
 
     public static bool SupportsImpersonation => OperatingSystem.IsWindows();
 }

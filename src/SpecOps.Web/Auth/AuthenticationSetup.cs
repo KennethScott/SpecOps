@@ -92,7 +92,7 @@ public static class AuthenticationSetup
                         o.GetClaimsFromUserInfoEndpoint = true;
                         o.SaveTokens = false;
                         o.Scope.Clear();
-                        foreach (var scope in DefaultScopes.Concat(provider.Scopes).Distinct())
+                        foreach (var scope in DefaultScopes.Concat(provider.Scopes).Distinct(StringComparer.Ordinal))
                         {
                             o.Scope.Add(scope);
                         }
@@ -214,7 +214,7 @@ public sealed class RevalidatingIdentityAuthenticationStateProvider(
         var principalStamp = authenticationState.User.FindFirstValue(
             options.Value.ClaimsIdentity.SecurityStampClaimType
         );
-        return principalStamp == await users.GetSecurityStampAsync(user);
+        return string.Equals(principalStamp, await users.GetSecurityStampAsync(user), StringComparison.Ordinal);
     }
 }
 

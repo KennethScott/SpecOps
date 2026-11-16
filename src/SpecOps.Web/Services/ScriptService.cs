@@ -12,7 +12,8 @@ public sealed record CategoryScripts(CategoryDefinition Category, IReadOnlyList<
 
 public sealed record StartRunResult(ScriptRun? Run, string? Error, IReadOnlyDictionary<string, string> FieldErrors)
 {
-    public static StartRunResult Fail(string error) => new(null, error, new Dictionary<string, string>());
+    public static StartRunResult Fail(string error) =>
+        new(null, error, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 }
 
 /// <summary>
@@ -148,7 +149,8 @@ public sealed class ScriptService(
     public bool CanView(ClaimsPrincipal user, ScriptRun run)
     {
         ArgumentNullException.ThrowIfNull(run);
-        return (run.UserId is not null && run.UserId == user.UserId()) || authorizer.GetAccess(user).IsAdmin;
+        return (run.UserId is not null && string.Equals(run.UserId, user.UserId(), StringComparison.Ordinal))
+            || authorizer.GetAccess(user).IsAdmin;
     }
 
     public ScriptRun? FindRun(ClaimsPrincipal user, Guid runId) =>
@@ -186,6 +188,6 @@ public sealed class ScriptService(
         }
 
         await audit.RecordAsync(user, auditAction, $"{request.ScriptId} {run.Id}", auditDetails(run), request.ClientIp);
-        return new StartRunResult(run, null, new Dictionary<string, string>());
+        return new StartRunResult(run, null, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
     }
 }

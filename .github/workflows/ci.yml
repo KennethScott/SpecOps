@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   format:
-    name: Lint & format (CSharpier, Prettier, ESLint)
+    name: Lint & format (CSharpier, Prettier, TypeScript, ESLint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -36,7 +36,11 @@ jobs:
           npm ci --no-audit --no-fund
           npm run format:check
 
-      - name: JavaScript (ESLint)
+      - name: TypeScript (type check)
+        working-directory: src/SpecOps.Web
+        run: npm run typecheck
+
+      - name: TypeScript (ESLint)
         working-directory: src/SpecOps.Web
         run: npm run lint
 
@@ -68,6 +72,11 @@ jobs:
       # Analyzer, code-style and NuGet audit warnings are errors (Directory.Build.props), so this fails on any warning.
       - name: Build
         run: dotnet build SpecOps.slnx --no-restore --configuration Release
+
+      # Chromium for the Playwright browser tests (tests/SpecOps.E2E), plus its system libraries on Linux.
+      - name: Install browser for E2E tests
+        shell: pwsh
+        run: tests/SpecOps.E2E/bin/Release/net11.0/playwright.ps1 install --with-deps chromium
 
       - name: Test (with coverage)
         run: >-

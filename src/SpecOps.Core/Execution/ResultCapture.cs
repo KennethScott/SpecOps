@@ -29,8 +29,12 @@ public sealed record ResultSet(string TypeName, IReadOnlyList<string> Columns, I
         ArgumentNullException.ThrowIfNull(rows);
         return
         [
-            .. rows.GroupBy(r => r.TypeName)
-                .Select(g => new ResultSet(g.Key, [.. g.SelectMany(r => r.Columns).Distinct()], [.. g])),
+            .. rows.GroupBy(r => r.TypeName, StringComparer.Ordinal)
+                .Select(g => new ResultSet(
+                    g.Key,
+                    [.. g.SelectMany(r => r.Columns).Distinct(StringComparer.Ordinal)],
+                    [.. g]
+                )),
         ];
     }
 }

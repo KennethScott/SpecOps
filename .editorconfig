@@ -191,11 +191,24 @@ dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.i_prefix.capitalization = pascal_case
 dotnet_naming_style.i_prefix.required_prefix = I
 
+#### Meziantou.Analyzer ####
+# Rules are on at their default severities (warnings, so errors in the build); these few don't fit this codebase.
+# One type per file: small related records/enums deliberately share a file.
+dotnet_diagnostic.MA0048.severity = none
+# ConfigureAwait(false): ASP.NET Core has no SynchronizationContext, and Blazor components need theirs.
+dotnet_diagnostic.MA0004.severity = none
+# Method length limit: readability is judged in review, not by line count.
+dotnet_diagnostic.MA0051.severity = none
+
 #### Tests ####
 [tests/**/*.cs]
 # Test names read as sentences: Cancel_actually_stops_the_pipeline
 dotnet_diagnostic.CA1707.severity = none
 dotnet_naming_rule.types_pascal.severity = none
+# String comparers and regex timeouts guard production input; test literals don't need them.
+dotnet_diagnostic.MA0002.severity = none
+dotnet_diagnostic.MA0006.severity = none
+dotnet_diagnostic.MA0009.severity = none
 
 #### Generated code ####
 [src/SpecOps.Data/Migrations/**.cs]

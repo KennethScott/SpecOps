@@ -111,6 +111,8 @@ ipch/
 
 # Visual Studio Trace Files
 *.e2e
+# ...but not the browser test project (matched case-insensitively on Windows)
+!/tests/SpecOps.E2E/
 
 # TFS 2012 Local Workspace
 $tf/
@@ -353,6 +355,7 @@ appsettings.Local.json
 # Generated client assets: Tailwind CSS and the bundled code editor (npm run build:css / build:editor)
 src/SpecOps.Web/wwwroot/css/
 src/SpecOps.Web/wwwroot/lib/editor/
+src/SpecOps.Web/wwwroot/js/
 
 # Local planning notes (not part of the repo)
 docs/MODERNIZATION_PLAN.md

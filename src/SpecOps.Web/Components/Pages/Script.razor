@@ -36,7 +36,7 @@
                             Value="@_values.GetValueOrDefault(parameter.Name)"
                             ValueChanged="v => _values[parameter.Name] = v"
                             Error="@_fieldErrors.GetValueOrDefault(parameter.Name)"
-                            Disabled="IsRunning" />
+                            Disabled="@(IsRunning || !RendererInfo.IsInteractive)" />
         }
 
         @if (_error is not null)
@@ -45,7 +45,8 @@
         }
 
         <div class="flex gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
-            <button type="submit" class="btn-primary flex-1" disabled="@(IsRunning || !_script.IsSupportedOnHost)">
+            @* Fields and buttons are disabled while prerendered: until the circuit connects, input would be lost. *@
+            <button type="submit" class="btn-primary flex-1" disabled="@(IsRunning || !_script.IsSupportedOnHost || !RendererInfo.IsInteractive)">
                 <Icon Name="play" /> @(IsRunning ? "Running…" : "Run")
             </button>
             <button type="button" class="btn-secondary" @onclick="Reset" disabled="@IsRunning" title="Reset parameters">Reset</button>
