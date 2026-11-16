@@ -24,6 +24,6 @@ updates:
       interval: 'weekly'
 
   - package-ecosystem: 'npm'
-    directory: '/src/SpecOps.Web'
+    directories: ['/', '/src/SpecOps.Web']
     schedule:
       interval: 'weekly'
