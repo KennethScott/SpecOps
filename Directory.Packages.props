@@ -1,11 +1,12 @@
 <Project>
-
   <!--
     Central Package Management: every package version lives here; .csproj files reference packages without a Version.
     Policy: always the latest stable release. Dependabot (.github/dependabot.yml) opens weekly update PRs.
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Transitive dependencies are also held to the versions listed here when they appear in this file. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup Label="Core">
@@ -40,5 +41,4 @@
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0" />
   </ItemGroup>
-
 </Project>

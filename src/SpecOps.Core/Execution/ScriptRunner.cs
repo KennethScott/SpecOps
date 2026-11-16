@@ -29,7 +29,11 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     private readonly ILogger<ScriptRunner> _logger;
     private readonly TimeProvider _time;
 
-    public ScriptRunner(IOptionsMonitor<SpecOpsOptions> options, ILogger<ScriptRunner> logger, TimeProvider? time = null)
+    public ScriptRunner(
+        IOptionsMonitor<SpecOpsOptions> options,
+        ILogger<ScriptRunner> logger,
+        TimeProvider? time = null
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
@@ -132,11 +136,22 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             // One pipeline: wrapper (sets $SpecOps, invokes the script with splatted parameters) | Out-String.
             // Out-String formats objects (tables, lists) the same way the console would, streaming line by line.
             ps.AddScript(WrapperScript, useLocalScope: true)
-                .AddParameter("__SpecOpsContext", new SpecOpsRunContext(run.Id, request.ScriptId, request.ScriptName, request.UserName, request.ClientIp))
+                .AddParameter(
+                    "__SpecOpsContext",
+                    new SpecOpsRunContext(
+                        run.Id,
+                        request.ScriptId,
+                        request.ScriptName,
+                        request.UserName,
+                        request.ClientIp
+                    )
+                )
                 .AddParameter("__SpecOpsScript", request.ScriptPath ?? request.Code)
                 .AddParameter("__SpecOpsIsFile", request.ScriptPath is not null)
                 .AddParameter("__SpecOpsParameters", parameters)
-                .AddCommand("Out-String").AddParameter("Stream").AddParameter("Width", RunnerOptions.OutputWidth);
+                .AddCommand("Out-String")
+                .AddParameter("Stream")
+                .AddParameter("Width", RunnerOptions.OutputWidth);
 
             var input = new PSDataCollection<PSObject>();
             input.Complete();
@@ -148,11 +163,13 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
                 await ps.InvokeAsync(input, output).ConfigureAwait(false);
             }
 
-            status = linked.IsCancellationRequested
-                ? CancelledStatus(timeoutCts, run, timeout)
-                : ps.HadErrors || run.ErrorCount > 0 ? RunStatus.CompletedWithErrors : RunStatus.Succeeded;
+            status =
+                linked.IsCancellationRequested ? CancelledStatus(timeoutCts, run, timeout)
+                : ps.HadErrors || run.ErrorCount > 0 ? RunStatus.CompletedWithErrors
+                : RunStatus.Succeeded;
         }
-        catch (Exception ex) when (linked.IsCancellationRequested && ex is PipelineStoppedException or OperationCanceledException)
+        catch (Exception ex)
+            when (linked.IsCancellationRequested && ex is PipelineStoppedException or OperationCanceledException)
         {
             status = CancelledStatus(timeoutCts, run, timeout);
         }
@@ -210,7 +227,8 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     {
         ps.Streams.Error.DataAdded += (s, e) => run.Append(OutputKind.Error, ps.Streams.Error[e.Index].ToString());
         ps.Streams.Warning.DataAdded += (s, e) => run.Append(OutputKind.Warning, ps.Streams.Warning[e.Index].Message);
-        ps.Streams.Information.DataAdded += (s, e) => run.Append(OutputKind.Information, ps.Streams.Information[e.Index].MessageData?.ToString());
+        ps.Streams.Information.DataAdded += (s, e) =>
+            run.Append(OutputKind.Information, ps.Streams.Information[e.Index].MessageData?.ToString());
         ps.Streams.Verbose.DataAdded += (s, e) => run.Append(OutputKind.Verbose, ps.Streams.Verbose[e.Index].Message);
         ps.Streams.Debug.DataAdded += (s, e) => run.Append(OutputKind.Debug, ps.Streams.Debug[e.Index].Message);
         ps.Streams.Progress.DataAdded += (s, e) =>
@@ -218,9 +236,12 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             var p = ps.Streams.Progress[e.Index];
             if (p.RecordType != ProgressRecordType.Completed)
             {
-                run.Append(OutputKind.Progress, p.PercentComplete >= 0
-                    ? $"{p.Activity}: {p.StatusDescription} ({p.PercentComplete}%)"
-                    : $"{p.Activity}: {p.StatusDescription}");
+                run.Append(
+                    OutputKind.Progress,
+                    p.PercentComplete >= 0
+                        ? $"{p.Activity}: {p.StatusDescription} ({p.PercentComplete}%)"
+                        : $"{p.Activity}: {p.StatusDescription}"
+                );
             }
         };
     }
@@ -245,10 +266,21 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         _concurrency.Dispose();
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Run {RunId}: {User} started '{ScriptId}' with {Parameters}")]
-    private partial void LogRunStarted(Guid runId, string user, string scriptId, IReadOnlyDictionary<string, string> parameters);
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Run {RunId}: {User} started '{ScriptId}' with {Parameters}"
+    )]
+    private partial void LogRunStarted(
+        Guid runId,
+        string user,
+        string scriptId,
+        IReadOnlyDictionary<string, string> parameters
+    );
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Run {RunId}: '{ScriptId}' finished {Status} with {ErrorCount} errors")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Run {RunId}: '{ScriptId}' finished {Status} with {ErrorCount} errors"
+    )]
     private partial void LogRunFinished(Guid runId, string scriptId, RunStatus status, int errorCount);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Run {RunId}: unexpected failure")]

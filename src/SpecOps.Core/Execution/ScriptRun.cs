@@ -109,7 +109,9 @@ public sealed class ScriptRun
     }
 
     /// <summary>Everything written so far, then live output until the run finishes or <paramref name="cancellationToken"/> fires.</summary>
-    public async IAsyncEnumerable<OutputRecord> WatchAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<OutputRecord> WatchAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
+    )
     {
         OutputRecord[] backlog;
         Channel<OutputRecord>? channel = null;

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
@@ -21,5 +20,4 @@
     <ProjectReference Include="..\..\src\SpecOps.Data\SpecOps.Data.csproj" />
     <ProjectReference Include="..\..\src\SpecOps.Web\SpecOps.Web.csproj" />
   </ItemGroup>
-
 </Project>

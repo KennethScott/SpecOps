@@ -1,5 +1,7 @@
-# SpecOps code style. Rules set to "warning" are enforced by the build (TreatWarningsAsErrors),
-# so the IDE and `dotnet build` agree. Rules we don't care about are "silent", not left to IDE defaults.
+# SpecOps code style.
+#  - Formatting: CSharpier (C#, .csproj/.props) and Prettier (JS, CSS, JSON, YAML, Markdown). They own layout.
+#  - This file: editor basics plus code-style/naming rules. Rules set to "warning" are enforced by the build
+#    (TreatWarningsAsErrors), so the IDE and `dotnet build` agree. Rules we don't care about are "silent".
 root = true
 
 [*]
@@ -16,14 +18,18 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
+[*.{cs,razor}]
+max_line_length = 120
 
 ###############################################################################
 # C#
 ###############################################################################
 [*.{cs,razor}]
 
-#### Formatting (IDE0055: build fails on formatting drift) ####
-dotnet_diagnostic.IDE0055.severity = warning
+#### Formatting ####
+# CSharpier owns formatting (`dotnet csharpier format .`); the IDE formatter rule would fight it.
+dotnet_diagnostic.IDE0055.severity = none
+# Settings below only guide the IDE's own formatting (e.g. Razor markup, which CSharpier doesn't format).
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 csharp_new_line_before_open_brace = all

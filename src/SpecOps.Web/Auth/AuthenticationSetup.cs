@@ -26,11 +26,12 @@ public static class AuthenticationSetup
         if (settings.DevSignIn && !builder.Environment.IsDevelopment())
         {
             throw new InvalidOperationException(
-                "Auth:DevSignIn is enabled outside the Development environment. It lets anyone sign in as an admin; turn it off.");
+                "Auth:DevSignIn is enabled outside the Development environment. It lets anyone sign in as an admin; turn it off."
+            );
         }
 
-        builder.Services
-            .AddIdentityCore<SpecOpsUser>(options =>
+        builder
+            .Services.AddIdentityCore<SpecOpsUser>(options =>
             {
                 options.User.AllowedUserNameCharacters = "";
                 options.User.RequireUniqueEmail = false;
@@ -106,7 +107,8 @@ public static class AuthenticationSetup
         builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
 
         builder.Services.AddSingleton<IAuthorizationHandler, AdminRequirementHandler>();
-        builder.Services.AddAuthorizationBuilder()
+        builder
+            .Services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(AdminPolicy, p => p.RequireAuthenticatedUser().AddRequirements(new AdminRequirement()));
 
@@ -136,8 +138,8 @@ public sealed class AdminRequirementHandler(ISpecOpsAuthorizer authorizer) : Aut
 public sealed class SpecOpsClaimsPrincipalFactory(
     UserManager<SpecOpsUser> users,
     RoleManager<IdentityRole> roles,
-    IOptions<IdentityOptions> options)
-    : UserClaimsPrincipalFactory<SpecOpsUser, IdentityRole>(users, roles, options)
+    IOptions<IdentityOptions> options
+) : UserClaimsPrincipalFactory<SpecOpsUser, IdentityRole>(users, roles, options)
 {
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(SpecOpsUser user)
     {
@@ -155,12 +157,15 @@ public sealed class SpecOpsClaimsPrincipalFactory(
 public sealed class RevalidatingIdentityAuthenticationStateProvider(
     ILoggerFactory loggerFactory,
     IServiceScopeFactory scopeFactory,
-    IOptions<IdentityOptions> options)
-    : RevalidatingServerAuthenticationStateProvider(loggerFactory)
+    IOptions<IdentityOptions> options
+) : RevalidatingServerAuthenticationStateProvider(loggerFactory)
 {
     protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(1);
 
-    protected override async Task<bool> ValidateAuthenticationStateAsync(AuthenticationState authenticationState, CancellationToken cancellationToken)
+    protected override async Task<bool> ValidateAuthenticationStateAsync(
+        AuthenticationState authenticationState,
+        CancellationToken cancellationToken
+    )
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<SpecOpsUser>>();
@@ -170,7 +175,9 @@ public sealed class RevalidatingIdentityAuthenticationStateProvider(
             return false;
         }
 
-        var principalStamp = authenticationState.User.FindFirstValue(options.Value.ClaimsIdentity.SecurityStampClaimType);
+        var principalStamp = authenticationState.User.FindFirstValue(
+            options.Value.ClaimsIdentity.SecurityStampClaimType
+        );
         return principalStamp == await users.GetSecurityStampAsync(user);
     }
 }

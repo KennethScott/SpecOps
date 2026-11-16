@@ -6,20 +6,28 @@ namespace SpecOps.Tests.Core;
 
 public sealed class ScriptRunnerTests : IDisposable
 {
-    private readonly ScriptRunner _runner = new(TestOptions.Create(o => o.Runner.MaxConcurrentRuns = 4), NullLogger<ScriptRunner>.Instance);
+    private readonly ScriptRunner _runner = new(
+        TestOptions.Create(o => o.Runner.MaxConcurrentRuns = 4),
+        NullLogger<ScriptRunner>.Instance
+    );
 
     public void Dispose() => _runner.Dispose();
 
-    private static ScriptRunRequest Code(string code, IReadOnlyDictionary<string, object>? parameters = null, TimeSpan? timeout = null) => new()
-    {
-        ScriptId = "test",
-        ScriptName = "Test",
-        Code = code,
-        Parameters = parameters ?? new Dictionary<string, object>(),
-        UserName = "tester",
-        ClientIp = "127.0.0.1",
-        Timeout = timeout,
-    };
+    private static ScriptRunRequest Code(
+        string code,
+        IReadOnlyDictionary<string, object>? parameters = null,
+        TimeSpan? timeout = null
+    ) =>
+        new()
+        {
+            ScriptId = "test",
+            ScriptName = "Test",
+            Code = code,
+            Parameters = parameters ?? new Dictionary<string, object>(),
+            UserName = "tester",
+            ClientIp = "127.0.0.1",
+            Timeout = timeout,
+        };
 
     private static async Task<IReadOnlyList<OutputRecord>> CompleteAsync(ScriptRun run)
     {
@@ -34,7 +42,9 @@ public sealed class ScriptRunnerTests : IDisposable
         }
         catch (OperationCanceledException)
         {
-            Assert.Fail($"Run didn't finish (status {run.Status}). Output:\n{string.Join('\n', run.Snapshot().Select(r => $"[{r.Stream}] {r.Text}"))}");
+            Assert.Fail(
+                $"Run didn't finish (status {run.Status}). Output:\n{string.Join('\n', run.Snapshot().Select(r => $"[{r.Stream}] {r.Text}"))}"
+            );
         }
 
         return records;
@@ -46,13 +56,17 @@ public sealed class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Captures_every_stream_in_order()
     {
-        var run = _runner.Start(Code("""
-            'out'
-            Write-Information 'info'
-            Write-Warning 'warn'
-            Write-Verbose 'verbose' -Verbose
-            Write-Error 'oops'
-            """));
+        var run = _runner.Start(
+            Code(
+                """
+                'out'
+                Write-Information 'info'
+                Write-Warning 'warn'
+                Write-Verbose 'verbose' -Verbose
+                Write-Error 'oops'
+                """
+            )
+        );
 
         var records = await CompleteAsync(run);
 
@@ -70,13 +84,21 @@ public sealed class ScriptRunnerTests : IDisposable
     [Fact]
     public async Task Passes_typed_parameters_and_context_variable()
     {
-        var run = _runner.Start(Code(
-            """
-            [CmdletBinding()]
-            param([string]$Name, [int]$Count, [switch]$Loud)
-            "$Name x $Count loud=$Loud user=$($SpecOps.User) ip=$($SpecOps.ClientIp)"
-            """,
-            new Dictionary<string, object> { ["Name"] = "Widget", ["Count"] = 3, ["Loud"] = true }));
+        var run = _runner.Start(
+            Code(
+                """
+                [CmdletBinding()]
+                param([string]$Name, [int]$Count, [switch]$Loud)
+                "$Name x $Count loud=$Loud user=$($SpecOps.User) ip=$($SpecOps.ClientIp)"
+                """,
+                new Dictionary<string, object>
+                {
+                    ["Name"] = "Widget",
+                    ["Count"] = 3,
+                    ["Loud"] = true,
+                }
+            )
+        );
 
         var records = await CompleteAsync(run);
 
@@ -159,7 +181,12 @@ public sealed class ScriptRunnerTests : IDisposable
             ScriptName = request.ScriptName,
             Code = request.Code,
             UserName = request.UserName,
-            RunspaceProfile = new RunspaceProfile { Name = "test", MinRunspaces = 1, MaxRunspaces = 2 },
+            RunspaceProfile = new RunspaceProfile
+            {
+                Name = "test",
+                MinRunspaces = 1,
+                MaxRunspaces = 2,
+            },
         };
 
         var first = _runner.Start(pooled);
@@ -176,20 +203,26 @@ public sealed class ScriptRunnerTests : IDisposable
         try
         {
             var path = Path.Combine(dir.FullName, "Hello.ps1");
-            await File.WriteAllTextAsync(path, """
+            await File.WriteAllTextAsync(
+                path,
+                """
                 [CmdletBinding()]
                 param([Parameter(Mandatory)][string]$Name)
                 "Hello $Name from $(Split-Path -Leaf $PSScriptRoot)"
-                """, TestContext.Current.CancellationToken);
+                """,
+                TestContext.Current.CancellationToken
+            );
 
-            var run = _runner.Start(new ScriptRunRequest
-            {
-                ScriptId = "hello",
-                ScriptName = "Hello",
-                ScriptPath = path,
-                Parameters = new Dictionary<string, object> { ["Name"] = "World" },
-                UserName = "tester",
-            });
+            var run = _runner.Start(
+                new ScriptRunRequest
+                {
+                    ScriptId = "hello",
+                    ScriptName = "Hello",
+                    ScriptPath = path,
+                    Parameters = new Dictionary<string, object> { ["Name"] = "World" },
+                    UserName = "tester",
+                }
+            );
 
             var records = await CompleteAsync(run);
 
@@ -205,15 +238,17 @@ public sealed class ScriptRunnerTests : IDisposable
     [Fact]
     public void Sensitive_parameters_are_masked()
     {
-        var run = _runner.Start(new ScriptRunRequest
-        {
-            ScriptId = "t",
-            ScriptName = "t",
-            Code = "param($Password) 'ok'",
-            Parameters = new Dictionary<string, object> { ["Password"] = "hunter2" },
-            SensitiveParameters = new HashSet<string>(["Password"], StringComparer.OrdinalIgnoreCase),
-            UserName = "tester",
-        });
+        var run = _runner.Start(
+            new ScriptRunRequest
+            {
+                ScriptId = "t",
+                ScriptName = "t",
+                Code = "param($Password) 'ok'",
+                Parameters = new Dictionary<string, object> { ["Password"] = "hunter2" },
+                SensitiveParameters = new HashSet<string>(["Password"], StringComparer.OrdinalIgnoreCase),
+                UserName = "tester",
+            }
+        );
 
         Assert.Equal(ScriptRunRequest.MaskedValue, run.Parameters["Password"]);
     }

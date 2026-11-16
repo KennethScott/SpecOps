@@ -1,4 +1,35 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".csharpierignore" />
+    <File Path=".csharpierrc.json" />
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path=".prettierignore" />
+    <File Path=".prettierrc.json" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="dotnet-tools.json" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="package.json" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/.github/">
+    <File Path=".github/dependabot.yml" />
+  </Folder>
+  <Folder Name="/.github/workflows/">
+    <File Path=".github/workflows/ci.yml" />
+  </Folder>
+  <Folder Name="/samples/">
+    <File Path="samples/scriptsettings.v1.json" />
+    <File Path="samples/specops.json" />
+  </Folder>
+  <Folder Name="/samples/scripts/">
+    <File Path="samples/scripts/Demo.ps1" />
+    <File Path="samples/scripts/SystemInfo.ps1" />
+    <File Path="samples/scripts/WindowsServices.ps1" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/SpecOps.Core/SpecOps.Core.csproj" />
     <Project Path="src/SpecOps.Data/SpecOps.Data.csproj" />

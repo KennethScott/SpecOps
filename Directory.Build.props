@@ -1,26 +1,39 @@
 <Project>
+  <!-- Shared settings for every project in the repo. -->
 
-  <PropertyGroup>
+  <PropertyGroup Label="Language">
     <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
+    <!-- Extra compiler checks that are off by default for compatibility. -->
+    <Features>strict</Features>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
 
-    <!--
-      Code quality: .NET analyzers (latest, "recommended" set) + code style from .editorconfig, enforced at build.
-      Every warning breaks the build (locally and in CI).
-    -->
+  <PropertyGroup Label="Code quality">
+    <!-- .NET analyzers, latest rule set, "recommended" severity level. -->
     <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- Code-style rules from .editorconfig run during build, not just in the IDE. -->
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Every warning (compiler, analyzer, code style, NuGet, MSBuild) breaks the build, locally and in CI. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
     <!-- Needed for IDE0005 (unused usings) to be reported by the build; XML docs themselves aren't required. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-
-    <!-- Reproducible, deterministic CI builds -->
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
+  <PropertyGroup Label="Supply chain">
+    <!-- Fail the build on known vulnerabilities in direct and transitive packages (any severity). -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Build">
+    <Deterministic>true</Deterministic>
+    <!-- Reproducible builds with normalized paths on CI servers. -->
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
 </Project>

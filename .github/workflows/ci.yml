@@ -9,6 +9,31 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    name: Formatting (CSharpier + Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: C# and project files (CSharpier)
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
+      - name: Client resources (Prettier)
+        run: |
+          npm ci --no-audit --no-fund
+          npm run format:check
+
   build-and-test:
     name: Build & test (${{ matrix.os }})
     strategy:
@@ -34,10 +59,7 @@ jobs:
       - name: Restore
         run: dotnet restore SpecOps.slnx
 
-      - name: Check formatting and code style
-        run: dotnet format SpecOps.slnx --verify-no-changes --no-restore --severity info --verbosity minimal
-
-      # Analyzer and style warnings are errors (Directory.Build.props), so this fails on any warning.
+      # Analyzer, code-style and NuGet audit warnings are errors (Directory.Build.props), so this fails on any warning.
       - name: Build
         run: dotnet build SpecOps.slnx --no-restore --configuration Release
 

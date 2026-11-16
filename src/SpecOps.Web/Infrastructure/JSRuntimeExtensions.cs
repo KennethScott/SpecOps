@@ -12,12 +12,8 @@ public static class JSRuntimeExtensions
         {
             await js.InvokeVoidAsync(identifier, args);
         }
-        catch (JSDisconnectedException)
-        {
-        }
-        catch (TaskCanceledException)
-        {
-        }
+        catch (JSDisconnectedException) { }
+        catch (TaskCanceledException) { }
     }
 
     public static async ValueTask<T?> TryInvokeAsync<T>(this IJSRuntime js, string identifier, params object?[]? args)

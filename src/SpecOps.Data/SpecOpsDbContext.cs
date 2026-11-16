@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SpecOps.Data;
 
-public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options) : IdentityDbContext<SpecOpsUser>(options)
+public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options)
+    : IdentityDbContext<SpecOpsUser>(options)
 {
     protected override void OnModelCreating(ModelBuilder builder)
     {

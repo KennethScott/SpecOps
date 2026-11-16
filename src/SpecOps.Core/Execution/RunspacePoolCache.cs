@@ -16,7 +16,8 @@ internal sealed class RunspacePoolCache : IDisposable
     public RunspacePool Get(RunspaceProfile profile, string? defaultExecutionPolicy)
     {
         var policy = profile.ExecutionPolicy ?? defaultExecutionPolicy;
-        var key = $"{profile.Name}|{policy}|{profile.MinRunspaces}|{profile.MaxRunspaces}|{string.Join(',', profile.Modules)}";
+        var key =
+            $"{profile.Name}|{policy}|{profile.MinRunspaces}|{profile.MaxRunspaces}|{string.Join(',', profile.Modules)}";
         return _pools.GetOrAdd(key, _ => new Lazy<RunspacePool>(() => Create(profile, policy))).Value;
     }
 

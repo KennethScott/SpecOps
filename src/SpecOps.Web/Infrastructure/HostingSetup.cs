@@ -19,8 +19,14 @@ public sealed record SpecOpsPaths(string DataDirectory, string ConfigFile)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(environment);
-        var dataDirectory = Path.GetFullPath(configuration["SpecOps:DataDirectory"] ?? "data", environment.ContentRootPath);
-        var configFile = Path.GetFullPath(configuration["SpecOps:ConfigFile"] ?? Path.Combine(dataDirectory, "specops.json"), environment.ContentRootPath);
+        var dataDirectory = Path.GetFullPath(
+            configuration["SpecOps:DataDirectory"] ?? "data",
+            environment.ContentRootPath
+        );
+        var configFile = Path.GetFullPath(
+            configuration["SpecOps:ConfigFile"] ?? Path.Combine(dataDirectory, "specops.json"),
+            environment.ContentRootPath
+        );
         Directory.CreateDirectory(dataDirectory);
         return new SpecOpsPaths(dataDirectory, configFile);
     }
@@ -38,15 +44,24 @@ public static class HostingSetup
         builder.Configuration.AddJsonFile(paths.ConfigFile, optional: true, reloadOnChange: true);
         builder.Services.Configure<SpecOpsOptions>(builder.Configuration.GetSection(SpecOpsOptions.SectionName));
         builder.Services.PostConfigure<SpecOpsOptions>(o =>
-            o.ScriptsRoot = Path.GetFullPath(o.ScriptsRoot, Path.GetDirectoryName(paths.ConfigFile)!));
+            o.ScriptsRoot = Path.GetFullPath(o.ScriptsRoot, Path.GetDirectoryName(paths.ConfigFile)!)
+        );
 
         // Logging: console + rolling file in the data directory.
-        builder.Services.AddSerilog((services, logger) => logger
-            .ReadFrom.Configuration(builder.Configuration)
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture)
-            .WriteTo.File(Path.Combine(paths.DataDirectory, "logs", "specops-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30, formatProvider: System.Globalization.CultureInfo.InvariantCulture));
+        builder.Services.AddSerilog(
+            (services, logger) =>
+                logger
+                    .ReadFrom.Configuration(builder.Configuration)
+                    .ReadFrom.Services(services)
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture)
+                    .WriteTo.File(
+                        Path.Combine(paths.DataDirectory, "logs", "specops-.log"),
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 30,
+                        formatProvider: System.Globalization.CultureInfo.InvariantCulture
+                    )
+        );
 
         // Database (SQLite by default).
         var connectionString = builder.Configuration.GetConnectionString("SpecOps")
@@ -55,14 +70,16 @@ public static class HostingSetup
         builder.Services.AddHealthChecks().AddDbContextCheck<SpecOpsDbContext>();
 
         // Keys survive restarts/redeploys so sign-in cookies stay valid.
-        builder.Services.AddDataProtection()
+        builder
+            .Services.AddDataProtection()
             .SetApplicationName("SpecOps")
             .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(paths.DataDirectory, "keys")));
 
         // Reverse proxy support: trust X-Forwarded-* only from loopback and the configured proxies/networks.
         builder.Services.Configure<ForwardedHeadersOptions>(o =>
         {
-            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            o.ForwardedHeaders =
+                ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             foreach (var proxy in builder.Configuration.GetSection("Proxy:KnownProxies").Get<string[]>() ?? [])
             {
                 o.KnownProxies.Add(IPAddress.Parse(proxy));
@@ -105,10 +122,16 @@ public static class HostingSetup
 
 internal static partial class StartupLog
 {
-    [LoggerMessage(Level = LogLevel.Warning, Message = "No script configuration found at {ConfigFile}. Copy samples/specops.json there to get started.")]
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "No script configuration found at {ConfigFile}. Copy samples/specops.json there to get started."
+    )]
     public static partial void NoConfigFile(ILogger logger, string configFile);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Scripts configured in {ConfigFile}; data in {DataDirectory}")]
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Scripts configured in {ConfigFile}; data in {DataDirectory}"
+    )]
     public static partial void UsingConfigFile(ILogger logger, string configFile, string dataDirectory);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Configuration: {Problem}")]

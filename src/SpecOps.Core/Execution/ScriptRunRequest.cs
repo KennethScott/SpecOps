@@ -21,7 +21,8 @@ public sealed class ScriptRunRequest
     public IReadOnlyDictionary<string, object> Parameters { get; init; } = new Dictionary<string, object>();
 
     /// <summary>Names of parameters whose values must never be shown or logged.</summary>
-    public IReadOnlySet<string> SensitiveParameters { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlySet<string> SensitiveParameters { get; init; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Pooled runspace configuration; null runs in a fresh, isolated runspace.</summary>
     public RunspaceProfile? RunspaceProfile { get; init; }
@@ -34,7 +35,12 @@ public sealed class ScriptRunRequest
 
     public string? ClientIp { get; init; }
 
-    public static ScriptRunRequest ForScript(ScriptDefinition script, string scriptPath, IReadOnlyDictionary<string, object> parameters, RunspaceProfile? profile)
+    public static ScriptRunRequest ForScript(
+        ScriptDefinition script,
+        string scriptPath,
+        IReadOnlyDictionary<string, object> parameters,
+        RunspaceProfile? profile
+    )
     {
         ArgumentNullException.ThrowIfNull(script);
         return new ScriptRunRequest
@@ -43,7 +49,10 @@ public sealed class ScriptRunRequest
             ScriptName = script.Name,
             ScriptPath = scriptPath,
             Parameters = parameters,
-            SensitiveParameters = script.Parameters.Where(p => p.IsSensitive).Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase),
+            SensitiveParameters = script
+                .Parameters.Where(p => p.IsSensitive)
+                .Select(p => p.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase),
             RunspaceProfile = profile,
             Timeout = script.TimeoutMinutes is { } minutes ? TimeSpan.FromMinutes(minutes) : null,
             UserName = "",
@@ -53,6 +62,10 @@ public sealed class ScriptRunRequest
     internal IReadOnlyDictionary<string, string> DisplayParameters() =>
         Parameters.ToDictionary(
             p => p.Key,
-            p => SensitiveParameters.Contains(p.Key) ? MaskedValue : Convert.ToString(p.Value, CultureInfo.InvariantCulture) ?? "",
-            StringComparer.OrdinalIgnoreCase);
+            p =>
+                SensitiveParameters.Contains(p.Key)
+                    ? MaskedValue
+                    : Convert.ToString(p.Value, CultureInfo.InvariantCulture) ?? "",
+            StringComparer.OrdinalIgnoreCase
+        );
 }

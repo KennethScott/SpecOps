@@ -27,7 +27,12 @@ public sealed class PolicyDefinition
 }
 
 /// <summary>What a user may do, computed from their roles and groups.</summary>
-public sealed record UserAccess(bool IsAdmin, bool AllCategories, IReadOnlySet<string> Categories, IReadOnlyList<string> Policies)
+public sealed record UserAccess(
+    bool IsAdmin,
+    bool AllCategories,
+    IReadOnlySet<string> Categories,
+    IReadOnlyList<string> Policies
+)
 {
     public static UserAccess None { get; } = new(false, false, FrozenSet<string>.Empty, []);
 
@@ -60,7 +65,12 @@ public sealed class SpecOpsAuthorizer(IOptionsMonitor<SpecOpsOptions> options) :
     /// <summary>Built-in app role: full admin and every category, regardless of configured policies.</summary>
     public const string AdminRole = "Admin";
 
-    private static readonly UserAccess BuiltInAdmin = new(true, true, FrozenSet<string>.Empty, ["Admin (built-in role)"]);
+    private static readonly UserAccess BuiltInAdmin = new(
+        true,
+        true,
+        FrozenSet<string>.Empty,
+        ["Admin (built-in role)"]
+    );
 
     public UserAccess GetAccess(ClaimsPrincipal user)
     {

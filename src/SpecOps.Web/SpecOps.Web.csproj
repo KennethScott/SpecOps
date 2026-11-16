@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
@@ -34,8 +33,13 @@
     <TailwindInputs Include="Styles/**/*.css;Components/**/*.razor;package.json" />
   </ItemGroup>
 
-  <Target Name="BuildTailwindCss" BeforeTargets="BeforeBuild" Condition="'$(SkipTailwind)' != 'true'"
-          Inputs="@(TailwindInputs)" Outputs="wwwroot/css/app.css">
+  <Target
+    Name="BuildTailwindCss"
+    BeforeTargets="BeforeBuild"
+    Condition="'$(SkipTailwind)' != 'true'"
+    Inputs="@(TailwindInputs)"
+    Outputs="wwwroot/css/app.css"
+  >
     <Exec Command="npm ci --no-audit --no-fund" Condition="!Exists('node_modules/@tailwindcss/cli')" />
     <Exec Command="npm run build:css" />
   </Target>
@@ -45,5 +49,4 @@
       <Content Include="wwwroot/css/app.css" Exclude="@(Content)" />
     </ItemGroup>
   </Target>
-
 </Project>

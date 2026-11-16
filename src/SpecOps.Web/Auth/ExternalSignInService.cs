@@ -24,7 +24,8 @@ public sealed partial class ExternalSignInService(
     SignInManager<SpecOpsUser> signIn,
     ISpecOpsAuthorizer authorizer,
     IOptionsMonitor<AuthSettings> settings,
-    ILogger<ExternalSignInService> logger)
+    ILogger<ExternalSignInService> logger
+)
 {
     public const string DevUserName = "dev@localhost";
 
@@ -33,17 +34,31 @@ public sealed partial class ExternalSignInService(
         ArgumentNullException.ThrowIfNull(info);
         var principal = info.Principal;
         var email = FindEmail(principal);
-        var emailVerified = !string.Equals(principal.FindFirstValue("email_verified"), "false", StringComparison.OrdinalIgnoreCase);
+        var emailVerified = !string.Equals(
+            principal.FindFirstValue("email_verified"),
+            "false",
+            StringComparison.OrdinalIgnoreCase
+        );
         var displayName = principal.FindFirstValue("name") ?? principal.FindFirstValue(ClaimTypes.Name) ?? email;
-        var groupsClaim = settings.CurrentValue.Providers.TryGetValue(info.LoginProvider, out var provider) ? provider.GroupsClaim : "groups";
-        var groups = principal.FindAll(groupsClaim).Select(c => c.Value).Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var groupsClaim = settings.CurrentValue.Providers.TryGetValue(info.LoginProvider, out var provider)
+            ? provider.GroupsClaim
+            : "groups";
+        var groups = principal
+            .FindAll(groupsClaim)
+            .Select(c => c.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var user = await users.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
         if (user is null)
         {
             user = new SpecOpsUser
             {
-                UserName = await UniqueUserNameAsync(email ?? $"{info.LoginProvider}:{info.ProviderKey}", info.LoginProvider),
+                UserName = await UniqueUserNameAsync(
+                    email ?? $"{info.LoginProvider}:{info.ProviderKey}",
+                    info.LoginProvider
+                ),
                 Email = email,
                 EmailConfirmed = email is not null && emailVerified,
                 DisplayName = displayName,
@@ -70,7 +85,10 @@ public sealed partial class ExternalSignInService(
             await EnsureRoleAsync(user, SpecOpsAuthorizer.AdminRole);
             user.Status = UserStatus.Active;
         }
-        else if (user.Status == UserStatus.Pending && ShouldAutoApprove(trustedEmail, groups, await users.GetRolesAsync(user)))
+        else if (
+            user.Status == UserStatus.Pending
+            && ShouldAutoApprove(trustedEmail, groups, await users.GetRolesAsync(user))
+        )
         {
             user.Status = UserStatus.Active;
             LogAutoApproved(user.UserName!);
@@ -92,7 +110,14 @@ public sealed partial class ExternalSignInService(
         var user = await users.FindByNameAsync(DevUserName);
         if (user is null)
         {
-            user = new SpecOpsUser { UserName = DevUserName, Email = DevUserName, EmailConfirmed = true, DisplayName = "Dev User", Status = UserStatus.Active };
+            user = new SpecOpsUser
+            {
+                UserName = DevUserName,
+                Email = DevUserName,
+                EmailConfirmed = true,
+                DisplayName = "Dev User",
+                Status = UserStatus.Active,
+            };
             await users.CreateAsync(user);
         }
 
@@ -111,10 +136,14 @@ public sealed partial class ExternalSignInService(
 
     private async Task SyncGroupsAsync(SpecOpsUser user, IReadOnlyCollection<string> groups)
     {
-        var current = (await users.GetClaimsAsync(user)).Where(c => c.Type == SpecOpsAuthorizer.GroupClaimType).ToList();
+        var current = (await users.GetClaimsAsync(user))
+            .Where(c => c.Type == SpecOpsAuthorizer.GroupClaimType)
+            .ToList();
         var stale = current.Where(c => !groups.Contains(c.Value, StringComparer.OrdinalIgnoreCase)).ToList();
-        var added = groups.Where(g => !current.Exists(c => string.Equals(c.Value, g, StringComparison.OrdinalIgnoreCase)))
-            .Select(g => new Claim(SpecOpsAuthorizer.GroupClaimType, g)).ToList();
+        var added = groups
+            .Where(g => !current.Exists(c => string.Equals(c.Value, g, StringComparison.OrdinalIgnoreCase)))
+            .Select(g => new Claim(SpecOpsAuthorizer.GroupClaimType, g))
+            .ToList();
 
         if (stale.Count > 0)
         {
@@ -146,8 +175,10 @@ public sealed partial class ExternalSignInService(
     private bool ShouldAutoApprove(string? email, IEnumerable<string> groups, IEnumerable<string> userRoles)
     {
         var domain = email?.Split('@') is [_, var d] ? d : null;
-        return (domain is not null && settings.CurrentValue.AutoApproveEmailDomains.Contains(domain, StringComparer.OrdinalIgnoreCase))
-            || authorizer.MatchesAnyPolicy(userRoles, groups);
+        return (
+                domain is not null
+                && settings.CurrentValue.AutoApproveEmailDomains.Contains(domain, StringComparer.OrdinalIgnoreCase)
+            ) || authorizer.MatchesAnyPolicy(userRoles, groups);
     }
 
     private async Task<string> UniqueUserNameAsync(string preferred, string provider)
@@ -164,7 +195,11 @@ public sealed partial class ExternalSignInService(
     private static string? FindEmail(ClaimsPrincipal principal)
     {
         var email = principal.FindFirstValue("email") ?? principal.FindFirstValue(ClaimTypes.Email);
-        if (email is null && principal.FindFirstValue("preferred_username") is { } upn && upn.Contains('@', StringComparison.Ordinal))
+        if (
+            email is null
+            && principal.FindFirstValue("preferred_username") is { } upn
+            && upn.Contains('@', StringComparison.Ordinal)
+        )
         {
             email = upn;
         }

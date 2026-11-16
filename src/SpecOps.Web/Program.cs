@@ -18,8 +18,7 @@ builder.Services.AddSingleton<ISpecOpsAuthorizer, SpecOpsAuthorizer>();
 builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
 
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 var app = builder.Build();
 
@@ -49,8 +48,7 @@ app.UseAntiforgery();
 app.MapStaticAssets().AllowAnonymous();
 app.MapHealthChecks("/healthz").AllowAnonymous();
 app.MapAccountEndpoints();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 await app.InitializeSpecOpsAsync();
 await app.RunAsync();
