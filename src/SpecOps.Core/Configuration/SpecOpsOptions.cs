@@ -54,6 +54,9 @@ public sealed class RunnerOptions
     /// <summary>How long finished runs stay available in memory.</summary>
     public TimeSpan CompletedRunRetention { get; set; } = TimeSpan.FromHours(4);
 
+    /// <summary>How long run history (status, parameters, output, results) is kept in the database.</summary>
+    public TimeSpan HistoryRetention { get; set; } = TimeSpan.FromDays(90);
+
     /// <summary>Objects kept per run for the Results view and CSV/JSON export.</summary>
     public int MaxResultRows { get; set; } = 10_000;
 

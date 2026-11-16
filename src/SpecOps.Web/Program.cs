@@ -16,9 +16,12 @@ builder.Services.AddSpecOpsRateLimiting();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IScriptCatalog, ConfigurationScriptCatalog>();
 builder.Services.AddSingleton<ISpecOpsAuthorizer, SpecOpsAuthorizer>();
+builder.Services.AddSingleton<RunHistory>();
+builder.Services.AddSingleton<IRunHistory>(sp => sp.GetRequiredService<RunHistory>());
 builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
 builder.Services.AddHostedService<ScriptRunnerLifetime>();
+builder.Services.AddHostedService<RunHistoryCleanup>();
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 

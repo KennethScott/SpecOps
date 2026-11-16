@@ -60,6 +60,11 @@ public sealed partial class SpecOpsOptionsValidator : IValidateOptions<SpecOpsOp
             errors.Add("Runner.CompletedRunRetention must be positive.");
         }
 
+        if (runner.HistoryRetention <= TimeSpan.Zero)
+        {
+            errors.Add("Runner.HistoryRetention must be positive.");
+        }
+
         ValidateExecutionPolicy("Runner.ExecutionPolicy", runner.ExecutionPolicy, errors);
     }
 

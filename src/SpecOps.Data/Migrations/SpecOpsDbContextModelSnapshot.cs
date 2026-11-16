@@ -15,7 +15,7 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261116024059_AuditEvents";
+    public override string LastMigrationId => "20261116141444_RunHistory";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -191,6 +191,85 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("TimestampUtc");
 
                 b.ToTable("AuditEvents");
+            });
+
+        modelBuilder.Entity("SpecOps.Data.RunRecord", b =>
+            {
+                b.Property<Guid>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ClientIp")
+                    .HasMaxLength(64)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Code")
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime?>("EndedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<int>("ErrorCount")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("OutputJson")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ParametersJson")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime>("QueuedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<int>("ResultCount")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("ResultsJson")
+                    .HasColumnType("TEXT");
+
+                b.Property<bool>("ResultsTruncated")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("ScriptId")
+                    .IsRequired()
+                    .HasMaxLength(128)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ScriptName")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime?>("StartedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("UserId")
+                    .HasMaxLength(450)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("UserName")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<int>("WarningCount")
+                    .HasColumnType("INTEGER");
+
+                b.HasKey("Id");
+
+                b.HasIndex("EndedAtUtc");
+
+                b.HasIndex("QueuedAtUtc");
+
+                b.HasIndex("UserId", "QueuedAtUtc");
+
+                b.ToTable("Runs");
             });
 
         modelBuilder.Entity("SpecOps.Data.SpecOpsUser", b =>

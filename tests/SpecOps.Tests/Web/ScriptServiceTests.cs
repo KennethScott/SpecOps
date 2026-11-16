@@ -17,6 +17,7 @@ public sealed class ScriptServiceTests : IDisposable
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
     private readonly ServiceProvider _services;
     private readonly ScriptRunner _runner;
+    private readonly RunHistory _history;
     private readonly ScriptService _service;
 
     public ScriptServiceTests()
@@ -60,12 +61,19 @@ public sealed class ScriptServiceTests : IDisposable
                 }
             );
         });
-        _runner = new ScriptRunner(options, NullLogger<ScriptRunner>.Instance);
+        _history = new RunHistory(
+            _services.GetRequiredService<IServiceScopeFactory>(),
+            options,
+            TimeProvider.System,
+            NullLogger<RunHistory>.Instance
+        );
+        _runner = new ScriptRunner(options, NullLogger<ScriptRunner>.Instance, history: _history);
         _service = new ScriptService(
             new ConfigurationScriptCatalog(options),
             new SpecOpsAuthorizer(options),
             _runner,
-            new AuditLog(_services.GetRequiredService<IServiceScopeFactory>(), NullLogger<AuditLog>.Instance)
+            new AuditLog(_services.GetRequiredService<IServiceScopeFactory>(), NullLogger<AuditLog>.Instance),
+            _history
         );
     }
 
@@ -156,7 +164,7 @@ public sealed class ScriptServiceTests : IDisposable
             )
         );
 
-        Assert.Null(_service.FindRun(someoneElse, mine.Id));
+        Assert.Null(await _service.FindRunAsync(someoneElse, mine.Id));
         Assert.False(await _service.CancelAsync(someoneElse, mine.Id));
     }
 }

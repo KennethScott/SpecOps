@@ -24,9 +24,61 @@ public enum RunStatus
     Failed,
     Cancelled,
     TimedOut,
+
+    /// <summary>SpecOps stopped (restart, crash) while the run was in progress; its output was lost.</summary>
+    Interrupted,
 }
 
 public sealed record OutputRecord(long Sequence, DateTimeOffset Timestamp, OutputKind Stream, string Text);
+
+/// <summary>Everything about a run, as stored in run history. See <see cref="ScriptRun.ToSnapshot"/>.</summary>
+public sealed record RunSnapshot
+{
+    public required Guid Id { get; init; }
+
+    public required string ScriptId { get; init; }
+
+    public required string ScriptName { get; init; }
+
+    public required string UserName { get; init; }
+
+    public string? UserId { get; init; }
+
+    public string? ClientIp { get; init; }
+
+    public IReadOnlyDictionary<string, string> Parameters { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public string? Code { get; init; }
+
+    public required DateTimeOffset QueuedAt { get; init; }
+
+    public DateTimeOffset? StartedAt { get; init; }
+
+    public DateTimeOffset? EndedAt { get; init; }
+
+    public required RunStatus Status { get; init; }
+
+    public int ErrorCount { get; init; }
+
+    public int WarningCount { get; init; }
+
+    public bool ResultsTruncated { get; init; }
+
+    public IReadOnlyList<OutputRecord> Output { get; init; } = [];
+
+    public IReadOnlyList<ResultRow> Results { get; init; } = [];
+}
+
+/// <summary>Keeps runs beyond the runner's in-memory window (the web app stores them in the database).</summary>
+public interface IRunHistory
+{
+    /// <summary>Called when a run is queued. Must not throw: a failed write must not stop the run.</summary>
+    Task RunStartedAsync(ScriptRun run);
+
+    /// <summary>Called once a run has its final status. Must not throw.</summary>
+    Task RunFinishedAsync(ScriptRun run);
+}
 
 /// <summary>
 /// Variables exposed to every script as <c>$SpecOps</c> (e.g. <c>$SpecOps.User</c>), instead of injected parameters,
@@ -64,11 +116,72 @@ public sealed class ScriptRun
         ScriptName = request.ScriptName;
         UserName = request.UserName;
         UserId = request.UserId;
+        ClientIp = request.ClientIp;
         Parameters = request.DisplayParameters();
         Code = request.Code;
         _maxRecords = maxRecords;
         _time = time;
         QueuedAt = time.GetUtcNow();
+    }
+
+    private ScriptRun(RunSnapshot snapshot, TimeProvider time)
+    {
+        Id = snapshot.Id;
+        ScriptId = snapshot.ScriptId;
+        ScriptName = snapshot.ScriptName;
+        UserName = snapshot.UserName;
+        UserId = snapshot.UserId;
+        ClientIp = snapshot.ClientIp;
+        Parameters = snapshot.Parameters;
+        Code = snapshot.Code;
+        QueuedAt = snapshot.QueuedAt;
+        StartedAt = snapshot.StartedAt;
+        EndedAt = snapshot.EndedAt ?? snapshot.StartedAt ?? snapshot.QueuedAt;
+        Status = snapshot.Status;
+        ErrorCount = snapshot.ErrorCount;
+        WarningCount = snapshot.WarningCount;
+        ResultsTruncated = snapshot.ResultsTruncated;
+        _records.AddRange(snapshot.Output);
+        _results.AddRange(snapshot.Results);
+        _sequence = snapshot.Output.Count > 0 ? snapshot.Output[^1].Sequence : 0;
+        _maxRecords = _records.Count;
+        _time = time;
+        _cancellation.Dispose();
+    }
+
+    /// <summary>A finished, read-only run rebuilt from history, for the same pages that show live runs.</summary>
+    public static ScriptRun FromSnapshot(RunSnapshot snapshot, TimeProvider? time = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return new ScriptRun(snapshot, time ?? TimeProvider.System);
+    }
+
+    /// <summary>A consistent copy of the run as it is right now (output and results included).</summary>
+    public RunSnapshot ToSnapshot()
+    {
+        lock (_lock)
+        {
+            return new RunSnapshot
+            {
+                Id = Id,
+                ScriptId = ScriptId,
+                ScriptName = ScriptName,
+                UserName = UserName,
+                UserId = UserId,
+                ClientIp = ClientIp,
+                Parameters = Parameters,
+                Code = Code,
+                QueuedAt = QueuedAt,
+                StartedAt = StartedAt,
+                EndedAt = EndedAt,
+                Status = Status,
+                ErrorCount = ErrorCount,
+                WarningCount = WarningCount,
+                ResultsTruncated = ResultsTruncated,
+                Output = [.. _records],
+                Results = [.. _results],
+            };
+        }
     }
 
     public Guid Id { get; }
@@ -80,6 +193,8 @@ public sealed class ScriptRun
     public string UserName { get; }
 
     public string? UserId { get; }
+
+    public string? ClientIp { get; }
 
     /// <summary>Parameter values as text, with sensitive values masked. Safe to display and log.</summary>
     public IReadOnlyDictionary<string, string> Parameters { get; }
