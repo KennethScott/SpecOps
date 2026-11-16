@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: src/SpecOps.Web/package-lock.json
 
       - name: C# and project files (CSharpier)
         run: |
@@ -30,6 +31,7 @@ jobs:
           dotnet csharpier check .
 
       - name: Client resources (Prettier)
+        working-directory: src/SpecOps.Web
         run: |
           npm ci --no-audit --no-fund
           npm run format:check

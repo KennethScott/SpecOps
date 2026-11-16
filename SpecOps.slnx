@@ -12,7 +12,6 @@
     <File Path="dotnet-tools.json" />
     <File Path="global.json" />
     <File Path="LICENSE" />
-    <File Path="package.json" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/.github/">
