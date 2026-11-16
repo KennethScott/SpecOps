@@ -177,7 +177,10 @@ public sealed partial class SpecOpsOptionsValidator : IValidateOptions<SpecOpsOp
                 {
                     errors.Add($"{label}: Select needs at least one option.");
                 }
-                else if (p.Default is { Length: > 0 } d && !p.Options.Any(o => o.Value == d))
+                else if (
+                    p.Default is { Length: > 0 } d
+                    && !p.Options.Any(o => string.Equals(o.Value, d, StringComparison.Ordinal))
+                )
                 {
                     errors.Add($"{label}: Default '{d}' isn't one of the options.");
                 }
@@ -227,9 +230,9 @@ public sealed partial class SpecOpsOptionsValidator : IValidateOptions<SpecOpsOp
         }
     }
 
-    [GeneratedRegex("^[A-Za-z0-9._-]+$")]
+    [GeneratedRegex("^[A-Za-z0-9._-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ScriptIdRegex();
 
-    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$")]
+    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ParameterNameRegex();
 }

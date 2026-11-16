@@ -46,7 +46,10 @@ public sealed class AuthSettings
             {
                 if (
                     !Uri.TryCreate(provider.Authority, UriKind.Absolute, out var authority)
-                    || (authority.Scheme != Uri.UriSchemeHttps && !authority.IsLoopback)
+                    || (
+                        !string.Equals(authority.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                        && !authority.IsLoopback
+                    )
                 )
                 {
                     errors.Add($"{label}: Authority must be an https URL (got '{provider.Authority}').");

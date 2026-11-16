@@ -1,5 +1,9 @@
-// Bundles the Monaco editor (ES modules) for the Terminal page into wwwroot/lib/editor/.
-// Run by MSBuild before build (see SpecOps.Web.csproj) or manually: npm run build:editor
+// Compiles the browser code in Client/ (TypeScript) into wwwroot:
+//   specops.ts         -> wwwroot/js/specops.js          (classic script, every page)
+//   reconnect-modal.ts -> wwwroot/js/reconnect-modal.js  (ES module, Blazor's reconnect dialog)
+//   editor/            -> wwwroot/lib/editor/            (Monaco editor bundle, Terminal page only)
+// esbuild only strips types; `npm run typecheck` checks them. Run by MSBuild before build (see SpecOps.Web.csproj)
+// or manually: npm run build:client
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -9,7 +13,8 @@ import * as esbuild from 'esbuild';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const monacoEditorDir = path.dirname(require.resolve('monaco-editor/editor/editor.main'));
-const outdir = path.resolve(here, '../wwwroot/lib/editor');
+const wwwroot = path.resolve(here, '../wwwroot');
+const outdir = path.join(wwwroot, 'lib/editor');
 
 /**
  * "monaco-lean": Monaco's own editor.main.js minus the ~80 language definitions and the TypeScript/CSS/HTML/JSON
@@ -40,7 +45,7 @@ const common = { bundle: true, minify: true, legalComments: 'none', logLevel: 'w
 await Promise.all([
   esbuild.build({
     ...common,
-    entryPoints: { 'specops-editor': path.join(here, 'editor/specops-editor.js') },
+    entryPoints: { 'specops-editor': path.join(here, 'editor/specops-editor.ts') },
     outdir,
     format: 'esm',
     splitting: true,
@@ -54,5 +59,17 @@ await Promise.all([
     entryPoints: { 'editor.worker': path.join(monacoEditorDir, 'editor.worker.js') },
     outdir,
     format: 'iife',
+  }),
+  esbuild.build({
+    ...common,
+    entryPoints: { specops: path.join(here, 'specops.ts') },
+    outdir: path.join(wwwroot, 'js'),
+    format: 'iife',
+  }),
+  esbuild.build({
+    ...common,
+    entryPoints: { 'reconnect-modal': path.join(here, 'reconnect-modal.ts') },
+    outdir: path.join(wwwroot, 'js'),
+    format: 'esm',
   }),
 ]);

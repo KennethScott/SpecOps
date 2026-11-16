@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SpecOps.Tests" />
+    <InternalsVisibleTo Include="SpecOps.E2E" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,12 +30,13 @@
   <!--
     Client assets (generated, not committed). Needs Node.js 22+.
       - Tailwind CSS: Styles/app.css -> wwwroot/css/app.css (use `npm run watch:css` while editing markup)
-      - Code editor:  Client/editor -> wwwroot/lib/editor (Monaco, bundled by esbuild; Terminal page only)
+      - Scripts:      Client/*.ts -> wwwroot/js, Client/editor -> wwwroot/lib/editor (TypeScript, compiled by esbuild;
+                      the editor bundles Monaco for the Terminal page). Type checking: npm run typecheck
     npm ci reruns whenever package-lock.json changes. Pass -p:SkipClientBuild=true to skip all of this.
   -->
   <ItemGroup>
     <TailwindInputs Include="Styles/**/*.css;Components/**/*.razor;package-lock.json" />
-    <EditorInputs Include="Client/**/*.js;Client/**/*.mjs;package-lock.json" />
+    <ClientScriptInputs Include="Client/**/*.ts;Client/**/*.mjs;package-lock.json" />
   </ItemGroup>
 
   <Target
@@ -58,20 +60,20 @@
   </Target>
 
   <Target
-    Name="BuildEditor"
+    Name="BuildClientScripts"
     DependsOnTargets="NpmInstall"
     BeforeTargets="BeforeBuild"
     Condition="'$(SkipClientBuild)' != 'true'"
-    Inputs="@(EditorInputs)"
-    Outputs="wwwroot/lib/editor/specops-editor.js"
+    Inputs="@(ClientScriptInputs)"
+    Outputs="wwwroot/js/specops.js;wwwroot/js/reconnect-modal.js;wwwroot/lib/editor/specops-editor.js"
   >
-    <Exec Command="npm run build:editor" />
+    <Exec Command="npm run build:client" />
   </Target>
 
   <!-- Files created during the build aren't in the evaluation-time wwwroot glob; add them so they're served/published. -->
-  <Target Name="IncludeClientOutputs" AfterTargets="BuildTailwindCss;BuildEditor" BeforeTargets="BeforeBuild">
+  <Target Name="IncludeClientOutputs" AfterTargets="BuildTailwindCss;BuildClientScripts" BeforeTargets="BeforeBuild">
     <ItemGroup>
-      <Content Include="wwwroot/css/app.css;wwwroot/lib/editor/**/*" Exclude="@(Content)" />
+      <Content Include="wwwroot/css/app.css;wwwroot/js/**/*;wwwroot/lib/editor/**/*" Exclude="@(Content)" />
     </ItemGroup>
   </Target>
 </Project>

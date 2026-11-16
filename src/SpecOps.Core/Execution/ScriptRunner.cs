@@ -110,7 +110,9 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     {
         var options = RunnerOptions;
         var user = UserKey(request.UserId, request.UserName);
-        var mine = _runs.Values.Where(r => UserKey(r.UserId, r.UserName) == user).ToList();
+        var mine = _runs
+            .Values.Where(r => string.Equals(UserKey(r.UserId, r.UserName), user, StringComparison.Ordinal))
+            .ToList();
 
         if (mine.Count(r => !r.IsFinished) >= options.MaxActiveRunsPerUser)
         {

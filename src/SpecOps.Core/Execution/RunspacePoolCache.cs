@@ -26,7 +26,7 @@ internal sealed class RunspacePoolCache : IDisposable
         {
             if (_pools.TryGetValue(profile.Name, out var existing))
             {
-                if (existing.Settings == settings)
+                if (string.Equals(existing.Settings, settings, StringComparison.Ordinal))
                 {
                     return existing.Pool;
                 }

@@ -110,7 +110,11 @@ public sealed class ConfigurationScriptCatalog(IOptionsMonitor<SpecOpsOptions> o
                 problems.Add($"Policy '{policy.Name}': no Roles or Groups, so it applies to nobody.");
             }
 
-            foreach (var category in policy.Categories.Where(c => c != "*" && !categoryIds.Contains(c)))
+            foreach (
+                var category in policy.Categories.Where(c =>
+                    !string.Equals(c, "*", StringComparison.Ordinal) && !categoryIds.Contains(c)
+                )
+            )
             {
                 problems.Add($"Policy '{policy.Name}': category '{category}' has no scripts.");
             }

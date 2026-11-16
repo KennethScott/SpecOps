@@ -36,7 +36,7 @@ public static class AccountEndpoints
     )
     {
         var schemes = await signIn.GetExternalAuthenticationSchemesAsync();
-        if (!schemes.Any(s => s.Name == provider))
+        if (!schemes.Any(s => string.Equals(s.Name, provider, StringComparison.Ordinal)))
         {
             return TypedResults.LocalRedirect("~/account/login?error=unknown-provider");
         }

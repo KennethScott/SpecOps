@@ -114,7 +114,7 @@ public sealed class SpecOpsAuthorizer(IOptionsMonitor<SpecOpsOptions> options) :
             isAdmin |= policy.IsAdmin;
             foreach (var category in policy.Categories)
             {
-                if (category == AllCategoriesWildcard)
+                if (string.Equals(category, AllCategoriesWildcard, StringComparison.Ordinal))
                 {
                     all = true;
                 }

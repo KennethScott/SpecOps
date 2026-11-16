@@ -148,9 +148,6 @@ public sealed class ScriptRun
 
     public TimeSpan? Duration => StartedAt is { } start ? (EndedAt ?? _time.GetUtcNow()) - start : null;
 
-    /// <summary>Raised (outside the lock) when the status changes.</summary>
-    public event Action<ScriptRun>? StatusChanged;
-
     // Disposed when the run completes; only touched through TryCancel/CancellationToken while the run is active.
     private readonly CancellationTokenSource _cancellation = new();
     private volatile bool _cancelRequested;
@@ -276,8 +273,6 @@ public sealed class ScriptRun
             StartedAt = _time.GetUtcNow();
             Status = RunStatus.Running;
         }
-
-        StatusChanged?.Invoke(this);
     }
 
     internal void Complete(RunStatus status)
@@ -301,6 +296,5 @@ public sealed class ScriptRun
         }
 
         _cancellation.Dispose();
-        StatusChanged?.Invoke(this);
     }
 }

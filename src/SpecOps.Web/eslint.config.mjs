@@ -1,7 +1,8 @@
-// ESLint flat config for the browser JavaScript in this project.
-// Formatting is Prettier's job; ESLint only checks for bugs and bad practices.
+// ESLint flat config for the browser TypeScript (Client/) and the Node build scripts.
+// Formatting is Prettier's job; ESLint checks for bugs and bad practices, with type information for the .ts files.
 import js from '@eslint/js';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 const strictRules = {
   eqeqeq: ['error', 'always'],
@@ -11,41 +12,40 @@ const strictRules = {
     'error',
     { object: 'document', property: 'execCommand', message: 'Deprecated; use the Clipboard API.' },
   ],
-  'no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'none' }],
 };
 
-export default [
+export default tseslint.config(
   {
-    // Build output and generated bundles (wwwroot/lib/editor is produced by Client/build-editor.mjs).
-    ignores: ['bin/**', 'obj/**', 'node_modules/**', 'wwwroot/css/**', 'wwwroot/lib/**'],
+    // Build output and generated bundles (wwwroot/js and wwwroot/lib/editor are produced by Client/build-client.mjs).
+    ignores: ['bin/**', 'obj/**', 'node_modules/**', 'wwwroot/**'],
+  },
+  {
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
   },
   js.configs.recommended,
   {
-    // Classic scripts loaded by the page.
-    files: ['wwwroot/js/**/*.js'],
+    // Browser code: strict, type-aware rules (tsconfig.json).
+    files: ['Client/**/*.ts'],
+    extends: [tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
     languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'script',
-      globals: { ...globals.browser, Blazor: 'readonly' },
+      globals: globals.browser,
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
-    linterOptions: { reportUnusedDisableDirectives: 'error' },
-    rules: { ...strictRules, 'no-implicit-globals': 'error' },
+    rules: {
+      ...strictRules,
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+    },
   },
   {
-    // ES modules: Blazor's collocated component scripts (*.razor.js) and the editor module source.
-    files: ['Components/**/*.js', 'Client/editor/**/*.js'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: { ...globals.browser, Blazor: 'readonly' },
-    },
-    linterOptions: { reportUnusedDisableDirectives: 'error' },
-    rules: strictRules,
+    // Ambient declarations: interfaces merge with the DOM's, so `type` aliases can't replace them.
+    files: ['Client/**/*.d.ts'],
+    rules: { '@typescript-eslint/consistent-type-definitions': 'off' },
   },
   {
     // Build scripts run by Node.
     files: ['Client/*.mjs', 'eslint.config.mjs'],
     languageOptions: { sourceType: 'module', globals: globals.node },
-    rules: strictRules,
+    rules: { ...strictRules, 'no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'none' }] },
   },
-];
+);

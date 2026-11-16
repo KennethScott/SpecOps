@@ -12,7 +12,7 @@
     {
         <div class="relative w-full sm:w-72">
             <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon Name="search" /></span>
-            <input type="search" class="input pl-9" placeholder="Search scripts…" @bind="_search" @bind:event="oninput" aria-label="Search scripts" />
+            <input type="search" class="input pl-9" placeholder="Search scripts…" @bind="_search" @bind:event="oninput" aria-label="Search scripts" disabled="@(!RendererInfo.IsInteractive)" />
         </div>
     }
 </div>

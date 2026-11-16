@@ -15,6 +15,7 @@ data
 **/data
 src/SpecOps.Web/wwwroot/css
 src/SpecOps.Web/wwwroot/lib/editor
+src/SpecOps.Web/wwwroot/js
 **/*.user
 **/appsettings.Local.json
 .env

@@ -20,6 +20,10 @@
     <File Path="compose.caddy.yaml" />
     <File Path="deploy/Caddyfile" />
   </Folder>
+  <Folder Name="/docs/">
+    <File Path="docs/docker.md" />
+    <File Path="docs/testing.md" />
+  </Folder>
   <Folder Name="/.github/">
     <File Path=".github/dependabot.yml" />
   </Folder>
@@ -43,6 +47,7 @@
     <Project Path="src/SpecOps.Web/SpecOps.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/SpecOps.E2E/SpecOps.E2E.csproj" />
     <Project Path="tests/SpecOps.Tests/SpecOps.Tests.csproj" />
   </Folder>
 </Solution>

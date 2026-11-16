@@ -9,6 +9,11 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
+  <ItemGroup Label="Analyzers (every project)">
+    <!-- Extra bug and best-practice rules on top of the .NET analyzers; configured in .editorconfig. -->
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.341" />
+  </ItemGroup>
+
   <ItemGroup Label="Core">
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.7.0" />
   </ItemGroup>
@@ -41,6 +46,7 @@
     <PackageVersion Include="xunit.v3" Version="4.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="11.0.0" />
     <PackageVersion Include="bunit" Version="2.15.2" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.64.1" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
   </ItemGroup>
 </Project>

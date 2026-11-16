@@ -13,13 +13,18 @@ if (!document.querySelector(`link[href="${stylesheet}"]`)) {
   document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: stylesheet }));
 }
 
-const themeFor = (dark) => (dark ? 'vs-dark' : 'vs');
+const themeFor = (dark: boolean): string => (dark ? 'vs-dark' : 'vs');
 
-/**
- * Creates an editor in `element`. Ctrl/Cmd+Enter calls the .NET method `RunFromShortcut` on `dotnet`.
- * Returns a small handle Blazor holds as an IJSObjectReference.
- */
-export function createEditor(element, value, dotnet) {
+/** The handle Blazor holds (as an IJSObjectReference) for an editor created by {@link createEditor}. */
+export interface EditorHandle {
+  getValue(): string;
+  setValue(text: string): void;
+  focus(): void;
+  dispose(): void;
+}
+
+/** Creates an editor in `element`. Ctrl/Cmd+Enter calls the .NET method `RunFromShortcut` on `dotnet`. */
+export function createEditor(element: HTMLElement, value: string, dotnet: DotNetObject): EditorHandle {
   const editor = monaco.editor.create(element, {
     value,
     language: 'powershell',
@@ -31,17 +36,23 @@ export function createEditor(element, value, dotnet) {
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    dotnet.invokeMethodAsync('RunFromShortcut');
+    void dotnet.invokeMethodAsync('RunFromShortcut');
   });
 
-  // Follow the app's light/dark toggle (specops.js raises this event).
-  const onTheme = (event) => monaco.editor.setTheme(themeFor(event.detail.dark));
+  // Follow the app's light/dark toggle (specops.ts raises this event).
+  const onTheme = (event: CustomEvent<ThemeChangeDetail>): void => {
+    monaco.editor.setTheme(themeFor(event.detail.dark));
+  };
   window.addEventListener('specops-theme', onTheme);
 
   return {
     getValue: () => editor.getValue(),
-    setValue: (text) => editor.setValue(text),
-    focus: () => editor.focus(),
+    setValue: (text) => {
+      editor.setValue(text);
+    },
+    focus: () => {
+      editor.focus();
+    },
     dispose: () => {
       window.removeEventListener('specops-theme', onTheme);
       editor.dispose();

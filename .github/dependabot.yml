@@ -27,6 +27,10 @@ updates:
     directory: '/src/SpecOps.Web'
     schedule:
       interval: 'weekly'
+    ignore:
+      # Held at 6.x until typescript-eslint supports TypeScript 7 (its peer range is <6.1).
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: 'docker'
     directory: '/'

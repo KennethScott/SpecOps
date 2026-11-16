@@ -15,7 +15,7 @@
 > dotnet run --project src/SpecOps.Web --launch-profile http
 > ```
 >
-> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). Scripts come from [samples/specops.json](samples/specops.json) and [samples/scripts](samples/scripts). Tests: `dotnet test`. Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
+> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). Scripts come from [samples/specops.json](samples/specops.json) and [samples/scripts](samples/scripts). Tests: `dotnet test` (unit, component and browser tests; see [docs/testing.md](docs/testing.md)). Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
 >
 > Sign-in providers (Entra ID, Google, any OIDC) are configured under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json); put secrets in user-secrets or environment variables.
 >
