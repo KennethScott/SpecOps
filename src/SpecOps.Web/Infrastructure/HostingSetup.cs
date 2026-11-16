@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 using SpecOps.Core.Configuration;
 using SpecOps.Data;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace SpecOps.Web.Infrastructure;
 
