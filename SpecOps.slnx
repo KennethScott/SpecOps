@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path=".csharpierignore" />
+    <File Path=".dockerignore" />
+    <File Path=".env.example" />
     <File Path=".csharpierrc.json" />
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
@@ -13,6 +15,10 @@
     <File Path="global.json" />
     <File Path="LICENSE" />
     <File Path="README.md" />
+    <File Path="Dockerfile" />
+    <File Path="compose.yaml" />
+    <File Path="compose.caddy.yaml" />
+    <File Path="deploy/Caddyfile" />
   </Folder>
   <Folder Name="/.github/">
     <File Path=".github/dependabot.yml" />
@@ -20,6 +26,7 @@
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/ci.yml" />
     <File Path=".github/workflows/codeql.yml" />
+    <File Path=".github/workflows/container.yml" />
   </Folder>
   <Folder Name="/samples/">
     <File Path="samples/scriptsettings.v1.json" />

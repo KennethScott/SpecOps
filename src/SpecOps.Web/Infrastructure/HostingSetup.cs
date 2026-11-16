@@ -31,6 +31,32 @@ public sealed record SpecOpsPaths(string DataDirectory, string ConfigFile)
         Directory.CreateDirectory(dataDirectory);
         return new SpecOpsPaths(dataDirectory, configFile);
     }
+
+    /// <summary>
+    /// First run: if there's no script configuration yet, copy the starter files (specops.json + scripts) from
+    /// <paramref name="seedDirectory"/> next to the config file. Never overwrites anything. Used by the container
+    /// image (SpecOps:SeedDirectory) so a fresh /data volume works out of the box.
+    /// </summary>
+    public bool SeedIfMissing(string? seedDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(seedDirectory) || File.Exists(ConfigFile) || !Directory.Exists(seedDirectory))
+        {
+            return false;
+        }
+
+        var target = Path.GetDirectoryName(ConfigFile)!;
+        foreach (var source in Directory.EnumerateFiles(seedDirectory, "*", SearchOption.AllDirectories))
+        {
+            var destination = Path.Combine(target, Path.GetRelativePath(seedDirectory, source));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            if (!File.Exists(destination))
+            {
+                File.Copy(source, destination);
+            }
+        }
+
+        return File.Exists(ConfigFile);
+    }
 }
 
 public static class HostingSetup
@@ -39,6 +65,7 @@ public static class HostingSetup
     {
         ArgumentNullException.ThrowIfNull(builder);
         var paths = SpecOpsPaths.Resolve(builder.Configuration, builder.Environment);
+        paths.SeedIfMissing(builder.Configuration["SpecOps:SeedDirectory"]);
         builder.Services.AddSingleton(paths);
 
         // Don't advertise the server software (Kestrel adds this header after middleware runs).

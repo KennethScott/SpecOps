@@ -1,0 +1,23 @@
+# SpecOps on a Linux VM (or any Docker host).
+#
+#   cp .env.example .env      # then fill in a sign-in provider and your admin
+#   docker compose up -d      # http://<host>:8080
+#
+# HTTPS with automatic certificates: see compose.caddy.yaml.
+# Everything SpecOps keeps (database, scripts, specops.json, logs, keys) lives in the specops-data volume.
+
+services:
+  specops:
+    image: ghcr.io/kennethscott/specops:latest
+    build: .
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    volumes:
+      - specops-data:/data
+    env_file:
+      - path: .env
+        required: false
+
+volumes:
+  specops-data:

@@ -1,0 +1,42 @@
+# HTTPS in front of SpecOps with Caddy (automatic Let's Encrypt certificates, renewals, HTTP->HTTPS redirect).
+# Needs a DNS name pointing at this host and ports 80/443 reachable.
+#
+#   SPECOPS_HOST=specops.example.com docker compose -f compose.yaml -f compose.caddy.yaml up -d
+#
+# Internal-only host without public DNS? Use your own certificate instead: see docs/docker.md.
+
+services:
+  specops:
+    # Only Caddy talks to SpecOps.
+    ports: !reset []
+    environment:
+      # Trust X-Forwarded-* headers from Caddy (this network), so sign-in redirects, secure cookies and client IPs
+      # in the audit log are correct.
+      Proxy__KnownNetworks__0: 172.30.0.0/24
+      AllowedHosts: ${SPECOPS_HOST:?Set SPECOPS_HOST to the DNS name for SpecOps}
+    networks: [specops]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      SPECOPS_HOST: ${SPECOPS_HOST}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [specops]
+
+networks:
+  specops:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  caddy-data:
+  caddy-config:
