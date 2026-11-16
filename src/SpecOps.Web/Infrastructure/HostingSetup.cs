@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Serilog;
 using SpecOps.Core.Configuration;
 using SpecOps.Data;
@@ -45,9 +46,25 @@ public static class HostingSetup
 
         // Script/category/policy config lives in its own file and reloads on change.
         builder.Configuration.AddJsonFile(paths.ConfigFile, optional: true, reloadOnChange: true);
-        builder.Services.Configure<SpecOpsOptions>(builder.Configuration.GetSection(SpecOpsOptions.SectionName));
-        builder.Services.PostConfigure<SpecOpsOptions>(o =>
-            o.ScriptsRoot = Path.GetFullPath(o.ScriptsRoot, Path.GetDirectoryName(paths.ConfigFile)!)
+        builder
+            .Services.AddOptions<SpecOpsOptions>()
+            .Bind(builder.Configuration.GetSection(SpecOpsOptions.SectionName))
+            .PostConfigure(o =>
+                o.ScriptsRoot = Path.GetFullPath(o.ScriptsRoot, Path.GetDirectoryName(paths.ConfigFile)!)
+            );
+        // Validation lives in LastGoodOptionsMonitor: invalid configuration stops startup with a clear list of
+        // problems (see InitializeSpecOpsAsync), while an invalid live edit is rejected and the last good
+        // configuration keeps running.
+        builder.Services.AddSingleton<IOptionsMonitor<SpecOpsOptions>>(
+            services => new LastGoodOptionsMonitor<SpecOpsOptions>(
+                new OptionsMonitor<SpecOpsOptions>(
+                    services.GetRequiredService<IOptionsFactory<SpecOpsOptions>>(),
+                    services.GetServices<IOptionsChangeTokenSource<SpecOpsOptions>>(),
+                    new OptionsCache<SpecOpsOptions>()
+                ),
+                new SpecOpsOptionsValidator(),
+                services.GetRequiredService<ILogger<LastGoodOptionsMonitor<SpecOpsOptions>>>()
+            )
         );
 
         // Logging: console + rolling file in the data directory.
@@ -100,6 +117,10 @@ public static class HostingSetup
     public static async Task InitializeSpecOpsAsync(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
+
+        // Fail fast: throws OptionsValidationException listing every problem if specops.json is invalid.
+        _ = app.Services.GetRequiredService<IOptionsMonitor<SpecOpsOptions>>().CurrentValue;
+
         await using (var scope = app.Services.CreateAsyncScope())
         {
             await scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>().Database.MigrateAsync();

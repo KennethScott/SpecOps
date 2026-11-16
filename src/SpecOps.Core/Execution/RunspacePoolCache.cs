@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading.Channels;
@@ -9,18 +8,47 @@ namespace SpecOps.Core.Execution;
 
 /// <summary>
 /// One warm pool per runspace profile, created on first use (module imports are slow, so runspaces are reused).
-/// A changed profile gets a new pool; old pools are disposed at shutdown.
+/// When a profile's settings change, its old pool is retired: idle runspaces close now, in-use ones when their run ends.
 /// </summary>
 internal sealed class RunspacePoolCache : IDisposable
 {
-    private readonly ConcurrentDictionary<string, Lazy<WarmRunspacePool>> _pools = new(StringComparer.Ordinal);
+    private readonly Lock _lock = new();
+    private readonly Dictionary<string, (string Settings, WarmRunspacePool Pool)> _pools = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public WarmRunspacePool Get(RunspaceProfile profile, string? defaultExecutionPolicy)
     {
         var policy = profile.ExecutionPolicy ?? defaultExecutionPolicy;
-        var key =
-            $"{profile.Name}|{policy}|{profile.MinRunspaces}|{profile.MaxRunspaces}|{string.Join(',', profile.Modules)}";
-        return _pools.GetOrAdd(key, _ => new Lazy<WarmRunspacePool>(() => new WarmRunspacePool(profile, policy))).Value;
+        var settings = $"{policy}|{profile.MinRunspaces}|{profile.MaxRunspaces}|{string.Join(',', profile.Modules)}";
+
+        lock (_lock)
+        {
+            if (_pools.TryGetValue(profile.Name, out var existing))
+            {
+                if (existing.Settings == settings)
+                {
+                    return existing.Pool;
+                }
+
+                existing.Pool.Dispose();
+            }
+
+            var pool = new WarmRunspacePool(profile, policy);
+            _pools[profile.Name] = (settings, pool);
+            return pool;
+        }
+    }
+
+    internal int PoolCount
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _pools.Count;
+            }
+        }
     }
 
     internal static InitialSessionState CreateSessionState(string? executionPolicy, IEnumerable<string> modules)
@@ -42,12 +70,15 @@ internal sealed class RunspacePoolCache : IDisposable
 
     public void Dispose()
     {
-        foreach (var lazy in _pools.Values.Where(l => l.IsValueCreated))
+        lock (_lock)
         {
-            lazy.Value.Dispose();
-        }
+            foreach (var (_, pool) in _pools.Values)
+            {
+                pool.Dispose();
+            }
 
-        _pools.Clear();
+            _pools.Clear();
+        }
     }
 }
 

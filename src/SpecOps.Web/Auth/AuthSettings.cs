@@ -21,6 +21,66 @@ public sealed class AuthSettings
     /// <summary>External sign-in providers keyed by scheme name (e.g. "Microsoft", "Google", "Keycloak"). Providers without a ClientId are ignored.</summary>
     public IDictionary<string, ExternalProviderSettings> Providers { get; init; } =
         new Dictionary<string, ExternalProviderSettings>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Problems that would make sign-in fail or behave unsafely; checked at startup.</summary>
+    public IReadOnlyList<string> Validate()
+    {
+        var errors = new List<string>();
+
+        foreach (var (name, provider) in Providers.Where(p => p.Value.IsConfigured))
+        {
+            var label = $"Auth:Providers:{name}";
+            if (!name.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+            {
+                errors.Add(
+                    $"{label}: provider names may only contain letters, digits, '-' and '_' (used in callback URLs)."
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(provider.ClientSecret))
+            {
+                errors.Add($"{label}: ClientSecret is required.");
+            }
+
+            if (provider.Type == ExternalProviderType.OpenIdConnect)
+            {
+                if (
+                    !Uri.TryCreate(provider.Authority, UriKind.Absolute, out var authority)
+                    || (authority.Scheme != Uri.UriSchemeHttps && !authority.IsLoopback)
+                )
+                {
+                    errors.Add($"{label}: Authority must be an https URL (got '{provider.Authority}').");
+                }
+
+                if (provider.Authority?.Contains('<', StringComparison.Ordinal) == true)
+                {
+                    errors.Add($"{label}: replace the placeholder in Authority with your tenant ID.");
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(provider.GroupsClaim))
+            {
+                errors.Add($"{label}: GroupsClaim can't be empty.");
+            }
+
+            foreach (var tenant in provider.AllowedTenantIds.Where(t => !Guid.TryParse(t, out _)))
+            {
+                errors.Add($"{label}: AllowedTenantIds entry '{tenant}' isn't a tenant ID (GUID).");
+            }
+        }
+
+        if (BootstrapAdmins.Any(string.IsNullOrWhiteSpace))
+        {
+            errors.Add("Auth:BootstrapAdmins contains an empty entry.");
+        }
+
+        foreach (var domain in AutoApproveEmailDomains.Where(d => string.IsNullOrWhiteSpace(d) || d.Contains('@')))
+        {
+            errors.Add($"Auth:AutoApproveEmailDomains entry '{domain}' should be a bare domain like 'contoso.com'.");
+        }
+
+        return errors;
+    }
 }
 
 public enum ExternalProviderType

@@ -25,6 +25,13 @@ public static class AuthenticationSetup
         builder.Services.Configure<AuthSettings>(section);
         var settings = section.Get<AuthSettings>() ?? new AuthSettings();
 
+        if (settings.Validate() is { Count: > 0 } problems)
+        {
+            throw new InvalidOperationException(
+                "Invalid Auth configuration:" + Environment.NewLine + string.Join(Environment.NewLine, problems)
+            );
+        }
+
         if (settings.DevSignIn && !builder.Environment.IsDevelopment())
         {
             throw new InvalidOperationException(

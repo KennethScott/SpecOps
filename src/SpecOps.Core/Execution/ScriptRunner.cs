@@ -31,6 +31,9 @@ public interface IScriptRunner
 
     /// <summary>Stops the pipeline (not just the waiting). Returns false if the run is unknown or already finished.</summary>
     bool Cancel(Guid runId);
+
+    /// <summary>Graceful shutdown: refuses new runs, cancels active and queued ones, and waits for them to finish.</summary>
+    Task StopAsync(CancellationToken cancellationToken);
 }
 
 public sealed partial class ScriptRunner : IScriptRunner, IDisposable
@@ -39,10 +42,12 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     private readonly ConcurrentDictionary<Guid, Task> _executions = new();
     private readonly Lock _startLock = new();
     private readonly RunspacePoolCache _pools = new();
-    private readonly SemaphoreSlim _concurrency;
+    private readonly RunGate _gate;
+    private readonly IDisposable? _optionsChange;
     private readonly IOptionsMonitor<SpecOpsOptions> _options;
     private readonly ILogger<ScriptRunner> _logger;
     private readonly TimeProvider _time;
+    private volatile bool _stopping;
 
     public ScriptRunner(
         IOptionsMonitor<SpecOpsOptions> options,
@@ -54,7 +59,9 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         _options = options;
         _logger = logger;
         _time = time ?? TimeProvider.System;
-        _concurrency = new SemaphoreSlim(Math.Max(1, options.CurrentValue.Runner.MaxConcurrentRuns));
+        _gate = new RunGate(() => RunnerOptions.MaxConcurrentRuns);
+        // A raised MaxConcurrentRuns admits queued runs straight away.
+        _optionsChange = options.OnChange((_, _) => _gate.Pump());
     }
 
     private RunnerOptions RunnerOptions => _options.CurrentValue.Runner;
@@ -74,6 +81,11 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         ScriptRun run;
         lock (_startLock)
         {
+            if (_stopping)
+            {
+                throw new RunRejectedException("SpecOps is shutting down; try again shortly.");
+            }
+
             PruneFinishedRuns();
             EnforceUserLimits(request);
             run = new ScriptRun(request, RunnerOptions.MaxOutputRecords, _time);
@@ -116,27 +128,41 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
 
     private static string UserKey(string? userId, string userName) => userId ?? $"name:{userName}";
 
-    public bool Cancel(Guid runId)
+    public bool Cancel(Guid runId) => _runs.TryGetValue(runId, out var run) && run.TryCancel();
+
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (!_runs.TryGetValue(runId, out var run) || run.IsFinished)
+        lock (_startLock)
         {
-            return false;
+            _stopping = true;
         }
 
-        run.Cancellation.Cancel();
-        return true;
-    }
-
-    private async Task ExecuteAsync(ScriptRun run, ScriptRunRequest request)
-    {
-        if (_concurrency.CurrentCount == 0)
+        foreach (var run in _runs.Values)
         {
-            run.Append(OutputKind.System, "Waiting for a free slot (too many scripts running)...");
+            run.TryCancel();
         }
 
         try
         {
-            await _concurrency.WaitAsync(run.Cancellation.Token).ConfigureAwait(false);
+            await Task.WhenAll(_executions.Values).WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            LogShutdownTimedOut(_executions.Count);
+        }
+    }
+
+    private async Task ExecuteAsync(ScriptRun run, ScriptRunRequest request)
+    {
+        if (!_gate.HasFreeSlot)
+        {
+            run.Append(OutputKind.System, "Waiting for a free slot (too many scripts running)...");
+        }
+
+        IDisposable slot;
+        try
+        {
+            slot = await _gate.EnterAsync(run.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -145,13 +171,9 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             return;
         }
 
-        try
+        using (slot)
         {
             await ExecuteCoreAsync(run, request).ConfigureAwait(false);
-        }
-        finally
-        {
-            _concurrency.Release();
         }
     }
 
@@ -159,7 +181,7 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     {
         var timeout = request.Timeout ?? RunnerOptions.DefaultTimeout;
         using var timeoutCts = new CancellationTokenSource(timeout, _time);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(run.Cancellation.Token, timeoutCts.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(run.CancellationToken, timeoutCts.Token);
 
         run.MarkRunning();
         LogRunStarted(run.Id, run.UserName, run.ScriptId, run.Parameters, request.ClientIp);
@@ -184,8 +206,7 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             PowerShell ps;
             if (request.RunspaceProfile is { } profile)
             {
-                pool = _pools.Get(profile, RunnerOptions.ExecutionPolicy);
-                rented = await pool.RentAsync(linked.Token).ConfigureAwait(false);
+                (pool, rented) = await RentAsync(profile, linked.Token).ConfigureAwait(false);
                 ps = PowerShell.Create();
                 ps.Runspace = rented.Runspace;
             }
@@ -228,7 +249,9 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
             using var output = new PSDataCollection<PSObject>();
             output.DataAdded += (_, e) => run.Append(OutputKind.Output, output[e.Index]?.BaseObject?.ToString());
 
-            using (linked.Token.Register(() => ps.BeginStop(null, null)))
+            // Cancelled while we were still setting up: don't start the pipeline at all.
+            linked.Token.ThrowIfCancellationRequested();
+            using (linked.Token.Register(() => StopPipeline(ps)))
             {
                 await ps.InvokeAsync(input, output).ConfigureAwait(false);
             }
@@ -238,9 +261,10 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
                 : ps.HadErrors || run.ErrorCount > 0 ? RunStatus.CompletedWithErrors
                 : RunStatus.Succeeded;
         }
-        catch (Exception ex)
-            when (linked.IsCancellationRequested && ex is PipelineStoppedException or OperationCanceledException)
+        catch (Exception) when (linked.IsCancellationRequested)
         {
+            // Stopping a pipeline surfaces as different exception types depending on timing
+            // (PipelineStoppedException, OperationCanceledException, PSInvalidOperationException...).
             status = CancelledStatus(timeoutCts, run, timeout);
         }
         catch (Exception ex) when (ex is RuntimeException or IOException or UnauthorizedAccessException)
@@ -333,17 +357,51 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         }
     }
 
-    /// <summary>Stops active runs and waits briefly for them before releasing runspaces.</summary>
+    /// <summary>Rents from the profile's pool; if that pool was just retired by a config change, uses the new one.</summary>
+    private async Task<(WarmRunspacePool Pool, PooledRunspace Runspace)> RentAsync(
+        Scripts.RunspaceProfile profile,
+        CancellationToken cancellationToken
+    )
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var pool = _pools.Get(profile, RunnerOptions.ExecutionPolicy);
+            try
+            {
+                return (pool, await pool.RentAsync(cancellationToken).ConfigureAwait(false));
+            }
+            catch (ObjectDisposedException) when (attempt < 3)
+            {
+                // Retired between lookup and rent; the next lookup returns the replacement.
+            }
+        }
+    }
+
+    /// <summary>Asks PowerShell to stop the pipeline without blocking the caller (often a UI thread).</summary>
+    private void StopPipeline(PowerShell ps) =>
+        _ = ps.StopAsync(null, null)
+            .ContinueWith(
+                t => LogStopFailed(t.Exception!),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default
+            );
+
+    /// <summary>
+    /// Last-resort cleanup. In the web app <see cref="StopAsync"/> runs first (host shutdown); this covers tests
+    /// and other hosts: cancel, wait briefly, then release runspaces.
+    /// </summary>
     public void Dispose()
     {
-        foreach (var run in _runs.Values.Where(r => !r.IsFinished))
+        _stopping = true;
+        _optionsChange?.Dispose();
+        foreach (var run in _runs.Values)
         {
-            run.Cancellation.Cancel();
+            run.TryCancel();
         }
 
         Task.WaitAll([.. _executions.Values], TimeSpan.FromSeconds(10));
         _pools.Dispose();
-        _concurrency.Dispose();
     }
 
     [LoggerMessage(
@@ -366,6 +424,12 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
         Message = "Run {RunId}: '{ScriptId}' finished {Status} with {ErrorCount} errors"
     )]
     private partial void LogRunFinished(Guid runId, string scriptId, RunStatus status, int errorCount);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Shutdown: {Count} runs were still finishing when time ran out")]
+    private partial void LogShutdownTimedOut(int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Stopping a pipeline failed")]
+    private partial void LogStopFailed(Exception ex);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Run {RunId}: unexpected failure")]
     private partial void LogRunCrashed(Exception ex, Guid runId);
