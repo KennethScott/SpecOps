@@ -31,18 +31,33 @@ public sealed class ConfigurationScriptCatalog(IOptionsMonitor<SpecOpsOptions> o
 
     public IReadOnlyList<RunspaceProfile> RunspaceProfiles => [.. Current.RunspaceProfiles];
 
+    // Rebuilt only when the configuration changes (a reload produces a new options instance).
+    private volatile CategoryCache? _categoryCache;
+
     public IReadOnlyList<CategoryDefinition> Categories
     {
         get
         {
             var current = Current;
+            if (_categoryCache is { } cache && ReferenceEquals(cache.For, current))
+            {
+                return cache.Categories;
+            }
+
             var defined = current.Categories.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
             foreach (var id in current.Scripts.Select(s => s.CategoryId).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 defined.TryAdd(id, new CategoryDefinition { Id = id });
             }
 
-            return [.. defined.Values.OrderBy(c => c.SortOrder).ThenBy(c => c.DisplayName, StringComparer.CurrentCultureIgnoreCase)];
+            IReadOnlyList<CategoryDefinition> categories =
+            [
+                .. defined
+                    .Values.OrderBy(c => c.SortOrder)
+                    .ThenBy(c => c.DisplayName, StringComparer.CurrentCultureIgnoreCase),
+            ];
+            _categoryCache = new CategoryCache(current, categories);
+            return categories;
         }
     }
 
@@ -52,7 +67,9 @@ public sealed class ConfigurationScriptCatalog(IOptionsMonitor<SpecOpsOptions> o
     public RunspaceProfile? FindRunspaceProfile(string? name) =>
         string.IsNullOrWhiteSpace(name)
             ? null
-            : Current.RunspaceProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            : Current.RunspaceProfiles.FirstOrDefault(p =>
+                string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)
+            );
 
     public string ResolveScriptPath(ScriptDefinition script)
     {
@@ -102,3 +119,6 @@ public sealed class ConfigurationScriptCatalog(IOptionsMonitor<SpecOpsOptions> o
         return problems;
     }
 }
+
+/// <summary>Categories computed for one configuration instance (replaced atomically on reload).</summary>
+internal sealed record CategoryCache(SpecOpsOptions For, IReadOnlyList<CategoryDefinition> Categories);

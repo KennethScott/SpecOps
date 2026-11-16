@@ -99,6 +99,61 @@ public class RunLifecycleTests
     }
 
     [Fact]
+    public async Task Oldest_finished_runs_are_dropped_when_the_output_budget_is_exceeded()
+    {
+        // Each run below holds 5 records: "Starting...", 3 output lines, "Finished...".
+        using var runner = new ScriptRunner(
+            TestOptions.Create(o => o.Runner.MaxRetainedOutputRecords = 6),
+            NullLogger<ScriptRunner>.Instance
+        );
+        var first = runner.Start(Code("1..3"));
+        await WaitForAsync(() => first.IsFinished);
+        var second = runner.Start(Code("1..3", "other"));
+        await WaitForAsync(() => second.IsFinished);
+        Assert.Equal(5, first.RecordCount);
+
+        var third = runner.Start(Code("'x'", "third"));
+
+        Assert.Null(runner.Find(first.Id));
+        Assert.NotNull(runner.Find(second.Id));
+        Assert.NotNull(runner.Find(third.Id));
+        await WaitForAsync(() => third.IsFinished);
+    }
+
+    [Fact]
+    public void Categories_are_cached_until_the_configuration_changes()
+    {
+        var options = TestOptions.Create(o =>
+            o.Scripts.Add(
+                new ScriptDefinition
+                {
+                    Id = "a",
+                    Name = "A",
+                    CategoryId = "ops",
+                }
+            )
+        );
+        var catalog = new ConfigurationScriptCatalog(options);
+
+        var first = catalog.Categories;
+        Assert.Same(first, catalog.Categories);
+
+        var reloaded = new SpecOps.Core.Configuration.SpecOpsOptions();
+        reloaded.Scripts.Add(
+            new ScriptDefinition
+            {
+                Id = "b",
+                Name = "B",
+                CategoryId = "new",
+            }
+        );
+        options.Set(reloaded);
+
+        Assert.NotSame(first, catalog.Categories);
+        Assert.Equal("new", Assert.Single(catalog.Categories).Id);
+    }
+
+    [Fact]
     public void Cancelling_a_finished_run_is_a_no_op()
     {
         using var runner = new ScriptRunner(TestOptions.Create(), NullLogger<ScriptRunner>.Instance);

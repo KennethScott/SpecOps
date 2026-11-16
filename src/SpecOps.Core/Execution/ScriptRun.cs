@@ -96,6 +96,18 @@ public sealed class ScriptRun
 
     public int ErrorCount { get; private set; }
 
+    /// <summary>Output records held for this run (used for the memory budget).</summary>
+    public int RecordCount
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _records.Count;
+            }
+        }
+    }
+
     public int WarningCount { get; private set; }
 
     public bool IsFinished => EndedAt is not null;

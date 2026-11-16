@@ -341,18 +341,25 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
     }
 
     /// <summary>Drops finished runs past their retention, then the oldest finished runs beyond the retained-run cap.</summary>
+    /// <remarks>
+    /// Also enforces a total output budget across finished runs (MaxRetainedOutputRecords), so memory stays bounded
+    /// however many long-running, chatty scripts people run. Active runs are never dropped.
+    /// </remarks>
     private void PruneFinishedRuns()
     {
         var options = RunnerOptions;
         var cutoff = _time.GetUtcNow() - options.CompletedRunRetention;
         var finished = _runs.Values.Where(r => r.IsFinished).OrderBy(r => r.EndedAt).ToList();
-        var excess = Math.Max(0, _runs.Count - options.MaxRetainedRuns + 1);
+        var excessRuns = Math.Max(0, _runs.Count - options.MaxRetainedRuns + 1);
+        var excessRecords = finished.Sum(r => (long)r.RecordCount) - options.MaxRetainedOutputRecords;
 
         foreach (var run in finished)
         {
-            if (run.EndedAt < cutoff || excess-- > 0)
+            if (run.EndedAt < cutoff || excessRuns > 0 || excessRecords > 0)
             {
                 _runs.TryRemove(run.Id, out _);
+                excessRuns--;
+                excessRecords -= run.RecordCount;
             }
         }
     }

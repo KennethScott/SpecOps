@@ -123,7 +123,14 @@ public static class HostingSetup
 
         await using (var scope = app.Services.CreateAsyncScope())
         {
-            await scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>().Database.MigrateAsync();
+            var database = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>().Database;
+            await database.MigrateAsync();
+            if (database.IsSqlite())
+            {
+                // Write-ahead logging: readers (e.g. the Audit page) don't block writers (audit events) and vice versa.
+                // The setting is stored in the database file, so this only changes something the first time.
+                await database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+            }
         }
 
         var paths = app.Services.GetRequiredService<SpecOpsPaths>();

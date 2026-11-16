@@ -53,7 +53,7 @@
         }
         else
         {
-            <Virtualize Items="_visible" ItemSize="20" OverscanCount="30" Context="record">
+            <Virtualize Items="Visible" ItemSize="20" OverscanCount="30" Context="record">
                 <div class="@($"flex gap-3 {KindCss(record.Stream)}")">
                     <span class="shrink-0 select-none text-console-muted tabular-nums">@record.Timestamp.ToLocalTime().ToString("HH:mm:ss")</span>
                     <span class="whitespace-pre">@record.Text</span>
@@ -68,7 +68,10 @@
         [OutputKind.Output, OutputKind.Information, OutputKind.Warning, OutputKind.Error, OutputKind.Verbose, OutputKind.Debug, OutputKind.Progress, OutputKind.System];
 
     private readonly List<OutputRecord> _records = [];
-    private List<OutputRecord> _visible = [];
+    // Only set while a stream filter is active; otherwise the console shows _records directly (no copy).
+    private List<OutputRecord>? _filtered;
+
+    private List<OutputRecord> Visible => _filtered ?? _records;
     private readonly Dictionary<OutputKind, int> _counts = [];
     private readonly HashSet<OutputKind> _hidden = [];
     private readonly ConcurrentQueue<OutputRecord> _incoming = new();
@@ -109,7 +112,7 @@
         _watchCts = null;
         _watching = Run;
         _records.Clear();
-        _visible = [];
+        _filtered = null;
         _counts.Clear();
         _incoming.Clear();
 
@@ -155,6 +158,7 @@
         _ = Task.Delay(100).ContinueWith(_ => InvokeAsync(FlushAsync), TaskScheduler.Default);
     }
 
+    // Appends only the new records: O(new lines) per refresh, not O(all lines), so long outputs stay fast.
     private async Task FlushAsync()
     {
         Interlocked.Exchange(ref _flushScheduled, 0);
@@ -163,12 +167,12 @@
         {
             _records.Add(record);
             _counts[record.Stream] = _counts.GetValueOrDefault(record.Stream) + 1;
-            added = true;
-        }
+            if (_filtered is not null && !_hidden.Contains(record.Stream))
+            {
+                _filtered.Add(record);
+            }
 
-        if (added)
-        {
-            ApplyFilter();
+            added = true;
         }
 
         StateHasChanged();
@@ -178,8 +182,9 @@
         }
     }
 
+    /// <summary>Full rebuild, only when a filter changes. With no filter, the visible list is the record list itself.</summary>
     private void ApplyFilter() =>
-        _visible = _hidden.Count == 0 ? [.. _records] : [.. _records.Where(r => !_hidden.Contains(r.Stream))];
+        _filtered = _hidden.Count == 0 ? null : [.. _records.Where(r => !_hidden.Contains(r.Stream))];
 
     private void ToggleKind(OutputKind kind)
     {
@@ -201,7 +206,7 @@
     }
 
     private string AllText() =>
-        string.Join(Environment.NewLine, _visible.Select(r => $"{r.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} [{r.Stream}] {r.Text}"));
+        string.Join(Environment.NewLine, Visible.Select(r => $"{r.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss} [{r.Stream}] {r.Text}"));
 
     private async Task CopyAsync()
     {
