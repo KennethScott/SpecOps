@@ -7,7 +7,9 @@
 
 > **🚧 v2 in progress (`v2` branch).** SpecOps is being rebuilt on .NET 11 + Blazor + Tailwind: cross-platform (Linux/Docker and Windows), sign-in via Entra ID / Google / OIDC, with run history in a database. The v1 app (described below) is preserved at tag `v1-final`.
 >
-> **Try it:** needs the .NET 11 SDK and Node.js 22+ (for the Tailwind build).
+> **Run it (Docker):** `cp .env.example .env && docker compose up -d`, then see [docs/docker.md](docs/docker.md) for sign-in, HTTPS, scripts and Active Directory via a jump host.
+>
+> **Develop it:** needs the .NET 11 SDK and Node.js 22+ (for the Tailwind and editor builds).
 >
 > ```bash
 > dotnet run --project src/SpecOps.Web --launch-profile http

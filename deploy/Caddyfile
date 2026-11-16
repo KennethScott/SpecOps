@@ -1,0 +1,6 @@
+# HTTPS for SpecOps (used by compose.caddy.yaml). Caddy obtains and renews the certificate automatically,
+# redirects HTTP to HTTPS, and passes WebSockets (needed by Blazor) through.
+{$SPECOPS_HOST} {
+	encode zstd gzip
+	reverse_proxy specops:8080
+}

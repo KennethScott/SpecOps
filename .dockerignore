@@ -1,0 +1,22 @@
+# Keep the build context small and free of local state/secrets.
+.git
+.github
+.vs
+.vscode
+.claude
+**/bin
+**/obj
+**/node_modules
+**/TestResults
+TestResults
+tests
+docs
+data
+**/data
+src/SpecOps.Web/wwwroot/css
+src/SpecOps.Web/wwwroot/lib/editor
+**/*.user
+**/appsettings.Local.json
+.env
+*.md
+!README.md
