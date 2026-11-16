@@ -1,0 +1,5 @@
+# Generated code
+src/SpecOps.Data/Migrations/
+**/obj/
+**/bin/
+**/node_modules/

@@ -46,7 +46,7 @@
           "Name": "RangeListParam",
           "Type": "text",
           "Description": "Input Range List Parameter",
-          "List": [ "value1", "value2", "value3" ]
+          "List": ["value1", "value2", "value3"]
         },
         {
           "Name": "DropdownParam",
@@ -88,12 +88,10 @@
         }
       ],
       "Runspace": {
-        "ExecutionPolicy":  "Unrestricted",
+        "ExecutionPolicy": "Unrestricted",
         "Min": 1,
         "Max": 2,
-        "Modules": [
-          "PSDiagnostics"
-        ]
+        "Modules": ["PSDiagnostics"]
       }
     },
     {
@@ -114,9 +112,7 @@
         "ExecutionPolicy": "Unrestricted",
         "Min": 1,
         "Max": 2,
-        "Modules": [
-          "PSDiagnostics"
-        ]
+        "Modules": ["PSDiagnostics"]
       }
     },
     {
@@ -138,9 +134,7 @@
         "ExecutionPolicy": "Unrestricted",
         "Min": 1,
         "Max": 2,
-        "Modules": [
-          "PSDiagnostics"
-        ]
+        "Modules": ["PSDiagnostics"]
       }
     }
   ]

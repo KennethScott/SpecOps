@@ -1,0 +1,22 @@
+# Build output and dependencies
+**/bin/
+**/obj/
+**/node_modules/
+TestResults/
+data/
+
+# Generated
+src/SpecOps.Web/wwwroot/css/
+src/SpecOps.Data/Migrations/
+package-lock.json
+
+# Formatted by CSharpier, not Prettier
+*.cs
+*.csproj
+*.props
+*.targets
+*.slnx
+
+# Local-only
+docs/MODERNIZATION_PLAN.md
+.claude/

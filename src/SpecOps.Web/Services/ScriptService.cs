@@ -28,12 +28,20 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
     {
         var access = authorizer.GetAccess(user);
         var scripts = catalog.Scripts;
-        return [.. catalog.Categories
-            .Where(c => access.CanAccessCategory(c.Id))
-            .Select(c => new CategoryScripts(c, [.. scripts
-                .Where(s => string.Equals(s.CategoryId, c.Id, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)]))
-            .Where(c => c.Scripts.Count > 0)];
+        return
+        [
+            .. catalog
+                .Categories.Where(c => access.CanAccessCategory(c.Id))
+                .Select(c => new CategoryScripts(
+                    c,
+                    [
+                        .. scripts
+                            .Where(s => string.Equals(s.CategoryId, c.Id, StringComparison.OrdinalIgnoreCase))
+                            .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase),
+                    ]
+                ))
+                .Where(c => c.Scripts.Count > 0),
+        ];
     }
 
     public ScriptDefinition? GetScript(ClaimsPrincipal user, string scriptId) =>
@@ -44,7 +52,12 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
 
     public IReadOnlyList<RunspaceProfile> RunspaceProfiles => catalog.RunspaceProfiles;
 
-    public StartRunResult StartScript(ClaimsPrincipal user, string scriptId, IReadOnlyDictionary<string, string?> input, string? clientIp)
+    public StartRunResult StartScript(
+        ClaimsPrincipal user,
+        string scriptId,
+        IReadOnlyDictionary<string, string?> input,
+        string? clientIp
+    )
     {
         ArgumentNullException.ThrowIfNull(user);
         var script = GetScript(user, scriptId);
@@ -60,7 +73,9 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
 
         if (script.EnableImpersonation)
         {
-            return StartRunResult.Fail("This script runs as the signed-in Windows user, which needs Windows sign-in (coming in a later release).");
+            return StartRunResult.Fail(
+                "This script runs as the signed-in Windows user, which needs Windows sign-in (coming in a later release)."
+            );
         }
 
         var validation = ParameterValidator.Validate(script.Parameters, input);
@@ -69,7 +84,12 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
             return new StartRunResult(null, "Some parameters need attention.", validation.Errors);
         }
 
-        var request = ScriptRunRequest.ForScript(script, catalog.ResolveScriptPath(script), validation.Values, catalog.FindRunspaceProfile(script.RunspaceProfile));
+        var request = ScriptRunRequest.ForScript(
+            script,
+            catalog.ResolveScriptPath(script),
+            validation.Values,
+            catalog.FindRunspaceProfile(script.RunspaceProfile)
+        );
         var run = runner.Start(WithUser(request, user, clientIp));
         return new StartRunResult(run, null, new Dictionary<string, string>());
     }
@@ -87,16 +107,18 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
             return StartRunResult.Fail("Enter some PowerShell to run.");
         }
 
-        var run = runner.Start(new ScriptRunRequest
-        {
-            ScriptId = TerminalScriptId,
-            ScriptName = "Terminal",
-            Code = code,
-            RunspaceProfile = catalog.FindRunspaceProfile(runspaceProfile),
-            UserName = user.DisplayName(),
-            UserId = user.UserId(),
-            ClientIp = clientIp,
-        });
+        var run = runner.Start(
+            new ScriptRunRequest
+            {
+                ScriptId = TerminalScriptId,
+                ScriptName = "Terminal",
+                Code = code,
+                RunspaceProfile = catalog.FindRunspaceProfile(runspaceProfile),
+                UserName = user.DisplayName(),
+                UserId = user.UserId(),
+                ClientIp = clientIp,
+            }
+        );
         return new StartRunResult(run, null, new Dictionary<string, string>());
     }
 
@@ -110,22 +132,24 @@ public sealed class ScriptService(IScriptCatalog catalog, ISpecOpsAuthorizer aut
     public ScriptRun? FindRun(ClaimsPrincipal user, Guid runId) =>
         runner.Find(runId) is { } run && CanView(user, run) ? run : null;
 
-    public IReadOnlyList<ScriptRun> GetVisibleRuns(ClaimsPrincipal user) => [.. runner.Runs.Where(r => CanView(user, r))];
+    public IReadOnlyList<ScriptRun> GetVisibleRuns(ClaimsPrincipal user) =>
+        [.. runner.Runs.Where(r => CanView(user, r))];
 
     public bool Cancel(ClaimsPrincipal user, Guid runId) => FindRun(user, runId) is not null && runner.Cancel(runId);
 
-    private static ScriptRunRequest WithUser(ScriptRunRequest request, ClaimsPrincipal user, string? clientIp) => new()
-    {
-        ScriptId = request.ScriptId,
-        ScriptName = request.ScriptName,
-        ScriptPath = request.ScriptPath,
-        Code = request.Code,
-        Parameters = request.Parameters,
-        SensitiveParameters = request.SensitiveParameters,
-        RunspaceProfile = request.RunspaceProfile,
-        Timeout = request.Timeout,
-        UserName = user.DisplayName(),
-        UserId = user.UserId(),
-        ClientIp = clientIp,
-    };
+    private static ScriptRunRequest WithUser(ScriptRunRequest request, ClaimsPrincipal user, string? clientIp) =>
+        new()
+        {
+            ScriptId = request.ScriptId,
+            ScriptName = request.ScriptName,
+            ScriptPath = request.ScriptPath,
+            Code = request.Code,
+            Parameters = request.Parameters,
+            SensitiveParameters = request.SensitiveParameters,
+            RunspaceProfile = request.RunspaceProfile,
+            Timeout = request.Timeout,
+            UserName = user.DisplayName(),
+            UserId = user.UserId(),
+            ClientIp = clientIp,
+        };
 }

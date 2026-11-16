@@ -6,12 +6,37 @@ namespace SpecOps.Tests.Core;
 
 public class SpecOpsAuthorizerTests
 {
-    private static readonly SpecOpsAuthorizer Authorizer = new(TestOptions.Create(o =>
-    {
-        o.Policies.Add(new PolicyDefinition { Name = "Admins", IsAdmin = true, Roles = ["Admin"], Categories = ["Admin"] });
-        o.Policies.Add(new PolicyDefinition { Name = "HelpDesk", Roles = ["HelpDesk"], Groups = ["helpdesk-group-id"], Categories = ["Users", "Testing"] });
-        o.Policies.Add(new PolicyDefinition { Name = "Everything", Roles = ["SuperUser"], Categories = ["*"] });
-    }));
+    private static readonly SpecOpsAuthorizer Authorizer = new(
+        TestOptions.Create(o =>
+        {
+            o.Policies.Add(
+                new PolicyDefinition
+                {
+                    Name = "Admins",
+                    IsAdmin = true,
+                    Roles = ["Admin"],
+                    Categories = ["Admin"],
+                }
+            );
+            o.Policies.Add(
+                new PolicyDefinition
+                {
+                    Name = "HelpDesk",
+                    Roles = ["HelpDesk"],
+                    Groups = ["helpdesk-group-id"],
+                    Categories = ["Users", "Testing"],
+                }
+            );
+            o.Policies.Add(
+                new PolicyDefinition
+                {
+                    Name = "Everything",
+                    Roles = ["SuperUser"],
+                    Categories = ["*"],
+                }
+            );
+        })
+    );
 
     private static ClaimsPrincipal User(string[]? roles = null, string[]? groups = null)
     {
@@ -57,8 +82,19 @@ public class SpecOpsAuthorizerTests
     [Fact]
     public void Configured_admin_policy_sets_admin_flag_for_its_group()
     {
-        var authorizer = new SpecOpsAuthorizer(TestOptions.Create(o =>
-            o.Policies.Add(new PolicyDefinition { Name = "Ops", IsAdmin = true, Groups = ["ops-admins"], Categories = ["Ops"] })));
+        var authorizer = new SpecOpsAuthorizer(
+            TestOptions.Create(o =>
+                o.Policies.Add(
+                    new PolicyDefinition
+                    {
+                        Name = "Ops",
+                        IsAdmin = true,
+                        Groups = ["ops-admins"],
+                        Categories = ["Ops"],
+                    }
+                )
+            )
+        );
 
         var access = authorizer.GetAccess(User(groups: ["ops-admins"]));
 

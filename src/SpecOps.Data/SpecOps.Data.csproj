@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <!-- EF Core DbContext, migrations and the ASP.NET Core Identity store. -->
 
   <ItemGroup>
@@ -10,5 +9,4 @@
   <ItemGroup>
     <ProjectReference Include="..\SpecOps.Core\SpecOps.Core.csproj" />
   </ItemGroup>
-
 </Project>

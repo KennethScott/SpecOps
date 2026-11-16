@@ -31,7 +31,13 @@ public class ParameterValidatorTests
     {
         var result = ParameterValidator.Validate(
             [new ScriptParameterDefinition { Name = "Name" }],
-            new Dictionary<string, string?> { ["Name"] = "x", ["SpecOpsCurrentUser"] = "spoofed", ["Other"] = "y" });
+            new Dictionary<string, string?>
+            {
+                ["Name"] = "x",
+                ["SpecOpsCurrentUser"] = "spoofed",
+                ["Other"] = "y",
+            }
+        );
 
         Assert.Equal(2, result.Errors.Count);
         Assert.Contains("SpecOpsCurrentUser", result.Errors.Keys);
@@ -75,7 +81,16 @@ public class ParameterValidatorTests
     [InlineData("NaN")]
     public void Numbers_outside_range_or_invalid_are_rejected(string value)
     {
-        var result = Validate(new() { Name = "N", Type = ParameterType.Range, Min = 1, Max = 10 }, value);
+        var result = Validate(
+            new()
+            {
+                Name = "N",
+                Type = ParameterType.Range,
+                Min = 1,
+                Max = 10,
+            },
+            value
+        );
 
         Assert.False(result.IsValid);
     }
@@ -105,7 +120,14 @@ public class ParameterValidatorTests
                 new ScriptParameterDefinition { Name = "C", Type = ParameterType.Checkbox },
                 new ScriptParameterDefinition { Name = "Unchecked", Type = ParameterType.Checkbox },
             ],
-            new Dictionary<string, string?> { ["D"] = "2026-11-15", ["T"] = "13:45", ["DT"] = "2026-11-15T13:45", ["C"] = "true" });
+            new Dictionary<string, string?>
+            {
+                ["D"] = "2026-11-15",
+                ["T"] = "13:45",
+                ["DT"] = "2026-11-15T13:45",
+                ["C"] = "true",
+            }
+        );
 
         Assert.True(result.IsValid);
         Assert.Equal(new DateTime(2026, 11, 15), result.Values["D"]);

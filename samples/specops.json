@@ -20,21 +20,19 @@
     "Policies": [
       {
         "Name": "Help desk",
-        "Roles": [ "HelpDesk" ],
-        "Groups": [ "00000000-0000-0000-0000-000000000000" ],
-        "Categories": [ "demo" ]
+        "Roles": ["HelpDesk"],
+        "Groups": ["00000000-0000-0000-0000-000000000000"],
+        "Categories": ["demo"]
       },
       {
         "Name": "Operators",
-        "Roles": [ "Operator" ],
-        "Categories": [ "*" ]
+        "Roles": ["Operator"],
+        "Categories": ["*"]
       }
     ],
 
     // Optional warm runspace pools. Scripts without a profile run in a fresh, isolated runspace.
-    "RunspaceProfiles": [
-      { "Name": "warm", "MinRunspaces": 1, "MaxRunspaces": 4, "Modules": [] }
-    ],
+    "RunspaceProfiles": [{ "Name": "warm", "MinRunspaces": 1, "MaxRunspaces": 4, "Modules": [] }],
 
     "Scripts": [
       {
@@ -44,7 +42,13 @@
         "Summary": "Every parameter type, all output streams, progress, formatted objects and cancellation.",
         "Path": "Demo.ps1",
         "Parameters": [
-          { "Name": "Message", "Type": "Text", "Required": true, "Placeholder": "Hello from SpecOps", "Description": "Printed once per step." },
+          {
+            "Name": "Message",
+            "Type": "Text",
+            "Required": true,
+            "Placeholder": "Hello from SpecOps",
+            "Description": "Printed once per step."
+          },
           { "Name": "Count", "Label": "Steps", "Type": "Range", "Min": 1, "Max": 10, "Step": 1, "Default": "3" },
           { "Name": "When", "Type": "Date" },
           { "Name": "At", "Type": "Time" },
@@ -58,8 +62,21 @@
             ]
           },
           { "Name": "Email", "Type": "Email", "Placeholder": "someone@example.com" },
-          { "Name": "IncludeErrors", "Label": "Include errors", "Type": "Checkbox", "Description": "Write a couple of non-terminating errors." },
-          { "Name": "DelaySeconds", "Label": "Delay (seconds)", "Type": "Number", "Min": 0, "Max": 120, "Default": "5", "Description": "Time to try the Cancel button." }
+          {
+            "Name": "IncludeErrors",
+            "Label": "Include errors",
+            "Type": "Checkbox",
+            "Description": "Write a couple of non-terminating errors."
+          },
+          {
+            "Name": "DelaySeconds",
+            "Label": "Delay (seconds)",
+            "Type": "Number",
+            "Min": 0,
+            "Max": 120,
+            "Default": "5",
+            "Description": "Time to try the Cancel button."
+          }
         ]
       },
       {
@@ -70,7 +87,14 @@
         "Path": "Demo.ps1",
         "RunspaceProfile": "warm",
         "Parameters": [
-          { "Name": "Message", "Type": "Text", "Required": true, "Default": "Warm start", "Pattern": "[A-Za-z ]{3,40}", "Description": "Letters and spaces, 3-40 characters." },
+          {
+            "Name": "Message",
+            "Type": "Text",
+            "Required": true,
+            "Default": "Warm start",
+            "Pattern": "[A-Za-z ]{3,40}",
+            "Description": "Letters and spaces, 3-40 characters."
+          },
           { "Name": "DelaySeconds", "Type": "Number", "Default": "1", "Min": 0, "Max": 30 }
         ]
       },
@@ -89,8 +113,19 @@
         "Path": "WindowsServices.ps1",
         "Platforms": "Windows",
         "Parameters": [
-          { "Name": "Status", "Type": "Select", "Default": "Running", "Options": [ { "Value": "Running" }, { "Value": "Stopped" } ] },
-          { "Name": "NameFilter", "Label": "Name filter", "Type": "Text", "Default": "*", "Suggestions": [ "*", "Win*", "*Update*" ] }
+          {
+            "Name": "Status",
+            "Type": "Select",
+            "Default": "Running",
+            "Options": [{ "Value": "Running" }, { "Value": "Stopped" }]
+          },
+          {
+            "Name": "NameFilter",
+            "Label": "Name filter",
+            "Type": "Text",
+            "Default": "*",
+            "Suggestions": ["*", "Win*", "*Update*"]
+          }
         ]
       }
     ]

@@ -7,7 +7,8 @@ namespace SpecOps.Core.Validation;
 
 public sealed record ParameterValidationResult(
     IReadOnlyDictionary<string, object> Values,
-    IReadOnlyDictionary<string, string> Errors)
+    IReadOnlyDictionary<string, string> Errors
+)
 {
     public bool IsValid => Errors.Count == 0;
 }
@@ -24,7 +25,8 @@ public static class ParameterValidator
 
     public static ParameterValidationResult Validate(
         IEnumerable<ScriptParameterDefinition> definitions,
-        IReadOnlyDictionary<string, string?> input)
+        IReadOnlyDictionary<string, string?> input
+    )
     {
         ArgumentNullException.ThrowIfNull(definitions);
         ArgumentNullException.ThrowIfNull(input);
@@ -33,7 +35,11 @@ public static class ParameterValidator
         var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         var errors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var key in input.Keys.Where(k => !defs.Exists(d => string.Equals(d.Name, k, StringComparison.OrdinalIgnoreCase))))
+        foreach (
+            var key in input.Keys.Where(k =>
+                !defs.Exists(d => string.Equals(d.Name, k, StringComparison.OrdinalIgnoreCase))
+            )
+        )
         {
             errors[key] = "Unknown parameter.";
         }
@@ -102,7 +108,10 @@ public static class ParameterValidator
 
             case ParameterType.Number:
             case ParameterType.Range:
-                if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number))
+                if (
+                    !double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+                    || !double.IsFinite(number)
+                )
                 {
                     return (null, "Enter a number.");
                 }
@@ -122,7 +131,13 @@ public static class ParameterValidator
                     : (number, null);
 
             case ParameterType.Date:
-                return DateOnly.TryParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                return DateOnly.TryParseExact(
+                    raw,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var date
+                )
                     ? (date.ToDateTime(TimeOnly.MinValue), null)
                     : (null, "Enter a valid date.");
 
@@ -142,7 +157,9 @@ public static class ParameterValidator
                     return (flag, null);
                 }
 
-                return string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase) ? (true, null) : (null, "Must be true or false.");
+                return string.Equals(raw, "on", StringComparison.OrdinalIgnoreCase)
+                    ? (true, null)
+                    : (null, "Must be true or false.");
 
             default:
                 return (null, $"Unsupported parameter type '{def.Type}'.");

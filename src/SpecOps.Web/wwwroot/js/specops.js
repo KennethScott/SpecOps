@@ -2,7 +2,9 @@
 window.specops = {
   applyTheme() {
     let theme = null;
-    try { theme = localStorage.getItem('specops-theme'); } catch { }
+    try {
+      theme = localStorage.getItem('specops-theme');
+    } catch {}
     const dark = theme === 'dark' || (!theme && matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
     window.dispatchEvent(new CustomEvent('specops-theme', { detail: { dark } }));
@@ -10,7 +12,9 @@ window.specops = {
 
   toggleTheme() {
     const dark = !document.documentElement.classList.contains('dark');
-    try { localStorage.setItem('specops-theme', dark ? 'dark' : 'light'); } catch { }
+    try {
+      localStorage.setItem('specops-theme', dark ? 'dark' : 'light');
+    } catch {}
     specops.applyTheme();
   },
 
@@ -45,7 +49,7 @@ window.specops = {
 
   // Monaco's editor.main.js finishes loading asynchronously; wait for it before creating editors.
   whenMonacoReady(timeoutMs = 20000) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const started = Date.now();
       (function check() {
         if (window.monaco?.editor) return resolve(true);
@@ -56,8 +60,18 @@ window.specops = {
   },
 
   storage: {
-    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
-    set(key, value) { try { localStorage.setItem(key, value); } catch { } },
+    get(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    set(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch {}
+    },
   },
 };
 

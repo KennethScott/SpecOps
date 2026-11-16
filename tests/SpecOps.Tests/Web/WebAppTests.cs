@@ -35,7 +35,8 @@ public sealed partial class SpecOpsWebFactory : WebApplicationFactory<Program>
     }
 
     public static string? AntiforgeryToken(string html) =>
-        AntiforgeryInputRegex().Match(html) is { Success: true } input && ValueRegex().Match(input.Value) is { Success: true } value
+        AntiforgeryInputRegex().Match(html) is { Success: true } input
+        && ValueRegex().Match(input.Value) is { Success: true } value
             ? WebUtility.HtmlDecode(value.Groups[1].Value)
             : null;
 
@@ -48,7 +49,8 @@ public sealed partial class SpecOpsWebFactory : WebApplicationFactory<Program>
 
 public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecOpsWebFactory>
 {
-    private HttpClient Client() => factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+    private HttpClient Client() =>
+        factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     [Fact]
     public async Task Health_endpoint_is_public()
@@ -68,7 +70,11 @@ public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecO
         var response = await Client().GetAsync(path, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.StartsWith("http://localhost/account/login", response.Headers.Location?.ToString(), StringComparison.Ordinal);
+        Assert.StartsWith(
+            "http://localhost/account/login",
+            response.Headers.Location?.ToString(),
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -82,18 +88,26 @@ public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecO
     [Fact]
     public async Task Dev_sign_in_gives_access_to_scripts_and_admin_pages()
     {
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true }
+        );
         var ct = TestContext.Current.CancellationToken;
 
         var loginPage = await client.GetStringAsync("/account/login", ct);
         var token = SpecOpsWebFactory.AntiforgeryToken(loginPage);
         Assert.NotNull(token);
 
-        var login = await client.PostAsync("/account/dev-login", new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["__RequestVerificationToken"] = token,
-            ["returnUrl"] = "/admin/users",
-        }), ct);
+        var login = await client.PostAsync(
+            "/account/dev-login",
+            new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["__RequestVerificationToken"] = token,
+                    ["returnUrl"] = "/admin/users",
+                }
+            ),
+            ct
+        );
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
         Assert.Equal("/admin/users", login.Headers.Location?.ToString());
 
@@ -108,7 +122,8 @@ public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecO
     [Fact]
     public async Task Dev_login_rejects_requests_without_antiforgery_token()
     {
-        var response = await Client().PostAsync("/account/dev-login", new FormUrlEncodedContent([]), TestContext.Current.CancellationToken);
+        var response = await Client()
+            .PostAsync("/account/dev-login", new FormUrlEncodedContent([]), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

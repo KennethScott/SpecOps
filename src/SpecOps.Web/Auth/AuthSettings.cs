@@ -15,7 +15,8 @@ public sealed class AuthSettings
     public bool DevSignIn { get; set; }
 
     /// <summary>External sign-in providers keyed by scheme name (e.g. "Microsoft", "Google", "Keycloak"). Providers without a ClientId are ignored.</summary>
-    public IDictionary<string, ExternalProviderSettings> Providers { get; init; } = new Dictionary<string, ExternalProviderSettings>(StringComparer.OrdinalIgnoreCase);
+    public IDictionary<string, ExternalProviderSettings> Providers { get; init; } =
+        new Dictionary<string, ExternalProviderSettings>(StringComparer.OrdinalIgnoreCase);
 }
 
 public enum ExternalProviderType
