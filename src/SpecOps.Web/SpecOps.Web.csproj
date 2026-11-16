@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BlazorMonaco" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
@@ -28,28 +27,51 @@
   </ItemGroup>
 
   <!--
-    Tailwind CSS: Styles/app.css -> wwwroot/css/app.css (generated, not committed).
-    Needs Node.js; `npm ci` runs automatically the first time. Use `npm run watch:css` while editing markup.
-    Pass -p:SkipTailwind=true to skip (e.g. when the CSS was built in an earlier step).
+    Client assets (generated, not committed). Needs Node.js 22+.
+      - Tailwind CSS: Styles/app.css -> wwwroot/css/app.css (use `npm run watch:css` while editing markup)
+      - Code editor:  Client/editor -> wwwroot/lib/editor (Monaco, bundled by esbuild; Terminal page only)
+    npm ci reruns whenever package-lock.json changes. Pass -p:SkipClientBuild=true to skip all of this.
   -->
   <ItemGroup>
-    <TailwindInputs Include="Styles/**/*.css;Components/**/*.razor;package.json" />
+    <TailwindInputs Include="Styles/**/*.css;Components/**/*.razor;package-lock.json" />
+    <EditorInputs Include="Client/**/*.js;Client/**/*.mjs;package-lock.json" />
   </ItemGroup>
 
   <Target
+    Name="NpmInstall"
+    Condition="'$(SkipClientBuild)' != 'true'"
+    Inputs="package-lock.json"
+    Outputs="node_modules/.package-lock.json"
+  >
+    <Exec Command="npm ci --no-audit --no-fund" />
+  </Target>
+
+  <Target
     Name="BuildTailwindCss"
+    DependsOnTargets="NpmInstall"
     BeforeTargets="BeforeBuild"
-    Condition="'$(SkipTailwind)' != 'true'"
+    Condition="'$(SkipClientBuild)' != 'true'"
     Inputs="@(TailwindInputs)"
     Outputs="wwwroot/css/app.css"
   >
-    <Exec Command="npm ci --no-audit --no-fund" Condition="!Exists('node_modules/@tailwindcss/cli')" />
     <Exec Command="npm run build:css" />
   </Target>
 
-  <Target Name="IncludeTailwindOutput" AfterTargets="BuildTailwindCss" BeforeTargets="BeforeBuild">
+  <Target
+    Name="BuildEditor"
+    DependsOnTargets="NpmInstall"
+    BeforeTargets="BeforeBuild"
+    Condition="'$(SkipClientBuild)' != 'true'"
+    Inputs="@(EditorInputs)"
+    Outputs="wwwroot/lib/editor/specops-editor.js"
+  >
+    <Exec Command="npm run build:editor" />
+  </Target>
+
+  <!-- Files created during the build aren't in the evaluation-time wwwroot glob; add them so they're served/published. -->
+  <Target Name="IncludeClientOutputs" AfterTargets="BuildTailwindCss;BuildEditor" BeforeTargets="BeforeBuild">
     <ItemGroup>
-      <Content Include="wwwroot/css/app.css" Exclude="@(Content)" />
+      <Content Include="wwwroot/css/app.css;wwwroot/lib/editor/**/*" Exclude="@(Content)" />
     </ItemGroup>
   </Target>
 </Project>

@@ -240,6 +240,7 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
                 .AddParameter("__SpecOpsScript", request.ScriptPath ?? request.Code)
                 .AddParameter("__SpecOpsIsFile", request.ScriptPath is not null)
                 .AddParameter("__SpecOpsParameters", parameters)
+                .AddParameter("__SpecOpsResults", new ResultCapture(run, RunnerOptions.MaxResultRows))
                 .AddCommand("Out-String")
                 .AddParameter("Stream")
                 .AddParameter("Width", RunnerOptions.OutputWidth);
@@ -296,13 +297,15 @@ public sealed partial class ScriptRunner : IScriptRunner, IDisposable
 
     /// <summary>
     /// Runs the user's script (a file, so $PSScriptRoot works, or inline code) with splatted parameters,
-    /// after exposing the run context as $SpecOps. Terminating errors propagate and fail the run.
+    /// after exposing the run context as $SpecOps. Every emitted object is handed to the result collector and then
+    /// passed on unchanged, so the console text is exactly what it would be otherwise. Terminating errors propagate
+    /// and fail the run.
     /// </summary>
     private const string WrapperScript = """
-        param($__SpecOpsContext, [string]$__SpecOpsScript, [bool]$__SpecOpsIsFile, [hashtable]$__SpecOpsParameters)
+        param($__SpecOpsContext, [string]$__SpecOpsScript, [bool]$__SpecOpsIsFile, [hashtable]$__SpecOpsParameters, $__SpecOpsResults)
         Set-Variable -Name SpecOps -Value $__SpecOpsContext -Scope Global -Force
-        if ($__SpecOpsIsFile) { & $__SpecOpsScript @__SpecOpsParameters }
-        else { & ([scriptblock]::Create($__SpecOpsScript)) @__SpecOpsParameters }
+        $__SpecOpsCommand = if ($__SpecOpsIsFile) { $__SpecOpsScript } else { [scriptblock]::Create($__SpecOpsScript) }
+        & $__SpecOpsCommand @__SpecOpsParameters | ForEach-Object { $__SpecOpsResults.Add($_); $_ }
         """;
 
     private static RunStatus CancelledStatus(CancellationTokenSource timeoutCts, ScriptRun run, TimeSpan timeout)

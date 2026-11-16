@@ -162,6 +162,42 @@ public sealed class ComponentTests : IDisposable
         Assert.DoesNotContain("note", exported, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Results_view_sorts_filters_and_exports_csv()
+    {
+        _context.JSInterop.Mode = JSRuntimeMode.Loose;
+        var download = _context.JSInterop.SetupVoid("specops.downloadText", _ => true).SetVoidResult();
+        using var runner = new ScriptRunner(TestOptions.Create(), NullLogger<ScriptRunner>.Instance);
+        var run = runner.Start(
+            new ScriptRunRequest
+            {
+                ScriptId = "t",
+                ScriptName = "T",
+                Code = "@(9, 10, 2) | ForEach-Object { [pscustomobject]@{ Name = \"item, $_\"; Size = $_ } }",
+                UserName = "tester",
+            }
+        );
+        await foreach (var _ in run.WatchAsync(Xunit.TestContext.Current.CancellationToken)) { }
+
+        var cut = _context.Render<ResultsView>(p => p.Add(x => x.Run, run));
+
+        Assert.Equal(["Name", "Size"], cut.FindAll("th").Select(h => h.TextContent.Trim()));
+        string[] SizeColumn() => [.. cut.FindAll("tbody tr").Select(r => r.QuerySelectorAll("td")[1].TextContent)];
+
+        // Numeric sort, not text sort (2 < 9 < 10).
+        cut.FindAll("th")[1].Click();
+        Assert.Equal(["2", "9", "10"], SizeColumn());
+        cut.FindAll("th")[1].Click();
+        Assert.Equal(["10", "9", "2"], SizeColumn());
+
+        cut.Find("input[type=search]").Input("item, 9");
+        Assert.Equal(["9"], SizeColumn());
+
+        cut.FindAll("button").Single(b => b.TextContent == "CSV").Click();
+        var csv = (string)download.Invocations.Single().Arguments[1]!;
+        Assert.Equal("Name,Size\n\"item, 9\",9\n", csv.ReplaceLineEndings("\n"));
+    }
+
     private static string Chips(IRenderedComponent<OutputConsole> cut) =>
         string.Join(
                 " | ",

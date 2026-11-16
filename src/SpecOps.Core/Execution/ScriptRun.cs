@@ -50,6 +50,7 @@ public sealed class ScriptRun
 {
     private readonly Lock _lock = new();
     private readonly List<OutputRecord> _records = [];
+    private readonly List<ResultRow> _results = [];
     private readonly List<Channel<OutputRecord>> _watchers = [];
     private readonly int _maxRecords;
     private readonly TimeProvider _time;
@@ -96,17 +97,50 @@ public sealed class ScriptRun
 
     public int ErrorCount { get; private set; }
 
-    /// <summary>Output records held for this run (used for the memory budget).</summary>
+    /// <summary>Output records plus result rows held for this run (used for the memory budget).</summary>
     public int RecordCount
     {
         get
         {
             lock (_lock)
             {
-                return _records.Count;
+                return _records.Count + _results.Count;
             }
         }
     }
+
+    /// <summary>Objects the script emitted (as rows), for the Results view and CSV/JSON export.</summary>
+    public int ResultCount
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _results.Count;
+            }
+        }
+    }
+
+    /// <summary>True when the script emitted more objects than are kept (Runner.MaxResultRows).</summary>
+    public bool ResultsTruncated { get; private set; }
+
+    public IReadOnlyList<ResultRow> Results()
+    {
+        lock (_lock)
+        {
+            return [.. _results];
+        }
+    }
+
+    internal void AddResult(ResultRow row)
+    {
+        lock (_lock)
+        {
+            _results.Add(row);
+        }
+    }
+
+    internal void MarkResultsTruncated() => ResultsTruncated = true;
 
     public int WarningCount { get; private set; }
 

@@ -7,13 +7,16 @@
     "watch:css": "tailwindcss -i ./Styles/app.css -o ./wwwroot/css/app.css --watch",
     "format": "prettier --write ../.. --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
     "format:check": "prettier --check ../.. --ignore-path ../../.gitignore --ignore-path ../../.prettierignore",
-    "lint": "eslint"
+    "lint": "eslint",
+    "build:editor": "node Client/build-editor.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@tailwindcss/cli": "4.3.5",
+    "esbuild": "0.28.2",
     "eslint": "10.15.0",
     "globals": "17.14.0",
+    "monaco-editor": "0.57.0",
     "prettier": "3.10.1",
     "tailwindcss": "4.3.5"
   }

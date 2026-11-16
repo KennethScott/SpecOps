@@ -43,6 +43,7 @@ public sealed partial class SpecOpsOptionsValidator : IValidateOptions<SpecOpsOp
         AtLeast(nameof(runner.MaxRetainedRuns), runner.MaxRetainedRuns, 10);
         AtLeast(nameof(runner.MaxRetainedOutputRecords), runner.MaxRetainedOutputRecords, runner.MaxOutputRecords);
         AtLeast(nameof(runner.MaxOutputRecords), runner.MaxOutputRecords, 100);
+        AtLeast(nameof(runner.MaxResultRows), runner.MaxResultRows, 0);
 
         if (runner.OutputWidth is < 40 or > 2000)
         {
