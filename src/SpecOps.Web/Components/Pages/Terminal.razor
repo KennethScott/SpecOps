@@ -1,0 +1,150 @@
+@page "/terminal"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using BlazorMonaco
+@using BlazorMonaco.Editor
+@inject ScriptService Scripts
+@inject IJSRuntime JS
+
+<PageTitle>Terminal · SpecOps</PageTitle>
+
+<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Terminal</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            Run ad-hoc PowerShell on the server. <kbd class="rounded border border-slate-300 px-1 text-xs dark:border-slate-700">Ctrl</kbd>+<kbd class="rounded border border-slate-300 px-1 text-xs dark:border-slate-700">Enter</kbd> runs it.
+            Each run starts in a fresh runspace unless you pick a profile.
+        </p>
+    </div>
+    <div class="flex items-center gap-2">
+        <select class="input w-48" @bind="_profile" aria-label="Runspace profile" disabled="@IsRunning">
+            <option value="">Isolated runspace</option>
+            @foreach (var profile in Scripts.RunspaceProfiles)
+            {
+                <option value="@profile.Name">Profile: @profile.Name</option>
+            }
+        </select>
+        <button type="button" class="btn-primary" @onclick="RunAsync" disabled="@IsRunning">
+            <Icon Name="play" /> @(IsRunning ? "Running…" : "Run")
+        </button>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <p class="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">@_error</p>
+}
+
+<div class="grid gap-4 xl:grid-cols-2">
+    <div class="overflow-hidden rounded-xl border border-slate-800 bg-[#1e1e1e] shadow-sm">
+        @if (_editorState == EditorState.Ready)
+        {
+            <StandaloneCodeEditor @ref="_editor" Id="specops-terminal" CssClass="h-[36rem]" ConstructionOptions="EditorOptions" OnDidInit="OnEditorInitAsync" />
+        }
+        else
+        {
+            <div class="flex h-[36rem] items-center justify-center text-sm text-slate-400">
+                @(_editorState == EditorState.Failed ? "The code editor couldn't load. Reload the page to try again." : "Loading editor…")
+            </div>
+        }
+    </div>
+    <OutputConsole Run="_run" OnCancel="Cancel" RunFinished="() => { }" HeightClass="h-[33.5rem]" EmptyText="Write some PowerShell and press Run." />
+</div>
+
+@code {
+    private const string StorageKey = "specops-terminal-code";
+
+    private const string Starter = """
+        # Ad-hoc PowerShell. Output, errors, warnings, verbose and progress all stream live.
+        $PSVersionTable.PSVersion
+        Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 Name, Id, CPU
+        """;
+
+    private enum EditorState { Loading, Ready, Failed }
+
+    private StandaloneCodeEditor? _editor;
+    private EditorState _editorState = EditorState.Loading;
+    private ScriptRun? _run;
+    private string _profile = "";
+    private string? _error;
+    private ClaimsPrincipal _user = new();
+
+    [CascadingParameter(Name = "ClientIp")]
+    private string? ClientIp { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private bool IsRunning => _run is { IsFinished: false };
+
+    protected override async Task OnInitializedAsync() => _user = (await AuthState).User;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _editorState = await JS.TryInvokeAsync<bool>("specops.whenMonacoReady") ? EditorState.Ready : EditorState.Failed;
+            StateHasChanged();
+        }
+    }
+
+    private StandaloneEditorConstructionOptions EditorOptions(StandaloneCodeEditor editor) => new()
+    {
+        Language = "powershell",
+        Theme = "vs-dark",
+        AutomaticLayout = true,
+        FontSize = 13,
+        Minimap = new EditorMinimapOptions { Enabled = false },
+        ScrollBeyondLastLine = false,
+        Value = Starter,
+    };
+
+    private async Task OnEditorInitAsync()
+    {
+        if (_editor is null)
+        {
+            return;
+        }
+
+        // Restore what was in the editor last time (kept in this browser only).
+        if (await JS.TryInvokeAsync<string?>("specops.storage.get", StorageKey) is { Length: > 0 } saved)
+        {
+            await _editor.SetValue(saved);
+        }
+
+        await _editor.AddCommand((int)KeyMod.CtrlCmd | (int)KeyCode.Enter, args => { _ = InvokeAsync(RunFromShortcutAsync); });
+    }
+
+    // The editor shortcut isn't a Blazor UI event, so it has to ask for a re-render itself.
+    private async Task RunFromShortcutAsync()
+    {
+        await RunAsync();
+        StateHasChanged();
+    }
+
+    private async Task RunAsync()
+    {
+        if (_editor is null || IsRunning)
+        {
+            return;
+        }
+
+        var code = await _editor.GetValue();
+        await JS.TryInvokeVoidAsync("specops.storage.set", StorageKey, code);
+
+        var result = Scripts.StartCode(_user, code, _profile, ClientIp);
+        _error = result.Error;
+        if (result.Run is not null)
+        {
+            _run = result.Run;
+        }
+
+    }
+
+    private void Cancel()
+    {
+        if (_run is not null)
+        {
+            Scripts.Cancel(_user, _run.Id);
+        }
+    }
+}

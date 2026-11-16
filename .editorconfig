@@ -47,3 +47,7 @@ dotnet_naming_style.underscore_camel.required_prefix = _
 # Tests: allow underscores in test method names
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# EF Core migrations are generated code
+[src/SpecOps.Data/Migrations/**.cs]
+generated_code = true

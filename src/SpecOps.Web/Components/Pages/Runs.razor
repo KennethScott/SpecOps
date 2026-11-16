@@ -1,0 +1,73 @@
+@page "/runs"
+@implements IDisposable
+@inject ScriptService Scripts
+
+<PageTitle>Runs · SpecOps</PageTitle>
+
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Runs</h1>
+    <p class="text-sm text-slate-500 dark:text-slate-400">
+        Active and recent runs@(_isAdmin ? " for everyone" : ""). Permanent run history is coming in the next release.
+    </p>
+</div>
+
+@if (_runs.Count == 0)
+{
+    <EmptyState Title="No recent runs" Icon="clock">Runs you start will show up here.</EmptyState>
+}
+else
+{
+    <div class="card overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                <tr>
+                    <th class="px-4 py-3 font-medium">Script</th>
+                    @if (_isAdmin)
+                    {
+                        <th class="px-4 py-3 font-medium">User</th>
+                    }
+                    <th class="px-4 py-3 font-medium">Started</th>
+                    <th class="px-4 py-3 font-medium">Duration</th>
+                    <th class="px-4 py-3 font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                @foreach (var run in _runs)
+                {
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td class="px-4 py-3"><a href="runs/@run.Id" class="font-medium hover:text-brand-700 dark:hover:text-brand-500">@run.ScriptName</a></td>
+                        @if (_isAdmin)
+                        {
+                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400">@run.UserName</td>
+                        }
+                        <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@run.QueuedAt.ToLocalTime().ToString("g")</td>
+                        <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@run.Duration?.ToString(@"h\:mm\:ss")</td>
+                        <td class="px-4 py-3"><RunStatusBadge Status="run.Status" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<ScriptRun> _runs = [];
+    private bool _isAdmin;
+    private ClaimsPrincipal _user = new();
+    private Timer? _refresh;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = (await AuthState).User;
+        _isAdmin = Scripts.GetAccess(_user).IsAdmin;
+        Load();
+        _refresh = new Timer(_ => InvokeAsync(() => { Load(); StateHasChanged(); }), null, 2000, 2000);
+    }
+
+    private void Load() => _runs = Scripts.GetVisibleRuns(_user);
+
+    public void Dispose() => _refresh?.Dispose();
+}

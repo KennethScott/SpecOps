@@ -6,11 +6,15 @@
 
 > **🚧 v2 in progress (`v2` branch).** SpecOps is being rebuilt on .NET 11 + Blazor + Tailwind: cross-platform (Linux/Docker and Windows), sign-in via Entra ID / Google / OIDC, with run history in a database. See [docs/MODERNIZATION_PLAN.md](docs/MODERNIZATION_PLAN.md). The v1 app (described below) is preserved at tag `v1-final`.
 >
+> **Try it:** needs the .NET 11 SDK and Node.js 22+ (for the Tailwind build).
+>
 > ```bash
-> dotnet build SpecOps.slnx
-> dotnet test
-> dotnet run --project src/SpecOps.Web
+> dotnet run --project src/SpecOps.Web --launch-profile http
 > ```
+>
+> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). Scripts come from [samples/specops.json](samples/specops.json) and [samples/scripts](samples/scripts). Tests: `dotnet test`. Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
+>
+> Sign-in providers (Entra ID, Google, any OIDC) are configured under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json); put secrets in user-secrets or environment variables.
 
 SpecOps is a .NET7 web application that allows you to centralize and host your **PowerShell 7** scripts for execution by anyone, particularly non-technical staff.  The application is written with PowerShell in mind, but could easily be extended to allow other types.  The application is intended to be used in a Windows-based Intranet environment.
 

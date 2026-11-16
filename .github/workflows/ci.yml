@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master, v2]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # SpecOps is cross-platform: every change is built and tested on Linux and Windows.
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/SpecOps.Web/package-lock.json
+
+      - name: Restore
+        run: dotnet restore SpecOps.slnx
+
+      - name: Build
+        run: dotnet build SpecOps.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --solution SpecOps.slnx --no-build --configuration Release

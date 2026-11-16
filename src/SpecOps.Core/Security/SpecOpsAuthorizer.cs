@@ -57,12 +57,22 @@ public sealed class SpecOpsAuthorizer(IOptionsMonitor<SpecOpsOptions> options) :
 
     public const string AllCategoriesWildcard = "*";
 
+    /// <summary>Built-in app role: full admin and every category, regardless of configured policies.</summary>
+    public const string AdminRole = "Admin";
+
+    private static readonly UserAccess BuiltInAdmin = new(true, true, FrozenSet<string>.Empty, ["Admin (built-in role)"]);
+
     public UserAccess GetAccess(ClaimsPrincipal user)
     {
         ArgumentNullException.ThrowIfNull(user);
         if (user.Identity?.IsAuthenticated != true)
         {
             return UserAccess.None;
+        }
+
+        if (user.IsInRole(AdminRole))
+        {
+            return BuiltInAdmin;
         }
 
         var groups = user.FindAll(GroupClaimType).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);

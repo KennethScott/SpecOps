@@ -87,7 +87,7 @@ SpecOps.slnx
 | Runtime | .NET 11 | `dotnet new blazor --interactivity Server`; SDK pinned in `global.json` |
 | PowerShell | Microsoft.PowerShell.SDK 7.7.x | Targets net11.0 |
 | Dependencies | Latest stable everywhere | Central versions in `Directory.Packages.props`; Dependabot weekly PRs for NuGet, the SDK and GitHub Actions |
-| UI | Blazor components + **Tailwind CSS v4** (standalone CLI, no Node needed) | Bootstrap 5 is the zero-build alternative if you'd rather skip a CSS build step. For a small app either works; Tailwind gives you the "modern" look more easily. |
+| UI | Blazor components + **Tailwind CSS v4** (npm `@tailwindcss/cli`, built by MSBuild; Node needed at build time only) | Bootstrap 5 is the zero-build alternative if you'd rather skip a CSS build step. For a small app either works; Tailwind gives you the "modern" look more easily. |
 | Icons | Lucide or Heroicons (inline SVG) | Replaces Font Awesome |
 | Code editor (Terminal) | Monaco editor via a small JS interop (or `BlazorMonaco`) | PowerShell syntax highlighting built in; replaces jQuery Terminal + Prism |
 | Data | EF Core 11 + SQLite (swappable to SQL Server/Postgres) | |
@@ -266,10 +266,19 @@ Each phase ends with something working and committable.
 - Execution engine (section 5), with real cancel, pool cache, server-side validation, and output rendered as text (fixes XSS by construction).
 - Script runner page with deep links, and the Terminal page with Monaco.
 - Serilog, health check, xUnit tests for the runner, validation and authz.
-- **Milestone:** every scenario in `Demo.ps1` works on both Linux (`dotnet run` / container) and Windows; bugs #1–#11 are closed. Impersonation works when signed in with Windows auth on Windows.
+- **Milestone:** every scenario in `Demo.ps1` works on both Linux (`dotnet run` / container) and Windows; bugs #1–#11 are closed.
+
+**Status: ✅ done on `v2`** (verified on Windows; Linux runs in CI). What changed from the plan along the way:
+- Tailwind comes from npm (`@tailwindcss/cli`, built automatically by an MSBuild target) instead of the standalone binary, so Dependabot keeps it current. Node is a build-time requirement only.
+- Built-in context arrives as a `$SpecOps` variable (`$SpecOps.User`, `.ClientIp`, `.RunId`, `.ScriptId`) instead of injected `SpecOpsCurrentUser*` parameters, so scripts can use strict `[CmdletBinding()]` param blocks.
+- Script files are invoked as files (`$PSScriptRoot` works); a PowerShell quirk (multi-statement pipelines hang on runspace pools) shaped the runner's single-pipeline design.
+- The built-in **Admin** role always means full admin, even with no policies configured.
+- Impersonation moves to Phase 2 with the Windows sign-in provider it depends on; scripts flagged `EnableImpersonation` are refused with a clear message until then.
+- Runs live in memory (4h retention) until Phase 2 adds the database history.
 
 ### Phase 2 — History & credentials (≈ 1 weekend)
-- Run history, run page, re-run, favorites, retention job.
+- Run history (persist `ScriptRun` + output to the DB), re-run with the same parameters, favorites, retention job.
+- Impersonation (Windows host + Windows sign-in).
 - Credential vault + `$SpecOpsCredentials` injection.
 - Optional Windows/Negotiate provider wired into Identity.
 

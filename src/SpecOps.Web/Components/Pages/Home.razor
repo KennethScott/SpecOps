@@ -1,7 +1,93 @@
 ﻿@page "/"
+@inject ScriptService Scripts
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Scripts · SpecOps</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Scripts</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Pick a script, fill in the parameters, and watch it run.</p>
+    </div>
+    @if (_categories.Count > 0)
+    {
+        <div class="relative w-full sm:w-72">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon Name="search" /></span>
+            <input type="search" class="input pl-9" placeholder="Search scripts…" @bind="_search" @bind:event="oninput" aria-label="Search scripts" />
+        </div>
+    }
+</div>
 
-Welcome to your new app.
+@if (_categories.Count == 0)
+{
+    <EmptyState Title="No scripts available to you yet" Icon="lock">
+        Your account is active, but no policy gives you access to any script categories.
+        Ask a SpecOps administrator to assign you a role.
+    </EmptyState>
+}
+else if (Filtered.Count == 0)
+{
+    <EmptyState Title="No matches" Icon="search">No scripts match “@_search”.</EmptyState>
+}
+else
+{
+    <div class="grid gap-8">
+        @foreach (var group in Filtered)
+        {
+            <section>
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">@group.Category.DisplayName</h2>
+                    @if (!string.IsNullOrEmpty(group.Category.Description))
+                    {
+                        <p class="text-sm text-slate-500 dark:text-slate-400">@group.Category.Description</p>
+                    }
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach (var script in group.Scripts)
+                    {
+                        <a href="scripts/@script.Id"
+                           class="card group flex flex-col gap-2 p-4 transition hover:border-brand-500 hover:shadow-md @(script.IsSupportedOnHost ? "" : "opacity-60")">
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="font-medium group-hover:text-brand-700 dark:group-hover:text-brand-500">@script.Name</span>
+                                <Icon Name="file-code" Class="size-4 shrink-0 text-slate-400" />
+                            </div>
+                            @if (!string.IsNullOrEmpty(script.Summary))
+                            {
+                                <p class="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">@script.Summary</p>
+                            }
+                            @if (!script.IsSupportedOnHost)
+                            {
+                                <span class="badge mt-auto w-fit bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                    <Icon Name="monitor" Class="size-3" /> @script.Platforms only
+                                </span>
+                            }
+                        </a>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CategoryScripts> _categories = [];
+    private string _search = "";
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync() =>
+        _categories = Scripts.GetVisibleScripts((await AuthState).User);
+
+    private List<CategoryScripts> Filtered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? [.. _categories]
+            : [.. _categories
+                .Select(c => c with
+                {
+                    Scripts = [.. c.Scripts.Where(s =>
+                        s.Name.Contains(_search, StringComparison.CurrentCultureIgnoreCase)
+                        || (s.Summary?.Contains(_search, StringComparison.CurrentCultureIgnoreCase) ?? false)
+                        || c.Category.DisplayName.Contains(_search, StringComparison.CurrentCultureIgnoreCase))],
+                })
+                .Where(c => c.Scripts.Count > 0)];
+}

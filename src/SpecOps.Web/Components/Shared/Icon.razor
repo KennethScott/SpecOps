@@ -1,0 +1,75 @@
+@* Lucide icons (ISC license, https://lucide.dev), inlined. *@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round" class="@Class" aria-hidden="true">
+    @switch (Name)
+    {
+        case "play":
+            <polygon points="6 3 20 12 6 21 6 3" />
+            break;
+        case "square":
+            <rect width="14" height="14" x="5" y="5" rx="2" />
+            break;
+        case "terminal":
+            <polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" />
+            break;
+        case "search":
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            break;
+        case "sun":
+            <circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+            break;
+        case "moon":
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            break;
+        case "log-out":
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
+            break;
+        case "copy":
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            break;
+        case "download":
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
+            break;
+        case "file-code":
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><path d="m10 13-2 2 2 2" /><path d="m14 17 2-2-2-2" />
+            break;
+        case "clock":
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            break;
+        case "lock":
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            break;
+        case "check":
+            <path d="M20 6 9 17l-5-5" />
+            break;
+        case "x":
+            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            break;
+        case "arrow-down":
+            <path d="M12 5v14" /><path d="m19 12-7 7-7-7" />
+            break;
+        case "trash":
+            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            break;
+        case "chevron-left":
+            <path d="m15 18-6-6 6-6" />
+            break;
+        case "monitor":
+            <rect width="20" height="14" x="2" y="3" rx="2" /><line x1="8" x2="16" y1="21" y2="21" /><line x1="12" x2="12" y1="17" y2="21" />
+            break;
+        case "hourglass":
+            <path d="M5 22h14" /><path d="M5 2h14" /><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" /><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+            break;
+        default:
+            <circle cx="12" cy="12" r="10" />
+            break;
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Name { get; set; } = "";
+
+    [Parameter]
+    public string Class { get; set; } = "size-4";
+}

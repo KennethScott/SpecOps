@@ -1,0 +1,122 @@
+@using System.Globalization
+
+<div class="grid content-start gap-1.5">
+    @if (Definition.Type != ParameterType.Checkbox)
+    {
+        <label for="@InputId" class="text-sm font-medium">
+            @Definition.DisplayLabel
+            @if (Definition.Required)
+            {
+                <span class="text-rose-600" title="Required">*</span>
+            }
+        </label>
+    }
+
+    @switch (Definition.Type)
+    {
+        case ParameterType.Select:
+            <select id="@InputId" class="input @InvalidCss" value="@Value" @onchange="OnChange" required="@Definition.Required" disabled="@Disabled">
+                <option value="">Select…</option>
+                @foreach (var option in Definition.Options)
+                {
+                    <option value="@option.Value">@option.DisplayLabel</option>
+                }
+            </select>
+            break;
+
+        case ParameterType.TextArea:
+            <textarea id="@InputId" rows="4" class="input font-mono @InvalidCss" value="@Value" @onchange="OnChange"
+                      placeholder="@Definition.Placeholder" required="@Definition.Required" disabled="@Disabled"></textarea>
+            break;
+
+        case ParameterType.Checkbox:
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <input id="@InputId" type="checkbox" class="mt-0.5 size-4 accent-brand-600" checked="@IsChecked" @onchange="OnCheckedChange" disabled="@Disabled" />
+                <span class="grid gap-0.5">
+                    <span class="text-sm font-medium">@Definition.DisplayLabel</span>
+                    @if (!string.IsNullOrEmpty(Definition.Description))
+                    {
+                        <span class="text-xs text-slate-500 dark:text-slate-400">@Definition.Description</span>
+                    }
+                </span>
+            </label>
+            break;
+
+        case ParameterType.Range:
+            <div class="flex items-center gap-3">
+                <input id="@InputId" type="range" class="w-full accent-brand-600" min="@Format(Definition.Min)" max="@Format(Definition.Max)"
+                       step="@Format(Definition.Step)" value="@Value" @oninput="OnChange" disabled="@Disabled" />
+                <output for="@InputId" class="w-12 text-right text-sm tabular-nums">@Value</output>
+            </div>
+            break;
+
+        default:
+            <input id="@InputId" type="@HtmlType" class="input @InvalidCss" value="@Value" @onchange="OnChange"
+                   placeholder="@Definition.Placeholder" required="@Definition.Required" disabled="@Disabled"
+                   min="@Format(Definition.Min)" max="@Format(Definition.Max)" step="@Format(Definition.Step)"
+                   pattern="@Definition.Pattern" list="@(Definition.Suggestions.Count > 0 ? ListId : null)"
+                   autocomplete="@(Definition.Type == ParameterType.Password ? "new-password" : "off")" />
+            @if (Definition.Suggestions.Count > 0)
+            {
+                <datalist id="@ListId">
+                    @foreach (var suggestion in Definition.Suggestions)
+                    {
+                        <option value="@suggestion"></option>
+                    }
+                </datalist>
+            }
+            break;
+    }
+
+    @if (Definition.Type != ParameterType.Checkbox && !string.IsNullOrEmpty(Definition.Description))
+    {
+        <p class="text-xs text-slate-500 dark:text-slate-400">@Definition.Description</p>
+    }
+
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <p class="text-xs font-medium text-rose-600 dark:text-rose-400">@Error</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ScriptParameterDefinition Definition { get; set; } = default!;
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter]
+    public string? Error { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private string InputId => $"param-{Definition.Name}";
+
+    private string ListId => $"{InputId}-suggestions";
+
+    private string? InvalidCss => string.IsNullOrEmpty(Error) ? null : "input-invalid";
+
+    private bool IsChecked => bool.TryParse(Value, out var b) && b;
+
+    private string HtmlType => Definition.Type switch
+    {
+        ParameterType.Number => "number",
+        ParameterType.Date => "date",
+        ParameterType.Time => "time",
+        ParameterType.DateTime => "datetime-local",
+        ParameterType.Email => "email",
+        ParameterType.Password => "password",
+        _ => "text",
+    };
+
+    private static string? Format(double? value) => value?.ToString(CultureInfo.InvariantCulture);
+
+    private Task OnChange(ChangeEventArgs e) => ValueChanged.InvokeAsync(e.Value?.ToString());
+
+    private Task OnCheckedChange(ChangeEventArgs e) => ValueChanged.InvokeAsync(e.Value is true ? "true" : "false");
+}
