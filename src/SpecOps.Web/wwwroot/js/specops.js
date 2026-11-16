@@ -21,6 +21,41 @@
     },
   };
 
+  const monacoBase = '_content/BlazorMonaco';
+  let monacoLoading = null;
+
+  const loadScript = (src) =>
+    new Promise((resolve, reject) => {
+      const script = Object.assign(document.createElement('script'), { src, async: false });
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.body.appendChild(script);
+    });
+
+  const waitFor = (condition, timeoutMs) =>
+    new Promise((resolve) => {
+      const started = Date.now();
+      const check = () => {
+        if (condition()) {
+          resolve(true);
+        } else if (Date.now() - started > timeoutMs) {
+          resolve(false);
+        } else {
+          setTimeout(check, 50);
+        }
+      };
+      check();
+    });
+
+  // Same-origin scripts, so the CSP (script-src 'self') allows them without a nonce.
+  async function loadMonaco() {
+    // Monaco's AMD loader reads this global to find its modules.
+    window.require = { paths: { vs: `${monacoBase}/lib/monaco-editor/min/vs` } };
+    await loadScript(`${monacoBase}/jsInterop.js`);
+    await loadScript(`${monacoBase}/lib/monaco-editor/min/vs/loader.js`);
+    await loadScript(`${monacoBase}/lib/monaco-editor/min/vs/editor/editor.main.js`);
+  }
+
   const specops = {
     storage,
 
@@ -70,21 +105,14 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     },
 
-    // Monaco's editor.main.js finishes loading asynchronously; wait for it before creating editors.
+    // Loads the Monaco editor on first use (only the Terminal needs it), then waits until it's ready.
+    // Resolves false if it couldn't load in time.
     whenMonacoReady(timeoutMs = 20000) {
-      return new Promise((resolve) => {
-        const started = Date.now();
-        const check = () => {
-          if (window.monaco?.editor) {
-            resolve(true);
-          } else if (Date.now() - started > timeoutMs) {
-            resolve(false);
-          } else {
-            setTimeout(check, 50);
-          }
-        };
-        check();
-      });
+      monacoLoading ??= loadMonaco();
+      return Promise.race([
+        monacoLoading.then(() => waitFor(() => window.monaco?.editor, timeoutMs)),
+        new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs)),
+      ]).catch(() => false);
     },
   };
 

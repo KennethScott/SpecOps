@@ -1,4 +1,5 @@
 using Bunit;
+using Microsoft.Extensions.Logging.Abstractions;
 using SpecOps.Core.Execution;
 using SpecOps.Core.Scripts;
 using SpecOps.Web.Components.Shared;
@@ -122,6 +123,51 @@ public sealed class ComponentTests : IDisposable
 
         Assert.Equal(text, cut.Find("span").TextContent.Trim());
     }
+
+    [Fact]
+    public async Task Output_console_streams_counts_and_exports_only_the_visible_streams()
+    {
+        _context.JSInterop.Mode = JSRuntimeMode.Loose;
+        var copy = _context.JSInterop.Setup<bool>("specops.copyText", _ => true).SetResult(true);
+        using var runner = new ScriptRunner(TestOptions.Create(), NullLogger<ScriptRunner>.Instance);
+        var run = runner.Start(
+            new ScriptRunRequest
+            {
+                ScriptId = "t",
+                ScriptName = "T",
+                Code = "1..250 | ForEach-Object { \"line $_\" }; Write-Information 'note'",
+                UserName = "tester",
+            }
+        );
+
+        var cut = _context.Render<OutputConsole>(p => p.Add(x => x.Run, run));
+
+        // Output arrives in batches; the stream chips show running totals.
+        cut.WaitForAssertion(
+            () =>
+            {
+                Assert.Contains("Output 250", Chips(cut), StringComparison.Ordinal);
+                Assert.Contains("Information 1", Chips(cut), StringComparison.Ordinal);
+            },
+            TimeSpan.FromSeconds(30)
+        );
+        await cut.InvokeAsync(() => { });
+
+        // Hide Information, then copy: only the visible streams are exported.
+        cut.Find("button[title='Hide Information']").Click();
+        cut.Find("button[title^='Copy']").Click();
+
+        var exported = (string)copy.Invocations.Single().Arguments[0]!;
+        Assert.Contains("line 250", exported, StringComparison.Ordinal);
+        Assert.DoesNotContain("note", exported, StringComparison.Ordinal);
+    }
+
+    private static string Chips(IRenderedComponent<OutputConsole> cut) =>
+        string.Join(
+                " | ",
+                cut.FindAll("button[title^='Hide'], button[title^='Show']").Select(b => b.TextContent.Trim())
+            )
+            .Replace("\n", " ", StringComparison.Ordinal);
 
     [Fact]
     public void Running_badge_pulses()

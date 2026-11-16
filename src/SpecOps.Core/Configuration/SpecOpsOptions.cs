@@ -45,6 +45,12 @@ public sealed class RunnerOptions
     /// <summary>Finished runs kept in memory in total; the oldest are dropped first.</summary>
     public int MaxRetainedRuns { get; set; } = 500;
 
+    /// <summary>
+    /// Output records kept in memory across all finished runs (roughly 250 bytes each, so the default is about
+    /// 125 MB at most); the oldest finished runs are dropped first.
+    /// </summary>
+    public int MaxRetainedOutputRecords { get; set; } = 500_000;
+
     /// <summary>How long finished runs stay available in memory.</summary>
     public TimeSpan CompletedRunRetention { get; set; } = TimeSpan.FromHours(4);
 

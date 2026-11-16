@@ -18,20 +18,32 @@
             People appear here after they first sign in. Approve them and assign roles; policies in specops.json map roles and groups to script categories.
         </p>
     </div>
-    <div class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-900">
-        @foreach (var filter in new[] { "All", "Pending", "Active", "Disabled" })
-        {
-            <button type="button" @onclick="() => _filter = filter"
-                    class="@($"rounded-md px-3 py-1 font-medium {(_filter == filter ? "bg-white shadow-sm dark:bg-slate-800" : "text-slate-500")}")">
-                @filter
-                @if (filter == "Pending" && _users.Count(u => u.User.Status == UserStatus.Pending) is > 0 and var pending)
-                {
-                    <span class="ml-1 rounded-full bg-amber-500 px-1.5 text-xs text-white">@pending</span>
-                }
-            </button>
-        }
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div class="relative w-full sm:w-56">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon Name="search" /></span>
+            <input type="search" class="input pl-9" placeholder="Search name or email…" aria-label="Search users"
+                   @bind="_search" @bind:event="oninput" @bind:after="LoadAsync" />
+        </div>
+        <div class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-900">
+            @foreach (var filter in new[] { "All", "Pending", "Active", "Disabled" })
+            {
+                <button type="button" @onclick="() => SetFilterAsync(filter)"
+                        class="@($"rounded-md px-3 py-1 font-medium {(_filter == filter ? "bg-white shadow-sm dark:bg-slate-800" : "text-slate-500")}")">
+                    @filter
+                    @if (filter == "Pending" && _pendingCount > 0)
+                    {
+                        <span class="ml-1 rounded-full bg-amber-500 px-1.5 text-xs text-white">@_pendingCount</span>
+                    }
+                </button>
+            }
+        </div>
     </div>
 </div>
+
+@if (_matching > _users.Count)
+{
+    <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">Showing @_users.Count of @_matching users. Search to narrow it down.</p>
+}
 
 @if (_message is not null)
 {
@@ -42,14 +54,14 @@
 {
     <p class="text-sm text-slate-500">Loading…</p>
 }
-else if (!Visible.Any())
+else if (_users.Count == 0)
 {
     <EmptyState Title="No users" Icon="lock">Nobody matches this filter.</EmptyState>
 }
 else
 {
     <div class="grid gap-3">
-        @foreach (var row in Visible)
+        @foreach (var row in _users)
         {
             var user = row.User;
             <div class="card flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
@@ -108,9 +120,15 @@ else
 @code {
     private sealed record UserRow(SpecOpsUser User, List<string> Roles, List<string> Providers, List<string> Groups);
 
+    // At most this many users are loaded at once; search narrows it down.
+    private const int PageSize = 200;
+
     private List<UserRow> _users = [];
     private List<string> _roles = [];
     private string _filter = "All";
+    private string _search = "";
+    private int _matching;
+    private int _pendingCount;
     private string? _message;
     private bool _loaded;
     private bool _busy;
@@ -119,8 +137,6 @@ else
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = default!;
-
-    private IEnumerable<UserRow> Visible => _filter == "All" ? _users : _users.Where(u => u.User.Status.ToString() == _filter);
 
     protected override async Task OnInitializedAsync()
     {
@@ -131,20 +147,50 @@ else
 
     private bool IsSelf(SpecOpsUser user) => user.Id == _currentUserId;
 
+    private async Task SetFilterAsync(string filter)
+    {
+        _filter = filter;
+        await LoadAsync();
+    }
+
     private async Task LoadAsync()
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>();
 
-        var users = await db.Users.AsNoTracking().ToListAsync();
+        // Filtering, ordering and the page cap all run in the database; related rows only for the loaded users.
+        var query = db.Users.AsNoTracking();
+        if (Enum.TryParse<UserStatus>(_filter, out var status))
+        {
+            query = query.Where(u => u.Status == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim();
+            query = query.Where(u =>
+                (u.DisplayName != null && u.DisplayName.Contains(term))
+                || (u.Email != null && u.Email.Contains(term))
+                || (u.UserName != null && u.UserName.Contains(term)));
+        }
+
+        _matching = await query.CountAsync();
+        _pendingCount = await db.Users.CountAsync(u => u.Status == UserStatus.Pending);
+        var users = await query
+            .OrderBy(u => u.Status == UserStatus.Pending ? 0 : 1)
+            .ThenBy(u => u.DisplayName ?? u.Email ?? u.UserName)
+            .Take(PageSize)
+            .ToListAsync();
+        var ids = users.Select(u => u.Id).ToList();
+
         var roleNames = await db.Roles.AsNoTracking().ToDictionaryAsync(r => r.Id, r => r.Name!);
-        var userRoles = await db.UserRoles.AsNoTracking().ToListAsync();
-        var logins = await db.UserLogins.AsNoTracking().ToListAsync();
-        var groups = await db.UserClaims.AsNoTracking().Where(c => c.ClaimType == SpecOpsAuthorizer.GroupClaimType).ToListAsync();
+        var userRoles = await db.UserRoles.AsNoTracking().Where(r => ids.Contains(r.UserId)).ToListAsync();
+        var logins = await db.UserLogins.AsNoTracking().Where(l => ids.Contains(l.UserId)).ToListAsync();
+        var groups = await db.UserClaims.AsNoTracking()
+            .Where(c => c.ClaimType == SpecOpsAuthorizer.GroupClaimType && ids.Contains(c.UserId))
+            .ToListAsync();
 
         _users = [.. users
-            .OrderBy(u => u.Status == UserStatus.Pending ? 0 : 1)
-            .ThenBy(u => u.Label, StringComparer.CurrentCultureIgnoreCase)
             .Select(u => new UserRow(
                 u,
                 [.. userRoles.Where(r => r.UserId == u.Id).Select(r => roleNames[r.RoleId])],
