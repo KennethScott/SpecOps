@@ -34,6 +34,10 @@ jobs:
       - name: Restore
         run: dotnet restore SpecOps.slnx
 
+      - name: Check formatting and code style
+        run: dotnet format SpecOps.slnx --verify-no-changes --no-restore --severity info --verbosity minimal
+
+      # Analyzer and style warnings are errors (Directory.Build.props), so this fails on any warning.
       - name: Build
         run: dotnet build SpecOps.slnx --no-restore --configuration Release
 
