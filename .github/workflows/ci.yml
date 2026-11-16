@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   format:
-    name: Formatting (CSharpier + Prettier)
+    name: Lint & format (CSharpier, Prettier, ESLint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -35,6 +35,10 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm run format:check
+
+      - name: JavaScript (ESLint)
+        working-directory: src/SpecOps.Web
+        run: npm run lint
 
   build-and-test:
     name: Build & test (${{ matrix.os }})
