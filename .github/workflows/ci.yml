@@ -79,9 +79,23 @@ jobs:
         run: tests/SpecOps.E2E/bin/Release/net11.0/playwright.ps1 install --with-deps chromium
 
       - name: Test (with coverage)
-        run: >-
-          dotnet test --solution SpecOps.slnx --no-build --configuration Release
-          --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet test --solution SpecOps.slnx --no-build --configuration Release \
+            --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml 2>&1 | tee test-output.log
+
+      # Each failed test (name, message and the start of its stack trace) as an annotation on the run summary, so
+      # failures can be read without opening (or signing in to see) the full log.
+      - name: Report failed tests
+        if: failure()
+        shell: bash
+        run: |
+          sed -e 's/%/%25/g' -e 's/\r$//' test-output.log |
+            awk '/^failed [A-Za-z]/ { if (m) print m; m = $0; n = 0; next }
+                 m && n < 12 { m = m "%0A" $0; n++ }
+                 END { if (m) print m }' |
+            while IFS= read -r failure; do echo "::error title=Test failed::$failure"; done
 
       - name: Upload coverage
         if: always()
