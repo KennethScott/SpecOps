@@ -360,5 +360,8 @@ src/SpecOps.Web/wwwroot/js/
 # TLS certificates and keys for Caddy (SPECOPS_TLS=files)
 /certs/
 
+# Visual Studio MCP server extension settings (per machine)
+/.mcp/
+
 # Local planning notes (not part of the repo)
 docs/MODERNIZATION_PLAN.md
