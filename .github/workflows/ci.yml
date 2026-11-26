@@ -91,14 +91,15 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          sed -e 's/%/%25/g' -e 's/\r$//' test-output.log |
+          # (Without the colour codes the test runner adds.)
+          sed -e 's/\x1b\[[0-9;]*m//g' -e 's/%/%25/g' -e 's/\r$//' test-output.log |
             awk '/^failed [A-Za-z]/ { if (m) print m; m = $0; n = 0; next }
                  m && n < 12 { m = m "%0A" $0; n++ }
                  END { if (m) print m }' |
             while IFS= read -r failure; do echo "::error title=Test failed::$failure"; done
           # No individual test failed (e.g. a test app couldn't start): show the end of the log instead.
           if ! grep -q "^failed [A-Za-z]" test-output.log; then
-            echo "::error title=Tests didn't run::$(tail -n 25 test-output.log | sed -e 's/%/%25/g' -e 's/\r$//' | awk '{ printf "%s%%0A", $0 }')"
+            echo "::error title=Tests didn't run::$(tail -n 25 test-output.log | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/%/%25/g' -e 's/\r$//' | awk '{ printf "%s%%0A", $0 }')"
           fi
 
       - name: Upload coverage

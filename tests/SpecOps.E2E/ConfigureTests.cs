@@ -9,6 +9,7 @@ public sealed class ConfigureTests(SpecOpsApp app)
         var page = await app.SignedInPageAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = "Configure" }).ClickAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = "New script" }).ClickAsync();
+        await Expect(page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/config/scripts/new$"));
 
         await page.GetByLabel("Id", new() { Exact = true }).FillAsync("e2e-greeting");
         await page.GetByLabel("Name", new() { Exact = true }).FillAsync("E2E greeting");
@@ -41,7 +42,15 @@ public sealed class ConfigureTests(SpecOpsApp app)
     {
         var page = await app.SignedInPageAsync();
 
+        // The section's start page is the Scripts tab.
+        await page.GotoAsync("admin/config");
+        var sections = page.GetByRole(AriaRole.Navigation, new() { Name = "Configuration sections" });
+        await Expect(sections.GetByRole(AriaRole.Link, new() { Name = "Scripts" }))
+            .ToHaveAttributeAsync("aria-current", "page");
+
         await page.GotoAsync("admin/config/policies");
+        await Expect(sections.GetByRole(AriaRole.Link, new() { Name = "Policies" }))
+            .ToHaveAttributeAsync("aria-current", "page");
         await Expect(page.GetByLabel("Policy name").First).ToHaveValueAsync("Help desk");
         await page.GotoAsync("admin/config/history");
         await Expect(page.GetByRole(AriaRole.Cell, new() { Name = "Imported from specops.json" })).ToBeVisibleAsync();
