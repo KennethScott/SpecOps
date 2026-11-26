@@ -96,11 +96,30 @@ public sealed class SpecOpsApp : IAsyncLifetime
 
     private sealed class Factory(string dataDirectory) : WebApplicationFactory<Program>
     {
+        private static string SamplesDirectory()
+        {
+            for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "SpecOps.slnx")))
+                {
+                    return Path.Combine(dir.FullName, "samples");
+                }
+            }
+
+            throw new DirectoryNotFoundException(
+                "Couldn't find the repository root (SpecOps.slnx) above the test output."
+            );
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             // Development: dev sign-in and the sample scripts (appsettings.Development.json).
             builder.UseEnvironment(Environments.Development);
             builder.UseSetting("SpecOps:DataDirectory", dataDirectory);
+            // A copy of the samples (specops.json + scripts) in the data directory, so tests that edit scripts
+            // never touch the repo.
+            builder.UseSetting("SpecOps:ConfigFile", Path.Combine(dataDirectory, "specops.json"));
+            builder.UseSetting("SpecOps:SeedDirectory", SamplesDirectory());
             builder.UseSetting("HttpsRedirection", "false");
             // Keep the test output readable: the server's request and run logs only when something goes wrong.
             builder.UseSetting("Serilog:MinimumLevel:Default", "Warning");

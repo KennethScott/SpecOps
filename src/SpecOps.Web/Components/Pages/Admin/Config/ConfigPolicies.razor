@@ -1,0 +1,159 @@
+@page "/admin/config/policies"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@inject CatalogAdmin Admin
+
+<PageTitle>Policies · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Errors="_errors" Message="@_message"
+            Description="Who can run what: a policy grants script categories to app roles (assigned on the Users page) and/or groups from the sign-in provider. Members of the built-in Admin role can always do everything.">
+    <Actions>
+        <button type="button" class="btn-secondary" @onclick="Add" disabled="@(!RendererInfo.IsInteractive)"><Icon Name="plus" /> Add policy</button>
+        <button type="button" class="btn-primary" @onclick="SaveAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="save" /> Save changes</button>
+    </Actions>
+    <ChildContent>
+        @if (_drafts.Count == 0)
+        {
+            <EmptyState Title="No policies" Icon="lock">Only admins can run scripts until a policy grants categories to other roles or groups.</EmptyState>
+        }
+
+        <div class="grid gap-4">
+            @foreach (var draft in _drafts)
+            {
+                var policy = draft.Policy;
+                <div class="card grid gap-4 p-5 lg:grid-cols-2">
+                    <Field Label="Name"><input class="input" @bind="policy.Name" aria-label="Policy name" /></Field>
+                    <div class="flex items-end justify-between gap-4 pb-2 text-sm">
+                        <label class="flex items-center gap-2" title="Terminal, Users, Audit and Configure pages">
+                            <input type="checkbox" class="size-4 accent-brand-600" @bind="policy.IsAdmin" /> Grants admin rights
+                        </label>
+                        <button type="button" class="btn-ghost py-1 text-rose-600" @onclick="() => _drafts.Remove(draft)"><Icon Name="trash" /> Remove</button>
+                    </div>
+                    <Field Label="App roles" Help="Comma-separated, e.g. HelpDesk, ServiceDesk.">
+                        <input class="input" @bind="draft.Roles" aria-label="App roles" />
+                    </Field>
+                    <Field Label="Groups" Help="One per line: Entra group object IDs, OIDC group names, or DOMAIN\group.">
+                        <textarea class="input font-mono" rows="3" @bind="draft.Groups" aria-label="Groups"></textarea>
+                    </Field>
+                    <div class="lg:col-span-2">
+                        <Field Label="Categories">
+                            <div class="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-sm">
+                                <label class="flex items-center gap-2 font-medium">
+                                    <input type="checkbox" class="size-4 accent-brand-600" checked="@draft.AllCategories" @onchange="e => draft.AllCategories = e.Value is true" /> All categories
+                                </label>
+                                @foreach (var category in _categories)
+                                {
+                                    <label class="@($"flex items-center gap-2 {(draft.AllCategories ? "opacity-50" : "")}")">
+                                        <input type="checkbox" class="size-4 accent-brand-600" disabled="@draft.AllCategories"
+                                               checked="@draft.Categories.Contains(category.Id)" @onchange="e => Toggle(draft.Categories, category.Id, e.Value is true)" />
+                                        @category.DisplayName
+                                    </label>
+                                }
+                            </div>
+                        </Field>
+                    </div>
+                </div>
+            }
+        </div>
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    /// <summary>A policy being edited, with its lists as editable text.</summary>
+    private sealed class PolicyDraft(PolicyDefinition policy)
+    {
+        public PolicyDefinition Policy { get; } = policy;
+
+        public string Roles { get; set; } = string.Join(", ", policy.Roles);
+
+        public string Groups { get; set; } = string.Join('\n', policy.Groups);
+
+        public bool AllCategories { get; set; } = policy.Categories.Contains("*");
+
+        public HashSet<string> Categories { get; } = new(policy.Categories.Where(c => c != "*"), StringComparer.OrdinalIgnoreCase);
+
+        public PolicyDefinition ToDefinition()
+        {
+            var result = new PolicyDefinition { Name = Policy.Name.Trim(), IsAdmin = Policy.IsAdmin };
+            foreach (var role in Roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                result.Roles.Add(role);
+            }
+
+            foreach (var group in Groups.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                result.Groups.Add(group);
+            }
+
+            foreach (var category in AllCategories ? new[] { "*" } : [.. Categories.Order(StringComparer.OrdinalIgnoreCase)])
+            {
+                result.Categories.Add(category);
+            }
+
+            return result;
+        }
+    }
+
+    private CatalogDocument _doc = new();
+    private long _version;
+    private List<PolicyDraft> _drafts = [];
+    private IReadOnlyList<CategoryDefinition> _categories = [];
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private bool _busy;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        (_doc, _version) = Admin.Load();
+        _drafts = [.. _doc.Policies.Select(p => new PolicyDraft(p))];
+        // Defined categories plus any only referenced by scripts or policies.
+        var categories = _doc.Categories.ToList();
+        foreach (var id in _doc.Scripts.Select(s => s.CategoryId).Concat(_doc.Policies.SelectMany(p => p.Categories)))
+        {
+            if (id != "*" && !categories.Exists(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase)))
+            {
+                categories.Add(new CategoryDefinition { Id = id });
+            }
+        }
+
+        _categories = [.. categories.OrderBy(c => c.SortOrder).ThenBy(c => c.DisplayName, StringComparer.CurrentCultureIgnoreCase)];
+    }
+
+    private void Add() => _drafts.Add(new PolicyDraft(new PolicyDefinition { Name = $"Policy {_drafts.Count + 1}" }));
+
+    private static void Toggle(HashSet<string> set, string id, bool on)
+    {
+        if (on)
+        {
+            set.Add(id);
+        }
+        else
+        {
+            set.Remove(id);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _doc.Policies.Clear();
+        foreach (var draft in _drafts)
+        {
+            _doc.Policies.Add(draft.ToDefinition());
+        }
+
+        var result = await Admin.SaveAsync((await AuthState).User, _doc, _version, "Updated policies");
+        _busy = false;
+        _errors = result.Errors;
+        _message = result.Succeeded ? "Policies saved. They apply to everyone's next page load." : null;
+        if (result.Succeeded)
+        {
+            Load();
+        }
+    }
+}

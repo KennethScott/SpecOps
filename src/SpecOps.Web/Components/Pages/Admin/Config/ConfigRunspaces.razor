@@ -1,0 +1,118 @@
+@page "/admin/config/runspaces"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@inject CatalogAdmin Admin
+
+<PageTitle>Runspace profiles · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Errors="_errors" Message="@_message"
+            Description="Pools of warm PowerShell runspaces with modules already imported, so scripts that need big modules (ActiveDirectory, Microsoft.Graph...) start quickly. Scripts without a profile get a fresh, isolated runspace.">
+    <Actions>
+        <button type="button" class="btn-secondary" @onclick="Add" disabled="@(!RendererInfo.IsInteractive)"><Icon Name="plus" /> Add profile</button>
+        <button type="button" class="btn-primary" @onclick="SaveAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="save" /> Save changes</button>
+    </Actions>
+    <ChildContent>
+        @if (_drafts.Count == 0)
+        {
+            <EmptyState Title="No runspace profiles" Icon="terminal">Every script runs in its own fresh runspace.</EmptyState>
+        }
+
+        <div class="grid gap-3">
+            @foreach (var draft in _drafts)
+            {
+                var profile = draft.Profile;
+                var used = _doc.Scripts.Count(s => string.Equals(s.RunspaceProfile, profile.Name, StringComparison.OrdinalIgnoreCase));
+                <div class="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_2fr_5rem_5rem_auto]">
+                    <Field Label="Name"><input class="input" @bind="profile.Name" disabled="@(!draft.IsNew)" aria-label="Profile name" /></Field>
+                    <Field Label="Execution policy" Help="Windows only.">
+                        <select class="input" @bind="profile.ExecutionPolicy" aria-label="Execution policy">
+                            <option value="">(runner default)</option>
+                            @foreach (var policy in Enum.GetNames<Microsoft.PowerShell.ExecutionPolicy>())
+                            {
+                                <option value="@policy">@policy</option>
+                            }
+                        </select>
+                    </Field>
+                    <Field Label="Modules" Help="Comma-separated, imported into every runspace.">
+                        <input class="input font-mono" @bind="draft.Modules" aria-label="Modules" />
+                    </Field>
+                    <Field Label="Min"><input type="number" min="0" class="input" @bind="profile.MinRunspaces" aria-label="Minimum runspaces" /></Field>
+                    <Field Label="Max"><input type="number" min="1" class="input" @bind="profile.MaxRunspaces" aria-label="Maximum runspaces" /></Field>
+                    <div class="flex items-end">
+                        <button type="button" class="btn-ghost py-2 text-rose-600 disabled:text-slate-400" @onclick="() => _drafts.Remove(draft)" disabled="@(used > 0)"
+                                title="@(used > 0 ? $"Used by {used} script(s)" : "Remove")">
+                            <Icon Name="trash" /><span class="sr-only">Remove @profile.Name</span>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    private sealed class ProfileDraft(RunspaceProfile profile, bool isNew)
+    {
+        public RunspaceProfile Profile { get; } = profile;
+
+        public bool IsNew { get; } = isNew;
+
+        public string Modules { get; set; } = string.Join(", ", profile.Modules);
+
+        public RunspaceProfile ToDefinition()
+        {
+            var result = new RunspaceProfile
+            {
+                Name = Profile.Name.Trim(),
+                ExecutionPolicy = string.IsNullOrWhiteSpace(Profile.ExecutionPolicy) ? null : Profile.ExecutionPolicy,
+                MinRunspaces = Profile.MinRunspaces,
+                MaxRunspaces = Profile.MaxRunspaces,
+            };
+            foreach (var module in Modules.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                result.Modules.Add(module);
+            }
+
+            return result;
+        }
+    }
+
+    private CatalogDocument _doc = new();
+    private long _version;
+    private List<ProfileDraft> _drafts = [];
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private bool _busy;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        (_doc, _version) = Admin.Load();
+        _drafts = [.. _doc.RunspaceProfiles.Select(p => new ProfileDraft(p, isNew: false))];
+    }
+
+    private void Add() => _drafts.Add(new ProfileDraft(new RunspaceProfile { Name = "" }, isNew: true));
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _doc.RunspaceProfiles.Clear();
+        foreach (var draft in _drafts)
+        {
+            _doc.RunspaceProfiles.Add(draft.ToDefinition());
+        }
+
+        var result = await Admin.SaveAsync((await AuthState).User, _doc, _version, "Updated runspace profiles");
+        _busy = false;
+        _errors = result.Errors;
+        _message = result.Succeeded ? "Runspace profiles saved. Changed pools are rebuilt as runs finish." : null;
+        if (result.Succeeded)
+        {
+            Load();
+        }
+    }
+}

@@ -1,0 +1,86 @@
+@page "/admin/config/categories"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@inject CatalogAdmin Admin
+
+<PageTitle>Categories · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Description="Categories group scripts on the Scripts page; policies grant access by category." Errors="_errors" Message="@_message">
+    <Actions>
+        <button type="button" class="btn-secondary" @onclick="Add" disabled="@(!RendererInfo.IsInteractive)"><Icon Name="plus" /> Add category</button>
+        <button type="button" class="btn-primary" @onclick="SaveAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="save" /> Save changes</button>
+    </Actions>
+    <ChildContent>
+        @if (_doc.Categories.Count == 0)
+        {
+            <EmptyState Title="No categories" Icon="file-code">Scripts can still use any category id; add one here to give it a name, description and order.</EmptyState>
+        }
+
+        <div class="grid gap-3">
+            @foreach (var category in _doc.Categories)
+            {
+                var isNew = _added.Contains(category);
+                var used = ScriptsIn(category.Id);
+                <div class="card grid gap-4 p-5 sm:grid-cols-[1fr_1fr_2fr_6rem_auto]">
+                    <Field Label="Id"><input class="input font-mono" @bind="category.Id" disabled="@(!isNew)" aria-label="Category id" /></Field>
+                    <Field Label="Name"><input class="input" @bind="category.Name" placeholder="@category.Id" aria-label="Category name" /></Field>
+                    <Field Label="Description"><input class="input" @bind="category.Description" aria-label="Category description" /></Field>
+                    <Field Label="Order"><input type="number" class="input" @bind="category.SortOrder" aria-label="Category order" /></Field>
+                    <div class="flex items-end">
+                        <button type="button" class="btn-ghost py-2 text-rose-600 disabled:text-slate-400" @onclick="() => _doc.Categories.Remove(category)" disabled="@(used > 0)"
+                                title="@(used > 0 ? $"Used by {used} script(s); move them first" : "Remove")">
+                            <Icon Name="trash" /><span class="sr-only">Remove @category.DisplayName</span>
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    private CatalogDocument _doc = new();
+    private long _version;
+    private readonly List<CategoryDefinition> _added = [];
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private bool _busy;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        (_doc, _version) = Admin.Load();
+        _added.Clear();
+    }
+
+    private int ScriptsIn(string id) => _doc.Scripts.Count(s => string.Equals(s.CategoryId, id, StringComparison.OrdinalIgnoreCase));
+
+    private void Add()
+    {
+        var category = new CategoryDefinition { Id = "", SortOrder = _doc.Categories.Count == 0 ? 1 : _doc.Categories.Max(c => c.SortOrder) + 1 };
+        _added.Add(category);
+        _doc.Categories.Add(category);
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        foreach (var category in _doc.Categories)
+        {
+            category.Id = category.Id.Trim();
+        }
+
+        var result = await Admin.SaveAsync((await AuthState).User, _doc, _version, "Updated categories");
+        _busy = false;
+        _errors = result.Errors;
+        _message = result.Succeeded ? "Categories saved." : null;
+        if (result.Succeeded)
+        {
+            Load();
+        }
+    }
+}

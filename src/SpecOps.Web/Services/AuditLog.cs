@@ -21,6 +21,9 @@ public static class AuditActions
     public const string ScriptDenied = "script.denied";
     public const string TerminalRun = "terminal.run";
     public const string RunCancelled = "run.cancelled";
+    public const string ConfigChanged = "config.changed";
+    public const string ScriptFileCreated = "script-file.created";
+    public const string ScriptFileSaved = "script-file.saved";
 }
 
 /// <summary>

@@ -1,0 +1,73 @@
+@* Frame for the Admin > Configure pages: heading, section tabs, save errors/confirmation, then the page. *@
+
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">@Title</h1>
+        @if (Description is not null)
+        {
+            <p class="text-sm text-slate-500 dark:text-slate-400">@Description</p>
+        }
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="flex flex-wrap gap-2">@Actions</div>
+    }
+</div>
+
+<nav class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 text-sm dark:border-slate-800" aria-label="Configuration sections">
+    @foreach (var (href, label) in Sections)
+    {
+        <NavLink href="@href" Match="NavLinkMatch.Prefix"
+                 class="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2 font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                 ActiveClass="!border-brand-600 !text-slate-900 dark:!text-white">@label</NavLink>
+    }
+</nav>
+
+@if (Errors.Count > 0)
+{
+    <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300" role="alert">
+        <p class="font-medium">Not saved:</p>
+        <ul class="mt-1 list-disc pl-5">
+            @foreach (var error in Errors)
+            {
+                <li>@error</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Message is not null)
+{
+    <p class="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" role="status">@Message</p>
+}
+
+@ChildContent
+
+@code {
+    private static readonly (string Href, string Label)[] Sections =
+    [
+        ("admin/config/scripts", "Scripts"),
+        ("admin/config/categories", "Categories"),
+        ("admin/config/policies", "Policies"),
+        ("admin/config/runspaces", "Runspace profiles"),
+        ("admin/config/history", "Import & history"),
+    ];
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Errors { get; set; } = [];
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

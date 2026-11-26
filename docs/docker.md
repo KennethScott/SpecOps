@@ -11,8 +11,9 @@ cp .env.example .env        # uncomment and fill in a sign-in provider (below) a
 docker compose up -d        # http://<host>:8080
 ```
 
-On first start SpecOps copies starter scripts and a sample `specops.json` into its data volume, so there's
-something to run straight away.
+On first start SpecOps copies starter scripts and a sample `specops.json` into its data volume and imports
+them, so there's something to run straight away. From then on admins manage scripts, policies and the `.ps1`
+code under **Configure** in the app.
 
 > Sign-in needs at least one identity provider (Microsoft Entra ID, Google or any OpenID Connect provider) and
 > HTTPS for anything other than `localhost`, because providers only redirect back to `https://` URLs.
@@ -73,14 +74,14 @@ Pick one:
 
 Everything SpecOps keeps is in the `specops-data` volume, mounted at `/data`:
 
-| Path                 | What                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------- |
-| `/data/specops.json` | Scripts, categories, policies (edits apply live; invalid edits are rejected and logged) |
-| `/data/scripts/`     | Your `.ps1` files (`Path` in specops.json is relative to this folder)                   |
-| `/data/modules/`     | Extra PowerShell modules (see below)                                                    |
-| `/data/specops.db`   | Users, roles, audit log (SQLite)                                                        |
-| `/data/logs/`        | Application logs                                                                        |
-| `/data/keys/`        | Sign-in cookie encryption keys (keep with the database)                                 |
+| Path                 | What                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `/data/specops.json` | Runner settings; its scripts, categories and policies are imported on first start only |
+| `/data/scripts/`     | Your `.ps1` files (edited under Configure; script paths are relative to this folder)   |
+| `/data/modules/`     | Extra PowerShell modules (see below)                                                   |
+| `/data/specops.db`   | Users, roles, configuration and its history, run history, audit log (SQLite)           |
+| `/data/logs/`        | Application logs                                                                       |
+| `/data/keys/`        | Sign-in cookie encryption keys (keep with the database)                                |
 
 To work with these files directly, bind-mount a host folder instead of the named volume, e.g.
 `./specops-data:/data` (the folder must be writable by UID 1654, the container's non-root user).

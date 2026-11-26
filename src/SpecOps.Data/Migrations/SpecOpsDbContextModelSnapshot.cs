@@ -15,7 +15,7 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261116141444_RunHistory";
+    public override string LastMigrationId => "20261126145905_CatalogVersions";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -191,6 +191,38 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("TimestampUtc");
 
                 b.ToTable("AuditEvents");
+            });
+
+        modelBuilder.Entity("SpecOps.Data.CatalogVersion", b =>
+            {
+                b.Property<long>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("INTEGER");
+
+                b.Property<DateTime>("CreatedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("CreatedBy")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("CreatedById")
+                    .HasMaxLength(450)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Json")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Summary")
+                    .IsRequired()
+                    .HasMaxLength(512)
+                    .HasColumnType("TEXT");
+
+                b.HasKey("Id");
+
+                b.ToTable("CatalogVersions");
             });
 
         modelBuilder.Entity("SpecOps.Data.RunRecord", b =>

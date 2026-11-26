@@ -1,0 +1,505 @@
+@page "/admin/config/scripts/new"
+@page "/admin/config/scripts/{ScriptId}"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using System.Globalization
+@using SpecOps.Core.Configuration
+@using SpecOps.Core.Hosting
+@inject CatalogAdmin Admin
+@inject ScriptFiles Files
+@inject NavigationManager Navigation
+
+<PageTitle>@(_isNew ? "New script" : _script.Name) · Configure · SpecOps</PageTitle>
+
+@if (_notFound)
+{
+    <EmptyState Title="Script not found" Icon="file-code">
+        It may have been deleted. <a href="admin/config/scripts" class="font-medium text-brand-700 underline dark:text-brand-500">Back to scripts</a>
+    </EmptyState>
+    return;
+}
+
+<ConfigPage Title="@(_isNew ? "New script" : _script.Name)" Errors="_errors" Message="@_message">
+    <Actions>
+        @if (!_isNew)
+        {
+            <a href="scripts/@_script.Id" class="btn-secondary"><Icon Name="play" /> Open</a>
+        }
+        <button type="button" class="btn-primary" @onclick="SaveAsync" disabled="@(_busy || !RendererInfo.IsInteractive)"><Icon Name="save" /> Save</button>
+    </Actions>
+    <ChildContent>
+        <div class="mb-4 flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-900" role="tablist">
+            <button type="button" role="tab" aria-selected="@(!_showCode)" @onclick="() => _showCode = false"
+                    class="@($"rounded-md px-3 py-1 font-medium {(_showCode ? "text-slate-500" : "bg-white shadow-sm dark:bg-slate-800")}")">Settings</button>
+            <button type="button" role="tab" aria-selected="@_showCode" @onclick="ShowCodeAsync" disabled="@(!RendererInfo.IsInteractive)"
+                    class="@($"rounded-md px-3 py-1 font-medium {(_showCode ? "bg-white shadow-sm dark:bg-slate-800" : "text-slate-500")}")">
+                Code <span class="font-mono text-xs opacity-70">@_script.Path</span>
+            </button>
+        </div>
+
+        @* Both tabs stay rendered (the code one just hidden), so the editor keeps its text while you switch. *@
+        <div class="@(_showCode ? "hidden" : "grid gap-6")">
+            <section class="card grid gap-4 p-5 sm:grid-cols-2">
+                <Field Label="Id" Help="Used in links and run history; can't be changed later.">
+                    <input class="input font-mono" @bind="_script.Id" disabled="@(!_isNew)" placeholder="reset-password" aria-label="Id" />
+                </Field>
+                <Field Label="Name">
+                    <input class="input" @bind="_script.Name" placeholder="Reset password" aria-label="Name" />
+                </Field>
+                <Field Label="Category" Help="Pick one, or type a new id.">
+                    <input class="input" list="categories" @bind="_script.CategoryId" aria-label="Category" />
+                    <datalist id="categories">
+                        @foreach (var category in _doc.Categories)
+                        {
+                            <option value="@category.Id">@category.DisplayName</option>
+                        }
+                    </datalist>
+                </Field>
+                <Field Label="File" Help="Relative to the scripts folder. A new file is created when you save.">
+                    <input class="input font-mono" list="script-files" @bind="_script.Path" @bind:after="PathChangedAsync" placeholder="ResetPassword.ps1" aria-label="File" />
+                    <datalist id="script-files">
+                        @foreach (var file in _files)
+                        {
+                            <option value="@file"></option>
+                        }
+                    </datalist>
+                </Field>
+                <div class="sm:col-span-2">
+                    <Field Label="Summary">
+                        <textarea class="input" rows="2" @bind="_script.Summary" aria-label="Summary"></textarea>
+                    </Field>
+                </div>
+                <Field Label="Runspace profile" Help="A warm, shared runspace pool with modules preloaded; otherwise each run gets a fresh, isolated runspace.">
+                    <select class="input" @bind="_script.RunspaceProfile" aria-label="Runspace profile">
+                        <option value="">(isolated runspace)</option>
+                        @foreach (var profile in _doc.RunspaceProfiles)
+                        {
+                            <option value="@profile.Name">@profile.Name</option>
+                        }
+                    </select>
+                </Field>
+                <Field Label="Time limit (minutes)" Help="Leave empty for the default.">
+                    <input type="number" min="1" class="input" @bind="_script.TimeoutMinutes" aria-label="Time limit (minutes)" />
+                </Field>
+                <Field Label="Runs on">
+                    <div class="flex flex-wrap gap-4 pt-2 text-sm">
+                        @foreach (var platform in new[] { ScriptPlatforms.Windows, ScriptPlatforms.Linux, ScriptPlatforms.MacOS })
+                        {
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" class="size-4 accent-brand-600" checked="@_script.Platforms.HasFlag(platform)"
+                                       @onchange="e => SetPlatform(platform, e.Value is true)" />
+                                @platform
+                            </label>
+                        }
+                    </div>
+                </Field>
+            </section>
+
+            <section>
+                <div class="mb-3 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-semibold">Parameters</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Form fields shown before a run. Names must match the script's param() block.</p>
+                    </div>
+                    <button type="button" class="btn-secondary" @onclick="AddParameter"><Icon Name="plus" /> Add parameter</button>
+                </div>
+
+                @if (_parameters.Count == 0)
+                {
+                    <p class="card p-5 text-sm text-slate-500 dark:text-slate-400">No parameters: the script runs without asking for anything.</p>
+                }
+
+                <div class="grid gap-3">
+                    @for (var i = 0; i < _parameters.Count; i++)
+                    {
+                        var index = i;
+                        var draft = _parameters[i];
+                        var p = draft.Definition;
+                        <div class="card grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+                            <Field Label="Name">
+                                <input class="input font-mono" @bind="p.Name" aria-label="Parameter name" />
+                            </Field>
+                            <Field Label="Label">
+                                <input class="input" @bind="p.Label" placeholder="@p.Name" aria-label="Parameter label" />
+                            </Field>
+                            <Field Label="Type">
+                                <select class="input" @bind="p.Type" aria-label="Parameter type">
+                                    @foreach (var type in Enum.GetValues<ParameterType>())
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </select>
+                            </Field>
+                            <Field Label="Default">
+                                <input class="input" @bind="p.Default" aria-label="Parameter default" />
+                            </Field>
+                            <div class="sm:col-span-2">
+                                <Field Label="Description">
+                                    <input class="input" @bind="p.Description" aria-label="Parameter description" />
+                                </Field>
+                            </div>
+                            <Field Label="Placeholder">
+                                <input class="input" @bind="p.Placeholder" aria-label="Parameter placeholder" />
+                            </Field>
+                            <div class="flex flex-wrap items-end gap-4 pb-2 text-sm">
+                                <label class="flex items-center gap-2"><input type="checkbox" class="size-4 accent-brand-600" @bind="p.Required" /> Required</label>
+                                <label class="flex items-center gap-2" title="Never logged or stored in run history"><input type="checkbox" class="size-4 accent-brand-600" @bind="p.Sensitive" /> Sensitive</label>
+                            </div>
+
+                            @if (p.Type is ParameterType.Number or ParameterType.Range)
+                            {
+                                <Field Label="Min"><input type="number" step="any" class="input" @bind="p.Min" aria-label="Minimum" /></Field>
+                                <Field Label="Max"><input type="number" step="any" class="input" @bind="p.Max" aria-label="Maximum" /></Field>
+                                <Field Label="Step"><input type="number" step="any" class="input" @bind="p.Step" aria-label="Step" /></Field>
+                            }
+
+                            @if (p.Type is ParameterType.Text or ParameterType.TextArea or ParameterType.Email)
+                            {
+                                <div class="sm:col-span-2">
+                                    <Field Label="Pattern" Help="A regular expression the whole value must match.">
+                                        <input class="input font-mono" @bind="p.Pattern" aria-label="Pattern" />
+                                    </Field>
+                                </div>
+                            }
+
+                            @if (p.Type == ParameterType.Select)
+                            {
+                                <div class="sm:col-span-2">
+                                    <Field Label="Options" Help="One per line: value, or value|label.">
+                                        <textarea class="input font-mono" rows="4" @bind="draft.OptionsText" aria-label="Options"></textarea>
+                                    </Field>
+                                </div>
+                            }
+                            else if (p.Type == ParameterType.Text)
+                            {
+                                <div class="sm:col-span-2">
+                                    <Field Label="Suggestions" Help="One per line; offered as the user types.">
+                                        <textarea class="input font-mono" rows="3" @bind="draft.SuggestionsText" aria-label="Suggestions"></textarea>
+                                    </Field>
+                                </div>
+                            }
+
+                            <div class="flex items-end justify-end gap-1 sm:col-span-2 lg:col-span-4">
+                                <button type="button" class="btn-ghost py-1" title="Move up" @onclick="() => Move(index, -1)" disabled="@(index == 0)"><Icon Name="arrow-up" /><span class="sr-only">Move up</span></button>
+                                <button type="button" class="btn-ghost py-1" title="Move down" @onclick="() => Move(index, 1)" disabled="@(index == _parameters.Count - 1)"><Icon Name="arrow-down" /><span class="sr-only">Move down</span></button>
+                                <button type="button" class="btn-ghost py-1 text-rose-600" @onclick="() => _parameters.RemoveAt(index)"><Icon Name="trash" /> Remove</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div class="@(_showCode ? "" : "hidden")">
+            @if (_fileEditable && _codeOpened)
+            {
+                <p class="mb-2 text-sm text-slate-500 dark:text-slate-400">
+                    @(_fileExists ? "Editing" : "New file:") <span class="font-mono">@_script.Path</span> in the scripts folder. Ctrl/Cmd+S saves.
+                    <span class="whitespace-nowrap">$SpecOps.User</span> is the signed-in user.
+                </p>
+                <div class="card overflow-hidden">
+                    <CodeEditor @ref="_editor" Value="@_loadedCode" OnSave="SaveAsync" HeightClass="h-[36rem]" />
+                </div>
+            }
+            else
+            {
+                <p class="card p-5 text-sm text-slate-500 dark:text-slate-400">
+                    @if (string.IsNullOrWhiteSpace(_script.Path))
+                    {
+                        <text>Set the file on the Settings tab first.</text>
+                    }
+                    else
+                    {
+                        <text><span class="font-mono">@_script.Path</span> isn't a PowerShell file inside the scripts folder (@Files.Root), so it can't be edited here. Edit it on the server, or move it into the scripts folder.</text>
+                    }
+                </p>
+            }
+        </div>
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    /// <summary>A parameter being edited, with its list settings as editable text.</summary>
+    private sealed class ParameterDraft(ScriptParameterDefinition definition)
+    {
+        public ScriptParameterDefinition Definition { get; } = definition;
+
+        public string OptionsText { get; set; } = string.Join('\n', definition.Options.Select(o => string.IsNullOrEmpty(o.Label) ? o.Value : $"{o.Value}|{o.Label}"));
+
+        public string SuggestionsText { get; set; } = string.Join('\n', definition.Suggestions);
+
+        public ScriptParameterDefinition ToDefinition()
+        {
+            var d = Definition;
+            var result = new ScriptParameterDefinition
+            {
+                Name = d.Name.Trim(), Label = Blank(d.Label), Type = d.Type, Description = Blank(d.Description), Placeholder = Blank(d.Placeholder),
+                Required = d.Required, Default = Blank(d.Default), Min = d.Min, Max = d.Max, Step = d.Step, Pattern = Blank(d.Pattern), Sensitive = d.Sensitive,
+            };
+            if (d.Type == ParameterType.Select)
+            {
+                foreach (var line in Lines(OptionsText))
+                {
+                    var bar = line.IndexOf('|', StringComparison.Ordinal);
+                    result.Options.Add(bar < 0 ? new SelectOption { Value = line } : new SelectOption { Value = line[..bar].Trim(), Label = Blank(line[(bar + 1)..]) });
+                }
+            }
+            else if (d.Type == ParameterType.Text)
+            {
+                foreach (var line in Lines(SuggestionsText))
+                {
+                    result.Suggestions.Add(line);
+                }
+            }
+
+            return result;
+        }
+
+        private static IEnumerable<string> Lines(string text) =>
+            text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
+    }
+
+    private ScriptDefinition _script = new() { Platforms = ScriptPlatforms.Any };
+    private List<ParameterDraft> _parameters = [];
+    private CatalogDocument _doc = new();
+    private IReadOnlyList<string> _files = [];
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private bool _isNew;
+    private bool _notFound;
+    private bool _busy;
+    private bool _showCode;
+    private bool _codeOpened; // The editor is created the first time the Code tab is shown.
+    private CodeEditor? _editor;
+
+    // The file as it was loaded (or the starter template), to tell whether the editor changed it.
+    private string _loadedCode = "";
+    private string? _loadedPath;
+    private bool _fileExists;
+    private bool _fileEditable;
+
+    [Parameter]
+    public string? ScriptId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedPath is not null && string.Equals(ScriptId, _script.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return; // Same script (e.g. after saving a new one, which navigates here).
+        }
+
+        _doc = Admin.Load().Document;
+        _files = Files.List();
+        _isNew = ScriptId is null;
+        if (_isNew)
+        {
+            _script = new ScriptDefinition { Platforms = ScriptPlatforms.Any, CategoryId = _doc.Categories.FirstOrDefault()?.Id ?? "" };
+        }
+        else if (_doc.Scripts.FirstOrDefault(s => string.Equals(s.Id, ScriptId, StringComparison.OrdinalIgnoreCase)) is { } script)
+        {
+            _script = script;
+        }
+        else
+        {
+            _notFound = true;
+            return;
+        }
+
+        _parameters = [.. _script.Parameters.Select(p => new ParameterDraft(p))];
+        await LoadFileAsync();
+    }
+
+    private async Task LoadFileAsync()
+    {
+        _loadedPath = _script.Path;
+        _fileEditable = Files.Resolve(_script.Path) is not null;
+        _fileExists = _fileEditable && File.Exists(Files.Resolve(_script.Path));
+        _loadedCode = _fileExists ? await Files.ReadAsync(_script.Path) ?? "" : Template();
+        if (_editor is not null)
+        {
+            await _editor.SetValueAsync(_loadedCode);
+        }
+    }
+
+    /// <summary>A new file's starting point: a param() block matching the parameters defined so far.</summary>
+    private string Template()
+    {
+        var lines = new List<string> { "[CmdletBinding()]", "param(" };
+        var parameters = _parameters.Select(d => d.Definition).Where(p => !string.IsNullOrWhiteSpace(p.Name)).ToList();
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var p = parameters[i];
+            var type = p.Type switch
+            {
+                ParameterType.Number or ParameterType.Range => "[double]",
+                ParameterType.Checkbox => "[switch]",
+                ParameterType.Date or ParameterType.DateTime => "[datetime]",
+                _ => "[string]",
+            };
+            var attribute = p.Required ? "[Parameter(Mandatory)] " : "";
+            lines.Add($"    {attribute}{type}${p.Name}{(i < parameters.Count - 1 ? "," : "")}");
+        }
+
+        lines.Add(")");
+        lines.Add("");
+        lines.Add("# Output, warnings and errors stream to the run page; objects also appear under Results.");
+        lines.Add("Write-Output \"Hello from $($SpecOps.ScriptName), run by $($SpecOps.User)\"");
+        lines.Add("");
+        return string.Join('\n', lines);
+    }
+
+    private async Task ShowCodeAsync()
+    {
+        _showCode = true;
+        if (_fileExists)
+        {
+            _codeOpened = true;
+            return;
+        }
+
+        // A new file: start from (or, if nobody has typed in it yet, refresh) the template, so it declares the
+        // parameters defined so far.
+        if (!_codeOpened)
+        {
+            _codeOpened = true;
+            _loadedCode = Template();
+        }
+        else if (_editor is { IsReady: true } && await _editor.GetValueAsync() == _loadedCode)
+        {
+            _loadedCode = Template();
+            await _editor.SetValueAsync(_loadedCode);
+        }
+    }
+
+    // Pointing at a different file loads it, unless the editor has unsaved changes (they'll be saved to the new path).
+    private async Task PathChangedAsync()
+    {
+        var code = _editor is null ? null : await _editor.GetValueAsync();
+        if (code is null || code == _loadedCode)
+        {
+            await LoadFileAsync();
+        }
+        else
+        {
+            _loadedPath = _script.Path;
+            _fileEditable = Files.Resolve(_script.Path) is not null;
+            _fileExists = _fileEditable && File.Exists(Files.Resolve(_script.Path));
+        }
+    }
+
+    private void SetPlatform(ScriptPlatforms platform, bool on) =>
+        _script.Platforms = on ? _script.Platforms | platform : _script.Platforms & ~platform;
+
+    private void AddParameter() => _parameters.Add(new ParameterDraft(new ScriptParameterDefinition { Name = $"Parameter{_parameters.Count + 1}" }));
+
+    private void Move(int index, int offset)
+    {
+        var item = _parameters[index];
+        _parameters.RemoveAt(index);
+        _parameters.Insert(index + offset, item);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _message = null;
+        try
+        {
+            var user = (await AuthState).User;
+            var script = Build();
+            var originalId = _isNew ? null : ScriptId;
+
+            // Check the whole configuration first, so a rejected change doesn't leave a half-saved file behind.
+            var candidate = Admin.Load().Document;
+            Upsert(candidate, originalId, script);
+            _errors = Admin.Validate(candidate);
+            if (_errors.Count > 0)
+            {
+                return;
+            }
+
+            var code = _fileEditable && _editor is not null ? await _editor.GetValueAsync() : null;
+            if (code is null && _fileEditable && !_fileExists)
+            {
+                code = Template(); // A new script whose code nobody opened yet still gets a file.
+            }
+
+            if (code is not null && (code != _loadedCode || !_fileExists))
+            {
+                if (await Files.SaveAsync(user, script.Path, code) is { } fileError)
+                {
+                    _errors = [fileError];
+                    return;
+                }
+
+                _loadedCode = code;
+                _fileExists = true;
+                _files = Files.List();
+            }
+
+            var result = await Admin.ChangeAsync(user, $"{(_isNew ? "Added" : "Updated")} script '{script.Id}'", doc => Upsert(doc, originalId, script));
+            _errors = result.Errors;
+            if (!result.Succeeded)
+            {
+                return;
+            }
+
+            _message = $"Saved {script.Name}.";
+            _script = script;
+            _parameters = [.. script.Parameters.Select(p => new ParameterDraft(p))];
+            if (_isNew)
+            {
+                _isNew = false;
+                Navigation.NavigateTo($"admin/config/scripts/{Uri.EscapeDataString(script.Id)}", replace: true);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private ScriptDefinition Build()
+    {
+        var script = new ScriptDefinition
+        {
+            Id = _script.Id.Trim(),
+            Name = _script.Name.Trim(),
+            CategoryId = _script.CategoryId.Trim(),
+            Summary = Blank(_script.Summary),
+            Path = _script.Path.Trim(),
+            RunspaceProfile = Blank(_script.RunspaceProfile),
+            Platforms = _script.Platforms,
+            TimeoutMinutes = _script.TimeoutMinutes,
+            EnableImpersonation = _script.EnableImpersonation,
+        };
+        foreach (var draft in _parameters)
+        {
+            script.Parameters.Add(draft.ToDefinition());
+        }
+
+        return script;
+    }
+
+    private static void Upsert(CatalogDocument doc, string? originalId, ScriptDefinition script)
+    {
+        var index = originalId is null ? -1 : doc.Scripts.ToList().FindIndex(s => string.Equals(s.Id, originalId, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            doc.Scripts[index] = script;
+        }
+        else
+        {
+            doc.Scripts.Add(script);
+        }
+    }
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

@@ -1,0 +1,156 @@
+@page "/admin/config/history"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@inject CatalogAdmin Admin
+@inject IJSRuntime JS
+
+<PageTitle>Import &amp; history · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Errors="_errors" Message="@_message"
+            Description="Every change is saved as a new version. Export the configuration as specops.json, replace it from a file, or go back to an earlier version.">
+    <Actions>
+        <button type="button" class="btn-secondary" @onclick="() => DownloadAsync(Admin.Version)" disabled="@(!RendererInfo.IsInteractive)"><Icon Name="download" /> Export</button>
+    </Actions>
+    <ChildContent>
+        <section class="card mb-6 grid gap-3 p-5">
+            <h2 class="font-semibold">Import</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+                Replaces all categories, policies, runspace profiles and scripts with the ones in a specops.json (other settings in the file are ignored).
+                Script files aren't touched. You can restore the current version below afterwards.
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+                <InputFile OnChange="ChooseFileAsync" accept=".json,application/json" class="text-sm" disabled="@(!RendererInfo.IsInteractive)" aria-label="Configuration file" />
+                @if (_import is not null)
+                {
+                    <span class="text-sm">
+                        <span class="font-medium">@_importName</span>: @_import.Scripts.Count scripts, @_import.Categories.Count categories, @_import.Policies.Count policies, @_import.RunspaceProfiles.Count runspace profiles.
+                    </span>
+                    <button type="button" class="btn-danger" @onclick="ImportAsync" disabled="@_busy"><Icon Name="upload" /> Replace configuration</button>
+                }
+            </div>
+        </section>
+
+        <h2 class="mb-3 font-semibold">History</h2>
+        <div class="card overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <tr>
+                        <th class="px-4 py-3 font-medium">Version</th>
+                        <th class="px-4 py-3 font-medium">Saved</th>
+                        <th class="px-4 py-3 font-medium">By</th>
+                        <th class="px-4 py-3 font-medium">Change</th>
+                        <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    @foreach (var version in _versions)
+                    {
+                        var live = version.Id == Admin.Version;
+                        <tr>
+                            <td class="px-4 py-3 tabular-nums">
+                                @version.Id
+                                @if (live)
+                                {
+                                    <span class="badge ml-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Live</span>
+                                }
+                            </td>
+                            <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@version.CreatedAt.ToLocalTime().ToString("g")</td>
+                            <td class="px-4 py-3 text-slate-600 dark:text-slate-400">@version.CreatedBy</td>
+                            <td class="px-4 py-3">@version.Summary</td>
+                            <td class="whitespace-nowrap px-4 py-3 text-right">
+                                <button type="button" class="btn-ghost py-1" title="Download" @onclick="() => DownloadAsync(version.Id)" disabled="@(!RendererInfo.IsInteractive)">
+                                    <Icon Name="download" /><span class="sr-only">Download version @version.Id</span>
+                                </button>
+                                @if (!live)
+                                {
+                                    <button type="button" class="btn-ghost py-1" @onclick="() => RestoreAsync(version.Id)" disabled="@(_busy || !RendererInfo.IsInteractive)">
+                                        <Icon Name="rotate-ccw" /> Restore
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">The 50 most recent versions are shown.</p>
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    private const long MaxImportBytes = 2 * 1024 * 1024;
+
+    private IReadOnlyList<CatalogVersionInfo> _versions = [];
+    private CatalogDocument? _import;
+    private string? _importJson;
+    private string _importName = "";
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private bool _busy;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync() => _versions = await Admin.ListVersionsAsync();
+
+    private async Task ChooseFileAsync(InputFileChangeEventArgs e)
+    {
+        _import = null;
+        _message = null;
+        _errors = [];
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream(MaxImportBytes));
+            _importJson = await reader.ReadToEndAsync();
+            _importName = e.File.Name;
+            _import = CatalogDocument.Parse(_importJson);
+        }
+        catch (IOException ex)
+        {
+            _errors = [$"Couldn't read {e.File.Name}: {ex.Message}"];
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _errors = [$"{e.File.Name} isn't valid configuration JSON: {ex.Message}"];
+        }
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_importJson is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        var result = await Admin.ImportAsync((await AuthState).User, _importJson, _importName);
+        await FinishAsync(result, $"Imported {_importName}.");
+        if (result.Succeeded)
+        {
+            _import = null;
+            _importJson = null;
+        }
+    }
+
+    private async Task RestoreAsync(long id)
+    {
+        _busy = true;
+        await FinishAsync(await Admin.RestoreAsync((await AuthState).User, id), $"Restored version {id}.");
+    }
+
+    private async Task FinishAsync(CatalogSaveResult result, string success)
+    {
+        _busy = false;
+        _errors = result.Errors;
+        _message = result.Succeeded ? success : null;
+        _versions = await Admin.ListVersionsAsync();
+    }
+
+    private async Task DownloadAsync(long id)
+    {
+        if (await Admin.ExportVersionAsync(id) is { } json)
+        {
+            await JS.TryInvokeVoidAsync("specops.downloadText", $"specops-config-v{id}.json", json);
+        }
+    }
+}

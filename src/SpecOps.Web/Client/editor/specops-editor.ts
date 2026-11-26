@@ -23,8 +23,21 @@ export interface EditorHandle {
   dispose(): void;
 }
 
-/** Creates an editor in `element`. Ctrl/Cmd+Enter calls the .NET method `RunFromShortcut` on `dotnet`. */
-export function createEditor(element: HTMLElement, value: string, dotnet: DotNetObject): EditorHandle {
+/** .NET methods (on the `dotnet` object) that keyboard shortcuts call. */
+export interface EditorShortcuts {
+  /** Ctrl/Cmd+Enter. */
+  run?: string;
+  /** Ctrl/Cmd+S (instead of the browser's "save page"). */
+  save?: string;
+}
+
+/** Creates an editor in `element`; by default Ctrl/Cmd+Enter calls the .NET method `RunFromShortcut`. */
+export function createEditor(
+  element: HTMLElement,
+  value: string,
+  dotnet: DotNetObject,
+  shortcuts: EditorShortcuts = { run: 'RunFromShortcut' },
+): EditorHandle {
   const editor = monaco.editor.create(element, {
     value,
     language: 'powershell',
@@ -35,9 +48,15 @@ export function createEditor(element: HTMLElement, value: string, dotnet: DotNet
     scrollBeyondLastLine: false,
   });
 
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    void dotnet.invokeMethodAsync('RunFromShortcut');
-  });
+  const bind = (key: number, method: string | undefined): void => {
+    if (method) {
+      editor.addCommand(monaco.KeyMod.CtrlCmd | key, () => {
+        void dotnet.invokeMethodAsync(method);
+      });
+    }
+  };
+  bind(monaco.KeyCode.Enter, shortcuts.run);
+  bind(monaco.KeyCode.KeyS, shortcuts.save);
 
   // Follow the app's light/dark toggle (specops.ts raises this event).
   const onTheme = (event: CustomEvent<ThemeChangeDetail>): void => {
