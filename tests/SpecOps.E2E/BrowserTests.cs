@@ -76,6 +76,8 @@ public sealed class BrowserTests(SpecOpsApp app)
         await Expect(page.Locator(".monaco-editor").First).ToBeVisibleAsync();
         await page.GotoAsync("admin/users");
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Users" })).ToBeVisibleAsync();
+        await page.GotoAsync("admin/logs");
+        await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Logs" })).ToBeVisibleAsync();
 
         Assert.Empty(errors);
     }

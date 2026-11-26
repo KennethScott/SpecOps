@@ -104,7 +104,11 @@ public static class HostingSetup
             )
         );
 
-        // Logging: console + rolling file in the data directory.
+        // Logging: console + rolling file in the data directory (one per day, or a new one after 100 MB, so the Logs
+        // page never has to open a huge file), deleted after SpecOps:LogRetentionDays.
+        var logRetention = TimeSpan.FromDays(
+            Math.Max(1, builder.Configuration.GetValue("SpecOps:LogRetentionDays", 30))
+        );
         builder.Services.AddSerilog(
             (services, logger) =>
                 logger
@@ -113,9 +117,12 @@ public static class HostingSetup
                     .Enrich.FromLogContext()
                     .WriteTo.Console(formatProvider: System.Globalization.CultureInfo.InvariantCulture)
                     .WriteTo.File(
-                        Path.Combine(paths.DataDirectory, "logs", "specops-.log"),
+                        Path.Combine(paths.DataDirectory, Services.LogFiles.FolderName, "specops-.log"),
                         rollingInterval: RollingInterval.Day,
-                        retainedFileCountLimit: 30,
+                        fileSizeLimitBytes: 100 * 1024 * 1024,
+                        rollOnFileSizeLimit: true,
+                        retainedFileCountLimit: null,
+                        retainedFileTimeLimit: logRetention,
                         formatProvider: System.Globalization.CultureInfo.InvariantCulture
                     )
         );
