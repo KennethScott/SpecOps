@@ -24,6 +24,8 @@ Run one project: `dotnet test --project tests/SpecOps.E2E`.
   ```
 
 - **Watch them run**: set `SPECOPS_E2E_HEADED=1` to open a visible browser window.
+- **Slow machine**: set `SPECOPS_E2E_CPU_THROTTLE=6` to run the browser that many times slower, to reproduce timing
+  problems that only show up on CI runners.
 - The tests cover what only a browser can: sign-in, running and cancelling scripts with live output, the Terminal's
   editor (Monaco) and Results view, the theme toggle, and that pages load without script errors or CSP violations.
 
