@@ -19,5 +19,6 @@ src/SpecOps.Web/wwwroot/js
 **/*.user
 **/appsettings.Local.json
 .env
+certs
 *.md
 !README.md

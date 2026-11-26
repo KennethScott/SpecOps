@@ -43,20 +43,72 @@ Invalid settings stop the container with a list of problems (`docker compose log
 
 ## HTTPS
 
-Pick one:
+Sign-in providers only redirect back to `https://` URLs, so every server people use needs HTTPS. The server
+doesn't have to be reachable from the internet: the redirect happens in the user's browser, so a name like
+`https://specops.corp.local` works with Entra ID, Google and OIDC as long as users' browsers trust the
+certificate.
 
-- **Caddy (automatic certificates)**: for a host with a public DNS name and ports 80/443 open.
+The Caddy setup (`compose.caddy.yaml`) puts Caddy in front of SpecOps: it serves HTTPS, redirects HTTP to HTTPS
+and renews certificates. `SPECOPS_TLS` picks where the certificate comes from:
 
-  ```bash
-  SPECOPS_HOST=specops.example.com docker compose -f compose.yaml -f compose.caddy.yaml up -d
-  ```
+| `SPECOPS_TLS`    | Certificate                               | Use it for                                         |
+| ---------------- | ----------------------------------------- | -------------------------------------------------- |
+| `auto` (default) | Let's Encrypt                             | Public DNS name, ports 80/443 open to the internet |
+| `internal`       | Caddy's own CA                            | Internal networks, testing                         |
+| `files`          | Yours, e.g. from your internal CA (AD CS) | Internal networks, production                      |
+
+### Internal network: your internal CA (recommended for production)
+
+Issue a certificate for the SpecOps host name from your internal CA (e.g. Active Directory Certificate
+Services). Domain-joined machines already trust that CA, so nothing needs installing on clients. Save it as PEM
+files next to `compose.yaml`:
+
+- `certs/specops.crt`: the certificate, followed by any intermediate CA certificates
+- `certs/specops.key`: its private key (unencrypted; keep the folder readable only by the Docker host admins)
+
+```bash
+SPECOPS_HOST=specops.corp.local SPECOPS_TLS=files docker compose -f compose.yaml -f compose.caddy.yaml up -d
+```
+
+Got a PFX instead? Convert it: `openssl pkcs12 -in specops.pfx -nokeys -out certs/specops.crt` and
+`openssl pkcs12 -in specops.pfx -nocerts -nodes -out certs/specops.key`. When the certificate is renewed,
+replace the files and run `docker compose restart caddy`.
+
+### Internal network: Caddy as its own CA (testing)
+
+Caddy creates a private CA on first start and issues and renews the certificate itself. No certificate
+requests and nothing to renew, but browsers show a warning until Caddy's root certificate is trusted on the
+client.
+
+```bash
+SPECOPS_HOST=specops.corp.local SPECOPS_TLS=internal docker compose -f compose.yaml -f compose.caddy.yaml up -d
+
+# Copy Caddy's root certificate out of the container
+docker compose -f compose.yaml -f compose.caddy.yaml cp caddy:/data/caddy/pki/authorities/local/root.crt caddy-root.crt
+```
+
+Then trust `caddy-root.crt` on the machines that will use SpecOps:
+
+- **One Windows test machine**: double-click it, then **Install Certificate** > **Local Machine** > **Trusted Root
+  Certification Authorities**. Or, from an elevated prompt: `certutil -addstore -f Root caddy-root.crt`.
+- **Many Windows machines**: Group Policy > Computer Configuration > Policies > Windows Settings > Security Settings
+  > Public Key Policies > **Trusted Root Certification Authorities** > Import.
+- **macOS**: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt`
+- **Firefox** uses its own store unless `security.enterprise_roots.enabled` is on (it is by default on Windows
+  for roots installed by an administrator).
+
+The root certificate (and its key) live in the `caddy-data` volume: keep that volume, or clients have to trust a
+new root. Anyone with that key can issue certificates your clients trust, so treat the volume like a secret and
+prefer `files` with your real CA for production.
+
+### Other options
 
 - **Your existing reverse proxy / load balancer** (F5, NGINX, IIS ARR, Azure App Gateway…): terminate TLS there,
   forward to `http://<host>:8080`, and tell SpecOps to trust it so redirects, secure cookies and client IPs are
   right: `Proxy__KnownProxies__0=<proxy IP>` (or `Proxy__KnownNetworks__0=<CIDR>`). WebSockets must be passed
   through (Blazor uses them).
 
-- **Your own certificate, no proxy** (e.g. an internal CA): mount the PFX and let SpecOps serve HTTPS itself:
+- **SpecOps serves HTTPS itself, no proxy**: mount a PFX and let Kestrel use it:
 
   ```yaml
   # compose.override.yaml

@@ -357,5 +357,8 @@ src/SpecOps.Web/wwwroot/css/
 src/SpecOps.Web/wwwroot/lib/editor/
 src/SpecOps.Web/wwwroot/js/
 
+# TLS certificates and keys for Caddy (SPECOPS_TLS=files)
+/certs/
+
 # Local planning notes (not part of the repo)
 docs/MODERNIZATION_PLAN.md

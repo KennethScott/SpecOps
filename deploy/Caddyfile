@@ -1,6 +1,22 @@
-# HTTPS for SpecOps (used by compose.caddy.yaml). Caddy obtains and renews the certificate automatically,
-# redirects HTTP to HTTPS, and passes WebSockets (needed by Blazor) through.
+# HTTPS for SpecOps (used by compose.caddy.yaml): redirects HTTP to HTTPS and passes WebSockets (needed by
+# Blazor) through. SPECOPS_TLS picks where the certificate comes from:
+#   auto      (default) Let's Encrypt; needs public DNS and ports 80/443 reachable from the internet
+#   internal  Caddy's own CA; for internal networks and testing. Browsers trust it once Caddy's root
+#             certificate is installed on the clients (see docs/docker.md)
+#   files     your certificate, e.g. from an internal CA: certs/specops.crt and certs/specops.key (PEM)
+(tls-auto) {
+}
+
+(tls-internal) {
+	tls internal
+}
+
+(tls-files) {
+	tls /certs/specops.crt /certs/specops.key
+}
+
 {$SPECOPS_HOST} {
+	import tls-{$SPECOPS_TLS:auto}
 	encode zstd gzip
 	reverse_proxy specops:8080
 }
