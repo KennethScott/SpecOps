@@ -12,21 +12,28 @@ public sealed partial class RunHistoryCleanup(RunHistory history, TimeProvider t
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(Interval, time);
-        do
+        try
         {
-            try
+            do
             {
-                var deleted = await history.PruneAsync(stoppingToken);
-                if (deleted > 0)
+                try
                 {
-                    LogPruned(deleted);
+                    var deleted = await history.PruneAsync(stoppingToken);
+                    if (deleted > 0)
+                    {
+                        LogPruned(deleted);
+                    }
                 }
-            }
-            catch (Exception ex) when (ex is DbException or InvalidOperationException)
-            {
-                LogPruneFailed(ex);
-            }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
+                catch (Exception ex) when (ex is DbException or InvalidOperationException)
+                {
+                    LogPruneFailed(ex);
+                }
+            } while (await timer.WaitForNextTickAsync(stoppingToken));
+        }
+        catch (OperationCanceledException)
+        {
+            // Shutting down, including when startup failed and the host is disposed without a normal stop.
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Run history: deleted {Count} runs past retention")]
