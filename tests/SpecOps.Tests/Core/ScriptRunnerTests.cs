@@ -309,7 +309,8 @@ public sealed class ScriptRunnerTests : IDisposable
         // Same columns as Format-Table (the type's table view), not every property.
         var directory = rows.Single(r => r.TypeName.Contains("DirectoryInfo", StringComparison.Ordinal));
         Assert.InRange(directory.Columns.Count, 1, 10);
-        Assert.Contains("Mode", directory.Columns);
+        // Windows shows "Mode", Linux and macOS "UnixMode" (plus User and Group).
+        Assert.Contains(directory.Columns, c => c is "Mode" or "UnixMode");
         Assert.Contains("Name", directory.Columns);
 
         // The console still shows everything as it would in a terminal.
