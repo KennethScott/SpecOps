@@ -100,8 +100,26 @@
                         <h2 class="font-semibold">Parameters</h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">Form fields shown before a run. Names must match the script's param() block.</p>
                     </div>
-                    <button type="button" class="btn-secondary" @onclick="AddParameter"><Icon Name="plus" /> Add parameter</button>
+                    <div class="flex gap-2">
+                        <button type="button" class="btn-secondary" @onclick="ReadParametersAsync" disabled="@(!_fileEditable || !RendererInfo.IsInteractive)"
+                                title="Fill in the parameters from the script's param() block (settings you already made for existing parameters are kept)">
+                            <Icon Name="file-code" /> Read from code
+                        </button>
+                        <button type="button" class="btn-secondary" @onclick="AddParameter"><Icon Name="plus" /> Add parameter</button>
+                    </div>
                 </div>
+
+                @if (_readNotes.Count > 0)
+                {
+                    <div class="mb-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200" role="status">
+                        <ul class="list-disc pl-5">
+                            @foreach (var note in _readNotes)
+                            {
+                                <li>@note</li>
+                            }
+                        </ul>
+                    </div>
+                }
 
                 @if (_parameters.Count == 0)
                 {
@@ -269,6 +287,7 @@
     private bool _busy;
     private bool _showCode;
     private bool _codeOpened; // The editor is created the first time the Code tab is shown.
+    private IReadOnlyList<string> _readNotes = [];
     private CodeEditor? _editor;
 
     // The file as it was loaded (or the starter template), to tell whether the editor changed it.
@@ -380,6 +399,11 @@
         if (code is null || code == _loadedCode)
         {
             await LoadFileAsync();
+            // A new script pointed at an existing file: take its parameters straight away.
+            if (_isNew && _fileExists && _parameters.Count == 0)
+            {
+                ReadParameters(_loadedCode);
+            }
         }
         else
         {
@@ -387,6 +411,49 @@
             _fileEditable = Files.Resolve(_script.Path) is not null;
             _fileExists = _fileEditable && File.Exists(Files.Resolve(_script.Path));
         }
+    }
+
+    private async Task ReadParametersAsync()
+    {
+        var code = _editor is { IsReady: true } ? await _editor.GetValueAsync() : null;
+        code ??= _fileExists ? await Files.ReadAsync(_script.Path) : null;
+        if (code is null)
+        {
+            _readNotes = ["Write the script (Code tab) or point File at an existing script first."];
+            return;
+        }
+
+        ReadParameters(code);
+    }
+
+    /// <summary>
+    /// Replaces the parameter list with the script's param() block, in its order. Parameters already defined here
+    /// keep their settings (labels, types, options...); ones no longer in the script are removed.
+    /// </summary>
+    private void ReadParameters(string code)
+    {
+        var result = ParamBlockReader.Read(code);
+        var notes = new List<string>();
+        if (result.Parameters.Count == 0)
+        {
+            _readNotes = result.Problems.Count > 0 ? result.Problems : ["The param() block is empty."];
+            return;
+        }
+
+        var existing = _parameters.ToDictionary(d => d.Definition.Name, StringComparer.OrdinalIgnoreCase);
+        var merged = result.Parameters.Select(p => existing.GetValueOrDefault(p.Name) ?? new ParameterDraft(p)).ToList();
+        var added = result.Parameters.Count(p => !existing.ContainsKey(p.Name));
+        var removed = _parameters.Where(d => !result.Parameters.Any(p => string.Equals(p.Name, d.Definition.Name, StringComparison.OrdinalIgnoreCase))).Select(d => d.Definition.Name).ToList();
+        _parameters = merged;
+
+        notes.Add($"Read {result.Parameters.Count} parameter(s) from the code: {added} new, {result.Parameters.Count - added} kept as they were. Review them, then Save.");
+        if (removed.Count > 0)
+        {
+            notes.Add($"Removed (not in the param() block): {string.Join(", ", removed)}.");
+        }
+
+        notes.AddRange(result.Problems);
+        _readNotes = notes;
     }
 
     private void SetPlatform(ScriptPlatforms platform, bool on) =>
