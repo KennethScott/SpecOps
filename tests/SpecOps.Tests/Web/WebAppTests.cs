@@ -71,6 +71,9 @@ public sealed class WebAppTests(SpecOpsWebFactory factory) : IClassFixture<SpecO
     [InlineData("/terminal")]
     [InlineData("/admin/users")]
     [InlineData("/scripts/demo")]
+    [InlineData("/admin/logs")]
+    [InlineData("/admin/logs/specops-20260101.log")]
+    [InlineData("/admin/config")]
     public async Task Pages_require_sign_in(string path)
     {
         var response = await Client().GetAsync(path, TestContext.Current.CancellationToken);

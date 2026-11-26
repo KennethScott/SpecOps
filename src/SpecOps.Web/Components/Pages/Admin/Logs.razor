@@ -1,0 +1,173 @@
+@page "/admin/logs"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@implements IDisposable
+@inject LogFiles LogFiles
+@inject IConfiguration Configuration
+
+<PageTitle>Logs · SpecOps</PageTitle>
+
+<div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Logs</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+            The application log (sign-ins, runs, warnings and errors). One file per day, kept for @RetentionDays days.
+        </p>
+    </div>
+    <fieldset class="flex flex-wrap items-center gap-2" disabled="@(!RendererInfo.IsInteractive)">
+        <select class="input w-56" @bind="_file" @bind:after="LoadAsync" aria-label="Log file">
+            @foreach (var file in _files)
+            {
+                <option value="@file.Name">@file.Name (@Size(file.Size))</option>
+            }
+        </select>
+        <div class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-900" role="group" aria-label="Minimum level">
+            @foreach (var (level, label) in LevelFilters)
+            {
+                <button type="button" @onclick="() => SetLevelAsync(level)" aria-pressed="@(_level == level)"
+                        class="@($"rounded-md px-3 py-1 font-medium {(_level == level ? "bg-white shadow-sm dark:bg-slate-800" : "text-slate-500")}")">@label</button>
+            }
+        </div>
+        <div class="relative w-56">
+            <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400"><Icon Name="search" /></span>
+            <input type="search" class="input pl-9" placeholder="Search…" @bind="_search" @bind:event="oninput" @bind:after="LoadAsync" aria-label="Search logs" />
+        </div>
+        <label class="flex items-center gap-2 text-sm" title="Re-read the newest file every few seconds">
+            <input type="checkbox" class="size-4 accent-brand-600" @bind="_follow" @bind:after="FollowChanged" /> Follow
+        </label>
+        @if (_file is not null)
+        {
+            <a href="admin/logs/@Uri.EscapeDataString(_file)" class="btn-secondary" download><Icon Name="download" /> Download</a>
+        }
+    </fieldset>
+</div>
+
+@if (_files.Count == 0)
+{
+    <EmptyState Title="No log files" Icon="file-code">Nothing has been logged to @LogFiles.Folder yet.</EmptyState>
+}
+else if (_view is not null)
+{
+    <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">
+        @if (_view.Matching > _view.Entries.Count)
+        {
+            <text>Showing the last @_view.Entries.Count of @_view.Matching.ToString("N0") matching entries.</text>
+        }
+        else
+        {
+            <text>@_view.Matching.ToString("N0") matching entries.</text>
+        }
+        @if (_view.Truncated)
+        {
+            <text> Only the last @(LogFiles.MaxReadBytes / 1024 / 1024) MB of this file is searched; download it for the rest.</text>
+        }
+    </p>
+
+    <section class="overflow-hidden rounded-xl border border-slate-800 bg-console-bg shadow-sm">
+        <div @ref="_scroller" class="h-[40rem] overflow-auto px-3 py-2 font-mono text-[13px] leading-5 text-console-fg" role="log">
+            @if (_view.Entries.Count == 0)
+            {
+                <div class="py-8 text-center text-console-muted">Nothing matches.</div>
+            }
+            else
+            {
+                <Virtualize Items="_view.Entries" ItemSize="20" OverscanCount="30" Context="entry">
+                    <div class="@($"flex gap-3 {LevelCss(entry.Level)}")">
+                        <span class="shrink-0 select-none tabular-nums text-console-muted">@entry.Timestamp?.ToLocalTime().ToString("MM-dd HH:mm:ss")</span>
+                        <span class="w-8 shrink-0 select-none">@entry.Level</span>
+                        <span class="whitespace-pre-wrap break-all">@entry.Text</span>
+                    </div>
+                </Virtualize>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private static readonly (string Level, string Label)[] LevelFilters = [("VRB", "All"), ("WRN", "Warnings"), ("ERR", "Errors")];
+
+    private IReadOnlyList<LogFileInfo> _files = [];
+    private string? _file;
+    private string _level = "VRB";
+    private string _search = "";
+    private bool _follow;
+    private LogView? _view;
+    private ElementReference _scroller;
+    private Timer? _timer;
+    private bool _scrollToEnd = true; // Show the newest entries after each load.
+
+    [Inject]
+    private IJSRuntime JS { get; set; } = default!;
+
+    private int RetentionDays => Math.Max(1, Configuration.GetValue("SpecOps:LogRetentionDays", 30));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _files = LogFiles.List();
+        _file = _files.FirstOrDefault()?.Name;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _view = _file is null ? null : await LogFiles.ReadAsync(_file, _level, _search);
+        _scrollToEnd = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToEnd && RendererInfo.IsInteractive)
+        {
+            _scrollToEnd = false;
+            await ScrollToEndAsync();
+        }
+    }
+
+    private async Task SetLevelAsync(string level)
+    {
+        _level = level;
+        await LoadAsync();
+    }
+
+    private async Task FollowChanged()
+    {
+        _timer?.Dispose();
+        _timer = null;
+        if (_follow)
+        {
+            // Following means watching the newest file.
+            _files = LogFiles.List();
+            _file = _files.FirstOrDefault()?.Name;
+            await LoadAsync();
+            _timer = new Timer(_ => InvokeAsync(RefreshAsync), null, 3000, 3000);
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _files = LogFiles.List();
+        _file = _files.FirstOrDefault()?.Name;
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task ScrollToEndAsync() => await JS.TryInvokeVoidAsync("specops.scrollToBottom", _scroller);
+
+    private static string LevelCss(string level) =>
+        level switch
+        {
+            "ERR" or "FTL" => "text-console-error",
+            "WRN" => "text-console-warning",
+            "DBG" or "VRB" => "text-console-muted",
+            _ => "",
+        };
+
+    private static string Size(long bytes) =>
+        bytes switch
+        {
+            < 1024 => $"{bytes} B",
+            < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+            _ => $"{bytes / 1024.0 / 1024.0:0.#} MB",
+        };
+
+    public void Dispose() => _timer?.Dispose();
+}

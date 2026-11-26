@@ -22,6 +22,7 @@ builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
 builder.Services.AddSingleton<CatalogAdmin>();
 builder.Services.AddSingleton<ScriptFiles>();
+builder.Services.AddSingleton<LogFiles>();
 builder.Services.AddHostedService<ScriptRunnerLifetime>();
 builder.Services.AddHostedService<RunHistoryCleanup>();
 
@@ -58,6 +59,7 @@ app.UseAntiforgery();
 app.MapStaticAssets().AllowAnonymous();
 app.MapHealthChecks("/healthz").AllowAnonymous();
 app.MapAccountEndpoints();
+app.MapLogEndpoints();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 await app.InitializeSpecOpsAsync();
