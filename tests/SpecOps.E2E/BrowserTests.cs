@@ -42,6 +42,18 @@ public sealed class BrowserTests(SpecOpsApp app)
     }
 
     [Fact]
+    public async Task The_heading_gets_focus_after_navigation_without_an_outline()
+    {
+        var page = await app.SignedInPageAsync();
+        await page.GotoAsync("runs");
+
+        // Blazor focuses the h1 for screen readers (FocusOnNavigate); it shouldn't look like a focused control.
+        var heading = page.GetByRole(AriaRole.Heading, new() { Name = "Runs", Exact = true });
+        await Expect(heading).ToBeFocusedAsync();
+        await Expect(heading).ToHaveCSSAsync("outline-style", "none");
+    }
+
+    [Fact]
     public async Task Theme_toggle_switches_theme_and_remembers_it()
     {
         var page = await app.SignedInPageAsync();

@@ -73,6 +73,14 @@
   }
 }
 
+/*
+  After each navigation Blazor focuses the page's h1 (FocusOnNavigate in Routes.razor) so screen readers announce
+  the new page. It isn't something you can interact with, so don't draw a focus outline around it.
+*/
+h1:focus {
+  outline: none;
+}
+
 /* Hide the browser's own datalist arrow; inputs with suggestions look like normal inputs. */
 [list]::-webkit-calendar-picker-indicator {
   display: none !important;
