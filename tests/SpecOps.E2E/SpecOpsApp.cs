@@ -48,7 +48,24 @@ public sealed class SpecOpsApp : IAsyncLifetime
             }
         );
         context.SetDefaultTimeout(15_000);
-        return await context.NewPageAsync();
+        var page = await context.NewPageAsync();
+
+        // SPECOPS_E2E_CPU_THROTTLE=6 slows the browser's CPU down that many times (Chromium only), to reproduce
+        // timing problems that only show up on slow machines such as CI runners.
+        if (
+            double.TryParse(
+                Environment.GetEnvironmentVariable("SPECOPS_E2E_CPU_THROTTLE"),
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var rate
+            )
+            && rate > 1
+        )
+        {
+            var cdp = await context.NewCDPSessionAsync(page);
+            await cdp.SendAsync("Emulation.setCPUThrottlingRate", new Dictionary<string, object> { ["rate"] = rate });
+        }
+
+        return page;
     }
 
     /// <summary>
@@ -103,6 +120,13 @@ public sealed class SpecOpsApp : IAsyncLifetime
         return string.Join(Environment.NewLine, lines.TakeLast(30));
     }
 
+    /// <summary>
+    /// Waits until the page is driven by the live connection (MainLayout sets data-interactive). Before that, the
+    /// page is the prerendered HTML: controls are disabled and clicks may be lost.
+    /// </summary>
+    public static Task WaitForInteractiveAsync(IPage page) =>
+        Expect(page.Locator("[data-interactive=true]")).ToBeAttachedAsync(new() { Timeout = 30_000 });
+
     /// <summary>A fresh context, signed in as the Development admin user, on the Scripts page.</summary>
     public async Task<IPage> SignedInPageAsync()
     {
@@ -110,6 +134,7 @@ public sealed class SpecOpsApp : IAsyncLifetime
         await page.GotoAsync("account/login");
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign in as dev user" }).ClickAsync();
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Scripts", Exact = true })).ToBeVisibleAsync();
+        await WaitForInteractiveAsync(page);
         return page;
     }
 

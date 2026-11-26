@@ -31,7 +31,7 @@ public sealed class ConfigureTests(SpecOpsApp app)
             await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
             await Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved E2E greeting.");
 
-            await page.GotoAsync("scripts/e2e-greeting");
+            await page.GotoInteractiveAsync("scripts/e2e-greeting");
             await page.GetByLabel("Who").FillAsync("Playwright");
             await page.GetByRole(AriaRole.Button, new() { Name = "Run", Exact = true }).ClickAsync();
 
@@ -44,7 +44,7 @@ public sealed class ConfigureTests(SpecOpsApp app)
     public async Task Script_files_can_be_uploaded_into_a_folder()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("admin/config/files");
+        await page.GotoInteractiveAsync("admin/config/files");
 
         await app.WithDiagnosticsAsync(page, async () =>
         {
@@ -71,16 +71,16 @@ public sealed class ConfigureTests(SpecOpsApp app)
         var page = await app.SignedInPageAsync();
 
         // The section's start page is the Scripts tab.
-        await page.GotoAsync("admin/config");
+        await page.GotoInteractiveAsync("admin/config");
         var sections = page.GetByRole(AriaRole.Navigation, new() { Name = "Configuration sections" });
         await Expect(sections.GetByRole(AriaRole.Link, new() { Name = "Scripts" }))
             .ToHaveAttributeAsync("aria-current", "page");
 
-        await page.GotoAsync("admin/config/policies");
+        await page.GotoInteractiveAsync("admin/config/policies");
         await Expect(sections.GetByRole(AriaRole.Link, new() { Name = "Policies" }))
             .ToHaveAttributeAsync("aria-current", "page");
         await Expect(page.GetByLabel("Policy name").First).ToHaveValueAsync("Help desk");
-        await page.GotoAsync("admin/config/history");
+        await page.GotoInteractiveAsync("admin/config/history");
         await Expect(page.GetByRole(AriaRole.Cell, new() { Name = "Imported from specops.json" })).ToBeVisibleAsync();
     }
 }

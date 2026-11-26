@@ -18,7 +18,7 @@ public sealed class BrowserTests(SpecOpsApp app)
     public async Task Terminal_runs_code_from_the_editor_and_shows_objects_as_results()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("terminal");
+        await page.GotoInteractiveAsync("terminal");
 
         // Monaco (lazy-loaded ES module bundle) replaces the loading placeholder.
         var editor = page.Locator(".monaco-editor").First;
@@ -45,7 +45,7 @@ public sealed class BrowserTests(SpecOpsApp app)
     public async Task The_heading_gets_focus_after_navigation_without_an_outline()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("runs");
+        await page.GotoInteractiveAsync("runs");
 
         // Blazor focuses the h1 for screen readers (FocusOnNavigate); it shouldn't look like a focused control.
         var heading = page.GetByRole(AriaRole.Heading, new() { Name = "Runs", Exact = true });
@@ -84,11 +84,11 @@ public sealed class BrowserTests(SpecOpsApp app)
         await page.GotoAsync("account/login");
         await page.GetByRole(AriaRole.Button, new() { Name = "Sign in as dev user" }).ClickAsync();
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Scripts", Exact = true })).ToBeVisibleAsync();
-        await page.GotoAsync("terminal");
+        await page.GotoInteractiveAsync("terminal");
         await Expect(page.Locator(".monaco-editor").First).ToBeVisibleAsync();
-        await page.GotoAsync("admin/users");
+        await page.GotoInteractiveAsync("admin/users");
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Users" })).ToBeVisibleAsync();
-        await page.GotoAsync("admin/logs");
+        await page.GotoInteractiveAsync("admin/logs");
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Logs" })).ToBeVisibleAsync();
 
         Assert.Empty(errors);

@@ -1,7 +1,8 @@
 ﻿@inherits LayoutComponentBase
 @inject ScriptService Scripts
 
-<div class="flex min-h-screen flex-col">
+@* data-interactive: true once the live (SignalR) connection drives the page; the browser tests wait for it. *@
+<div class="flex min-h-screen flex-col" data-interactive="@(RendererInfo.IsInteractive ? "true" : "false")">
     <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
         <div class="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
             <a href="" class="flex shrink-0 items-center gap-2 font-semibold tracking-tight">

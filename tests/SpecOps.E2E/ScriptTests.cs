@@ -24,7 +24,7 @@ public sealed partial class ScriptTests(SpecOpsApp app)
     public async Task Running_a_script_streams_its_output_until_it_succeeds()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("scripts/system-info");
+        await page.GotoInteractiveAsync("scripts/system-info");
 
         await page.GetByRole(AriaRole.Button, new() { Name = "Run", Exact = true }).ClickAsync();
 
@@ -37,7 +37,7 @@ public sealed partial class ScriptTests(SpecOpsApp app)
     public async Task Parameters_are_passed_to_the_script_and_a_run_can_be_cancelled()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("scripts/demo");
+        await page.GotoInteractiveAsync("scripts/demo");
 
         await page.GetByLabel("Message").FillAsync("Hello from Playwright");
         await page.GetByLabel("Delay (seconds)").FillAsync("60");
@@ -55,7 +55,7 @@ public sealed partial class ScriptTests(SpecOpsApp app)
     public async Task A_run_can_be_reopened_and_is_listed_in_run_history()
     {
         var page = await app.SignedInPageAsync();
-        await page.GotoAsync("scripts/system-info");
+        await page.GotoInteractiveAsync("scripts/system-info");
         await page.GetByRole(AriaRole.Button, new() { Name = "Run", Exact = true }).ClickAsync();
         await Expect(page.GetByText("Succeeded", new() { Exact = true })).ToBeVisibleAsync();
 
@@ -67,7 +67,7 @@ public sealed partial class ScriptTests(SpecOpsApp app)
 
         // ...and it's in the run history list.
         var runPath = new Uri(page.Url).AbsolutePath.TrimStart('/');
-        await page.GotoAsync("runs");
+        await page.GotoInteractiveAsync("runs");
         await Expect(page.Locator($"a[href='{runPath}']")).ToHaveTextAsync("System info");
     }
 

@@ -24,7 +24,10 @@
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+@* No enhanced navigation: once the live connection is up, the interactive router handles links anyway; before
+   that, a click becomes a normal page load. Swapping pages in place while the connection is still starting could
+   leave a page that never became interactive. *@
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100" data-enhance-nav="false">
     <Routes @rendermode="PageRenderMode" ClientIp="@ClientIp" />
     <ReconnectModal />
     <script src="@Assets["js/specops.js"]"></script>
