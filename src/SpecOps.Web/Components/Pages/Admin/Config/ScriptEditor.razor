@@ -54,8 +54,14 @@
                         }
                     </datalist>
                 </Field>
-                <Field Label="File" Help="Relative to the scripts folder. A new file is created when you save.">
-                    <input class="input font-mono" list="script-files" @bind="_script.Path" @bind:after="PathChangedAsync" placeholder="ResetPassword.ps1" aria-label="File" />
+                <Field Label="File" Help="Relative to the scripts folder. Pick one, type a new name (created when you save), or upload one.">
+                    <div class="flex gap-2">
+                        <input class="input font-mono" list="script-files" @bind="_script.Path" @bind:after="PathChangedAsync" placeholder="ResetPassword.ps1" aria-label="File" />
+                        <label class="btn-secondary shrink-0 cursor-pointer" title="Upload a .ps1 file into the scripts folder and use it for this script">
+                            <Icon Name="upload" /> Upload
+                            <InputFile OnChange="UploadAsync" accept=".ps1" class="sr-only" aria-label="Upload script file" />
+                        </label>
+                    </div>
                     <datalist id="script-files">
                         @foreach (var file in _files)
                         {
@@ -214,6 +220,12 @@
                     @(_fileExists ? "Editing" : "New file:") <span class="font-mono">@_script.Path</span> in the scripts folder. Ctrl/Cmd+S saves.
                     <span class="whitespace-nowrap">$SpecOps.User</span> is the signed-in user.
                 </p>
+                @if (_loadedCode.Contains(ScriptFiles.SignatureMarker, StringComparison.Ordinal))
+                {
+                    <p class="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                        This script is signed. Saving changes here invalidates the signature; under the AllSigned execution policy it then won't run. Upload a newly signed file instead.
+                    </p>
+                }
                 <div class="card overflow-hidden">
                     <CodeEditor @ref="_editor" Value="@_loadedCode" OnSave="SaveAsync" HeightClass="h-[36rem]" />
                 </div>
@@ -393,6 +405,41 @@
     }
 
     // Pointing at a different file loads it, unless the editor has unsaved changes (they'll be saved to the new path).
+    /// <summary>
+    /// Stores the uploaded file in the scripts folder (next to the current file, if any) exactly as it is, points the
+    /// script at it and loads it. A new script also takes its parameters from it.
+    /// </summary>
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        var folder = Path.GetDirectoryName(_script.Path.Replace('\\', '/'))?.Replace('\\', '/');
+        var path = string.IsNullOrEmpty(folder) ? e.File.Name : $"{folder}/{e.File.Name}";
+        if (e.File.Size > ScriptFiles.MaxUploadBytes)
+        {
+            _errors = [$"{e.File.Name} is larger than {ScriptFiles.MaxUploadBytes / 1024 / 1024} MB."];
+            return;
+        }
+
+        await using (var stream = e.File.OpenReadStream(ScriptFiles.MaxUploadBytes))
+        {
+            if (await Files.UploadAsync((await AuthState).User, path, stream) is { } error)
+            {
+                _errors = [error];
+                return;
+            }
+        }
+
+        _errors = [];
+        _files = Files.List();
+        _script.Path = path;
+        await LoadFileAsync();
+        if (_isNew || _parameters.Count == 0)
+        {
+            ReadParameters(_loadedCode);
+        }
+
+        _message = $"Uploaded {path}. Save to use it for this script.";
+    }
+
     private async Task PathChangedAsync()
     {
         var code = _editor is null ? null : await _editor.GetValueAsync();

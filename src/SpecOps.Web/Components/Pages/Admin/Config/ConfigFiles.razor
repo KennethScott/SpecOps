@@ -1,0 +1,158 @@
+@page "/admin/config/files"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@inject CatalogAdmin Admin
+@inject ScriptFiles Files
+
+<PageTitle>Script files · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Errors="_errors" Message="@_message"
+            Description="The PowerShell files in the scripts folder: scripts, plus helper modules they load from $PSScriptRoot. Uploads are stored exactly as they are, so signed scripts stay signed.">
+    <ChildContent>
+        <section class="card mb-6 grid gap-3 p-5">
+            <h2 class="font-semibold">Upload</h2>
+            <div class="grid gap-4 sm:grid-cols-[16rem_1fr] sm:items-end">
+                <Field Label="Into folder" Help="Optional, e.g. lib. Created if needed.">
+                    <input class="input font-mono" @bind="_folder" @bind:event="oninput" placeholder="(scripts folder)" aria-label="Into folder" />
+                </Field>
+                <div class="grid gap-1.5">
+                    <InputFile OnChange="UploadAsync" multiple accept="@string.Join(",", ScriptFiles.AllowedExtensions)" class="text-sm" aria-label="Files to upload" />
+                    <span class="text-xs text-slate-500 dark:text-slate-400">
+                        @string.Join(", ", ScriptFiles.AllowedExtensions) files, up to @(ScriptFiles.MaxUploadBytes / 1024 / 1024) MB each. A file with the same name is replaced.
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        @if (_files.Count == 0)
+        {
+            <EmptyState Title="No script files" Icon="file-code">Upload some, or create a script on the Scripts tab.</EmptyState>
+        }
+        else
+        {
+            <div class="card overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                        <tr>
+                            <th class="px-4 py-3 font-medium">File</th>
+                            <th class="px-4 py-3 font-medium">Used by</th>
+                            <th class="px-4 py-3 font-medium">Size</th>
+                            <th class="px-4 py-3 font-medium">Changed</th>
+                            <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach (var file in _files)
+                        {
+                            var users = UsedBy(file.Path);
+                            <tr>
+                                <td class="px-4 py-3 font-mono text-xs">@file.Path</td>
+                                <td class="px-4 py-3">
+                                    @if (users.Count == 0)
+                                    {
+                                        <span class="text-slate-400">—</span>
+                                    }
+                                    @foreach (var script in users)
+                                    {
+                                        <a href="admin/config/scripts/@script.Id" class="mr-2 hover:text-brand-700 dark:hover:text-brand-500">@script.Name</a>
+                                    }
+                                </td>
+                                <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@Size(file.Size)</td>
+                                <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@file.Modified.ToLocalTime().ToString("g")</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-right">
+                                    @if (_confirmDelete == file.Path)
+                                    {
+                                        <span class="mr-2 text-xs text-slate-500">Delete @file.Path?</span>
+                                        <button type="button" class="btn-danger py-1" @onclick="() => DeleteAsync(file.Path)">Delete</button>
+                                        <button type="button" class="btn-ghost py-1" @onclick="() => _confirmDelete = null">Keep</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn-ghost py-1 text-rose-600 disabled:text-slate-400" @onclick="() => _confirmDelete = file.Path"
+                                                disabled="@(users.Count > 0)" title="@(users.Count > 0 ? "Used by a script; change or delete the script first" : "Delete")">
+                                            <Icon Name="trash" /><span class="sr-only">Delete @file.Path</span>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">"Used by" only knows the file each script runs; check that no script loads a helper before deleting it.</p>
+        }
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    private const int MaxFilesPerUpload = 50;
+
+    private IReadOnlyList<ScriptFileInfo> _files = [];
+    private CatalogDocument _doc = new();
+    private string _folder = "";
+    private string? _confirmDelete;
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override void OnInitialized() => Load();
+
+    private void Load()
+    {
+        _files = Files.ListDetails();
+        _doc = Admin.Load().Document;
+    }
+
+    private List<ScriptDefinition> UsedBy(string path) =>
+        [.. _doc.Scripts.Where(s => string.Equals(s.Path.Replace('\\', '/'), path, StringComparison.OrdinalIgnoreCase))];
+
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        var user = (await AuthState).User;
+        var folder = _folder.Trim().Trim('/', '\\');
+        var errors = new List<string>();
+        var uploaded = new List<string>();
+        foreach (var file in e.GetMultipleFiles(MaxFilesPerUpload))
+        {
+            var path = folder.Length == 0 ? file.Name : $"{folder}/{file.Name}";
+            if (file.Size > ScriptFiles.MaxUploadBytes)
+            {
+                errors.Add($"{file.Name} is larger than {ScriptFiles.MaxUploadBytes / 1024 / 1024} MB.");
+                continue;
+            }
+
+            await using var stream = file.OpenReadStream(ScriptFiles.MaxUploadBytes);
+            if (await Files.UploadAsync(user, path, stream) is { } error)
+            {
+                errors.Add(error);
+            }
+            else
+            {
+                uploaded.Add(path);
+            }
+        }
+
+        _errors = errors;
+        _message = uploaded.Count > 0 ? $"Uploaded {string.Join(", ", uploaded)}." : null;
+        Load();
+    }
+
+    private async Task DeleteAsync(string path)
+    {
+        var error = await Files.DeleteAsync((await AuthState).User, path);
+        _confirmDelete = null;
+        _errors = error is null ? [] : [error];
+        _message = error is null ? $"Deleted {path}." : null;
+        Load();
+    }
+
+    private static string Size(long bytes) =>
+        bytes switch
+        {
+            < 1024 => $"{bytes} B",
+            < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+            _ => $"{bytes / 1024.0 / 1024.0:0.#} MB",
+        };
+}

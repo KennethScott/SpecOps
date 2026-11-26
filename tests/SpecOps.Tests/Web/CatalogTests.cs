@@ -257,6 +257,43 @@ public sealed class CatalogTests : IDisposable
     }
 
     [Fact]
+    public async Task Uploads_are_stored_byte_for_byte_and_can_be_deleted()
+    {
+        await LoadAsync();
+        var files = Get<ScriptFiles>();
+        // No BOM, CRLF line endings and a signature block: an upload must keep all of it, or a signature breaks.
+        var signed = System.Text.Encoding.UTF8.GetBytes(
+            $"Write-Output 'signed'\r\n\r\n{ScriptFiles.SignatureMarker}\r\n# MIIb...\r\n# SIG # End signature block\r\n"
+        );
+
+        Assert.Null(await files.UploadAsync(Admin(), "lib/Signed.ps1", new MemoryStream(signed)));
+        Assert.NotNull(await files.UploadAsync(Admin(), "../Escape.ps1", new MemoryStream(signed)));
+        Assert.NotNull(await files.UploadAsync(Admin(), "notes.txt", new MemoryStream(signed)));
+
+        Assert.Equal(
+            signed,
+            await File.ReadAllBytesAsync(
+                Path.Combine(_scripts.FullName, "lib", "Signed.ps1"),
+                TestContext.Current.CancellationToken
+            )
+        );
+        var listed = Assert.Single(files.ListDetails());
+        Assert.Equal(("lib/Signed.ps1", signed.LongLength), (listed.Path, listed.Size));
+
+        Assert.Null(await files.DeleteAsync(Admin(), "lib/Signed.ps1"));
+        Assert.NotNull(await files.DeleteAsync(Admin(), "lib/Signed.ps1"));
+        Assert.Empty(files.List());
+        using var scope = _services.CreateScope();
+        Assert.Equal(
+            [AuditActions.ScriptFileCreated, AuditActions.ScriptFileDeleted],
+            scope
+                .ServiceProvider.GetRequiredService<SpecOpsDbContext>()
+                .AuditEvents.OrderBy(e => e.Id)
+                .Select(e => e.Action)
+        );
+    }
+
+    [Fact]
     public void Catalog_json_round_trips_without_computed_properties()
     {
         var document = CatalogDocument.Parse(FileCatalog);

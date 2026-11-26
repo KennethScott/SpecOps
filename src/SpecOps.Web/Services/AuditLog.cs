@@ -25,6 +25,7 @@ public static class AuditActions
     public const string ConfigChanged = "config.changed";
     public const string ScriptFileCreated = "script-file.created";
     public const string ScriptFileSaved = "script-file.saved";
+    public const string ScriptFileDeleted = "script-file.deleted";
     public const string LogDownloaded = "log.downloaded";
 }
 
