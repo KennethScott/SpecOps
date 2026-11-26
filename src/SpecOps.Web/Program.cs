@@ -20,6 +20,8 @@ builder.Services.AddSingleton<RunHistory>();
 builder.Services.AddSingleton<IRunHistory>(sp => sp.GetRequiredService<RunHistory>());
 builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
+builder.Services.AddSingleton<CatalogAdmin>();
+builder.Services.AddSingleton<ScriptFiles>();
 builder.Services.AddHostedService<ScriptRunnerLifetime>();
 builder.Services.AddHostedService<RunHistoryCleanup>();
 

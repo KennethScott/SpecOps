@@ -1,0 +1,136 @@
+@page "/admin/config"
+@page "/admin/config/scripts"
+@attribute [Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+@using SpecOps.Core.Configuration
+@using SpecOps.Core.Hosting
+@inject CatalogAdmin Admin
+@inject NavigationManager Navigation
+
+<PageTitle>Scripts · Configure · SpecOps</PageTitle>
+
+<ConfigPage Title="Configure" Description="Scripts people can run, who can run them, and how. Changes apply immediately and are kept in the configuration history." Errors="_errors" Message="@_message">
+    <Actions>
+        <a href="admin/config/scripts/new" class="btn-primary"><Icon Name="plus" /> New script</a>
+    </Actions>
+    <ChildContent>
+        @if (_warnings.Count > 0)
+        {
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <p class="flex items-center gap-2 font-medium"><Icon Name="alert" Class="size-4" /> Worth fixing</p>
+                <ul class="mt-1 list-disc pl-5">
+                    @foreach (var warning in _warnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (_doc.Scripts.Count == 0)
+        {
+            <EmptyState Title="No scripts yet" Icon="file-code">Add a script, or import a specops.json on the Import &amp; history tab.</EmptyState>
+        }
+        else
+        {
+            <div class="card overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                        <tr>
+                            <th class="px-4 py-3 font-medium">Script</th>
+                            <th class="px-4 py-3 font-medium">Category</th>
+                            <th class="px-4 py-3 font-medium">File</th>
+                            <th class="px-4 py-3 font-medium">Parameters</th>
+                            <th class="px-4 py-3 font-medium">Runs on</th>
+                            <th class="px-4 py-3"><span class="sr-only">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        @foreach (var script in _doc.Scripts.OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase))
+                        {
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                <td class="px-4 py-3">
+                                    <a href="admin/config/scripts/@script.Id" class="font-medium hover:text-brand-700 dark:hover:text-brand-500">@script.Name</a>
+                                    <div class="font-mono text-xs text-slate-500 dark:text-slate-400">@script.Id</div>
+                                </td>
+                                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">@CategoryName(script.CategoryId)</td>
+                                <td class="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-400">@script.Path</td>
+                                <td class="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">@script.Parameters.Count</td>
+                                <td class="px-4 py-3 text-slate-600 dark:text-slate-400">@(script.Platforms == ScriptPlatforms.Any ? "Any" : script.Platforms.ToString())</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-right">
+                                    @if (_confirmDelete == script.Id)
+                                    {
+                                        <span class="mr-2 text-xs text-slate-500">Delete @script.Name?</span>
+                                        <button type="button" class="btn-danger py-1" @onclick="() => DeleteAsync(script)" disabled="@_busy">Delete</button>
+                                        <button type="button" class="btn-ghost py-1" @onclick="() => _confirmDelete = null">Keep</button>
+                                    }
+                                    else
+                                    {
+                                        <a href="admin/config/scripts/@script.Id" class="btn-ghost py-1" title="Edit"><Icon Name="pencil" /><span class="sr-only">Edit @script.Name</span></a>
+                                        <button type="button" class="btn-ghost py-1" title="Delete" @onclick="() => _confirmDelete = script.Id" disabled="@(!RendererInfo.IsInteractive)">
+                                            <Icon Name="trash" /><span class="sr-only">Delete @script.Name</span>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">Deleting a script removes it from SpecOps; its file stays in the scripts folder and its run history is kept.</p>
+        }
+    </ChildContent>
+</ConfigPage>
+
+@code {
+    private CatalogDocument _doc = new();
+    private IReadOnlyList<string> _warnings = [];
+    private IReadOnlyList<string> _errors = [];
+    private string? _message;
+    private string? _confirmDelete;
+    private bool _busy;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        // /admin/config (the nav link) shows this page under its own address, so the Scripts tab is highlighted.
+        if (string.Equals(Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/'), "admin/config", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("admin/config/scripts", replace: true);
+            return;
+        }
+
+        Load();
+    }
+
+    private void Load()
+    {
+        _doc = Admin.Load().Document;
+        _warnings = Admin.Warnings();
+    }
+
+    private string CategoryName(string id) =>
+        _doc.Categories.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase))?.DisplayName ?? id;
+
+    private async Task DeleteAsync(ScriptDefinition script)
+    {
+        _busy = true;
+        var result = await Admin.ChangeAsync(
+            (await AuthState).User,
+            $"Deleted script '{script.Id}'",
+            doc =>
+            {
+                var existing = doc.Scripts.FirstOrDefault(s => string.Equals(s.Id, script.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing is not null)
+                {
+                    doc.Scripts.Remove(existing);
+                }
+            });
+        _busy = false;
+        _confirmDelete = null;
+        _errors = result.Errors;
+        _message = result.Succeeded ? $"Deleted {script.Name}." : null;
+        Load();
+    }
+}

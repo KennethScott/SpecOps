@@ -55,8 +55,10 @@ public sealed class ScriptParameterDefinition
     /// <summary>Never log or store the value. Always true for Password.</summary>
     public bool Sensitive { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public string DisplayLabel => string.IsNullOrWhiteSpace(Label) ? Name : Label;
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsSensitive => Sensitive || Type == ParameterType.Password;
 }
 
@@ -66,5 +68,6 @@ public sealed class SelectOption
 
     public string? Label { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public string DisplayLabel => string.IsNullOrWhiteSpace(Label) ? Value : Label;
 }

@@ -30,6 +30,7 @@ public sealed class ScriptDefinition
     /// <summary>Run as the signed-in Windows user. Windows hosts with Windows sign-in only.</summary>
     public bool EnableImpersonation { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsSupportedOnHost => HostPlatform.Supports(Platforms);
 }
 
@@ -43,6 +44,7 @@ public sealed class CategoryDefinition
 
     public int SortOrder { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Id : Name;
 }
 

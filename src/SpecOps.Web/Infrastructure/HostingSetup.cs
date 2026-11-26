@@ -71,7 +71,8 @@ public static class HostingSetup
         // Don't advertise the server software (Kestrel adds this header after middleware runs).
         builder.WebHost.ConfigureKestrel(kestrel => kestrel.AddServerHeader = false);
 
-        // Script/category/policy config lives in its own file and reloads on change.
+        // Runner settings (and, until the first run imports them into the database, the script catalog) live in
+        // specops.json, which reloads on change.
         builder.Configuration.AddJsonFile(paths.ConfigFile, optional: true, reloadOnChange: true);
         builder
             .Services.AddOptions<SpecOpsOptions>()
@@ -79,6 +80,15 @@ public static class HostingSetup
             .PostConfigure(o =>
                 o.ScriptsRoot = Path.GetFullPath(o.ScriptsRoot, Path.GetDirectoryName(paths.ConfigFile)!)
             );
+        // Categories, policies, runspace profiles and scripts come from the database (edited on the Admin pages).
+        builder.Services.AddSingleton<Services.CatalogStore>();
+        builder.Services.AddSingleton<Services.CatalogOptionsSetup>();
+        builder.Services.AddSingleton<IPostConfigureOptions<SpecOpsOptions>>(services =>
+            services.GetRequiredService<Services.CatalogOptionsSetup>()
+        );
+        builder.Services.AddSingleton<IOptionsChangeTokenSource<SpecOpsOptions>>(services =>
+            services.GetRequiredService<Services.CatalogOptionsSetup>()
+        );
         // Validation lives in LastGoodOptionsMonitor: invalid configuration stops startup with a clear list of
         // problems (see InitializeSpecOpsAsync), while an invalid live edit is rejected and the last good
         // configuration keeps running.
@@ -145,9 +155,6 @@ public static class HostingSetup
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        // Fail fast: throws OptionsValidationException listing every problem if specops.json is invalid.
-        _ = app.Services.GetRequiredService<IOptionsMonitor<SpecOpsOptions>>().CurrentValue;
-
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var database = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>().Database;
@@ -159,6 +166,12 @@ public static class HostingSetup
                 await database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
             }
         }
+
+        // The script catalog (imported from specops.json the first time), before anything reads the options.
+        await app.Services.GetRequiredService<Services.CatalogStore>().LoadAsync();
+
+        // Fail fast: throws OptionsValidationException listing every problem if the configuration is invalid.
+        _ = app.Services.GetRequiredService<IOptionsMonitor<SpecOpsOptions>>().CurrentValue;
 
         var paths = app.Services.GetRequiredService<SpecOpsPaths>();
         var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("SpecOps.Startup");

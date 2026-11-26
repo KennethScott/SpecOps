@@ -10,6 +10,8 @@ public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options)
 
     public DbSet<RunRecord> Runs => Set<RunRecord>();
 
+    public DbSet<CatalogVersion> CatalogVersions => Set<CatalogVersion>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -43,6 +45,13 @@ public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options)
             run.HasIndex(r => r.QueuedAtUtc);
             run.HasIndex(r => new { r.UserId, r.QueuedAtUtc });
             run.HasIndex(r => r.EndedAtUtc);
+        });
+
+        builder.Entity<CatalogVersion>(version =>
+        {
+            version.Property(v => v.CreatedById).HasMaxLength(450);
+            version.Property(v => v.CreatedBy).HasMaxLength(256);
+            version.Property(v => v.Summary).HasMaxLength(512);
         });
     }
 }

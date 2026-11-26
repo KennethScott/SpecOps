@@ -15,11 +15,11 @@
 > dotnet run --project src/SpecOps.Web --launch-profile http
 > ```
 >
-> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). Scripts come from [samples/specops.json](samples/specops.json) and [samples/scripts](samples/scripts). Tests: `dotnet test` (unit, component and browser tests; see [docs/testing.md](docs/testing.md)). Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
+> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). The first start imports the scripts in [samples/specops.json](samples/specops.json) (code in [samples/scripts](samples/scripts)); after that, manage them under **Configure**. Tests: `dotnet test` (unit, component and browser tests; see [docs/testing.md](docs/testing.md)). Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
 >
 > Sign-in providers (Entra ID, Google, any OIDC) are configured under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json); put secrets in user-secrets or environment variables.
 >
-> **Configuration** is checked at startup: invalid `specops.json` or `Auth` settings stop the app with a list of problems. Edits to `specops.json` apply live; an invalid edit is rejected (logged) and the last good configuration keeps running.
+> **Configuration**: scripts, categories, policies and runspace profiles live in the database and are managed by admins under **Configure** (including the `.ps1` code, JSON import/export and version history with restore). The first start imports them from `specops.json`; after that the file only supplies the `ScriptsRoot` and `Runner` settings. Every change is validated first, and invalid `specops.json` or `Auth` settings stop the app at startup with a list of problems.
 >
 > **Run one instance.** Active runs live in the app's memory and the default database is SQLite, so SpecOps isn't designed to run behind a load balancer with several instances.
 

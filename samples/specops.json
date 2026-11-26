@@ -1,6 +1,8 @@
 {
-  // SpecOps script configuration. Changes are picked up without a restart.
-  // Copy this file (and the scripts folder) into the data directory (default: ./data, /data in the container).
+  // SpecOps configuration. Copy this file (and the scripts folder) into the data directory (default: ./data,
+  // /data in the container). The first start imports Categories, Policies, RunspaceProfiles and Scripts into the
+  // database; after that, manage them in the app (Configure), where you can also import this file again.
+  // ScriptsRoot and Runner settings stay here and are picked up without a restart.
   "SpecOps": {
     // Relative script paths resolve against this folder (relative to this file).
     "ScriptsRoot": "scripts",
