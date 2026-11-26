@@ -6,14 +6,24 @@ using SpecOps.Core.Security;
 
 namespace SpecOps.Web.Services;
 
+/// <summary>A file in the scripts folder, by its path relative to that folder (with '/' separators).</summary>
+public sealed record ScriptFileInfo(string Path, long Size, DateTimeOffset Modified);
+
 /// <summary>
-/// Reads and writes PowerShell files under the scripts folder (ScriptsRoot) for the admin script editor. Paths are
-/// always resolved inside that folder: anything outside it (absolute paths, "..") is refused. Admin-only and audited.
+/// Reads, writes, uploads and deletes PowerShell files under the scripts folder (ScriptsRoot) for the admin pages.
+/// Paths are always resolved inside that folder: anything outside it (absolute paths, "..") is refused. Admin-only
+/// and audited.
 /// </summary>
 public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOpsAuthorizer authorizer, AuditLog audit)
 {
     /// <summary>Largest file the editor opens or saves.</summary>
     public const int MaxBytes = 1024 * 1024;
+
+    /// <summary>Largest file that can be uploaded (modules can be bigger than scripts).</summary>
+    public const int MaxUploadBytes = 10 * 1024 * 1024;
+
+    /// <summary>Where Authenticode puts the signature in a signed script.</summary>
+    public const string SignatureMarker = "# SIG # Begin signature block";
 
     private static readonly string[] Extensions = [".ps1", ".psm1", ".psd1"];
 
@@ -21,10 +31,16 @@ public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOp
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 
+    /// <summary>The file types that can be uploaded, edited and run.</summary>
+    public static IReadOnlyList<string> AllowedExtensions => Extensions;
+
     public string Root => options.CurrentValue.ScriptsRoot;
 
     /// <summary>PowerShell files under the scripts folder, as paths relative to it (with '/' separators).</summary>
-    public IReadOnlyList<string> List()
+    public IReadOnlyList<string> List() => [.. ListDetails().Select(f => f.Path)];
+
+    /// <summary>PowerShell files under the scripts folder with their size and last change, ordered by path.</summary>
+    public IReadOnlyList<ScriptFileInfo> ListDetails()
     {
         if (!Directory.Exists(Root))
         {
@@ -33,11 +49,15 @@ public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOp
 
         return
         [
-            .. Directory
-                .EnumerateFiles(Root, "*", SearchOption.AllDirectories)
-                .Where(f => Extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
-                .Select(f => Path.GetRelativePath(Root, f).Replace('\\', '/'))
-                .Order(StringComparer.OrdinalIgnoreCase),
+            .. new DirectoryInfo(Root)
+                .EnumerateFiles("*", SearchOption.AllDirectories)
+                .Where(f => Extensions.Contains(f.Extension, StringComparer.OrdinalIgnoreCase))
+                .Select(f => new ScriptFileInfo(
+                    Path.GetRelativePath(Root, f.FullName).Replace('\\', '/'),
+                    f.Length,
+                    new DateTimeOffset(f.LastWriteTimeUtc, TimeSpan.Zero)
+                ))
+                .OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase),
         ];
     }
 
@@ -77,19 +97,14 @@ public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOp
         return new FileInfo(path).Length > MaxBytes ? null : await File.ReadAllTextAsync(path);
     }
 
-    /// <summary>Saves (creating folders as needed). Returns an error message, or null on success.</summary>
+    /// <summary>Saves text from the editor (creating folders as needed). Returns an error message, or null on success.</summary>
     public async Task<string?> SaveAsync(ClaimsPrincipal user, string relativePath, string content)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(content);
-        if (!authorizer.GetAccess(user).IsAdmin)
+        if (Check(user, relativePath) is { } error)
         {
-            return "Only administrators can edit script files.";
-        }
-
-        if (Resolve(relativePath) is not { } path)
-        {
-            return $"'{relativePath}' isn't a PowerShell file (.ps1, .psm1, .psd1) inside the scripts folder.";
+            return error;
         }
 
         var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
@@ -101,6 +116,72 @@ public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOp
             return "The file is too large to save from the editor (1 MB limit).";
         }
 
+        return await WriteAsync(user, relativePath, bytes, "");
+    }
+
+    /// <summary>
+    /// Stores an uploaded file exactly as it is (so a signed script keeps a valid signature), replacing any file with
+    /// the same path. Returns an error message, or null on success.
+    /// </summary>
+    public async Task<string?> UploadAsync(ClaimsPrincipal user, string relativePath, Stream content)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(content);
+        if (Check(user, relativePath) is { } error)
+        {
+            return error;
+        }
+
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer);
+        return buffer.Length > MaxUploadBytes
+            ? $"{relativePath} is larger than {MaxUploadBytes / 1024 / 1024} MB."
+            : await WriteAsync(user, relativePath, buffer.ToArray(), ", uploaded");
+    }
+
+    /// <summary>Deletes a file from the scripts folder. Returns an error message, or null on success.</summary>
+    public async Task<string?> DeleteAsync(ClaimsPrincipal user, string relativePath)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        if (Check(user, relativePath) is { } error)
+        {
+            return error;
+        }
+
+        var path = Resolve(relativePath)!;
+        if (!File.Exists(path))
+        {
+            return $"{relativePath} doesn't exist.";
+        }
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"Couldn't delete {relativePath}: {ex.Message}";
+        }
+
+        await audit.RecordAsync(user, AuditActions.ScriptFileDeleted, relativePath);
+        return null;
+    }
+
+    private string? Check(ClaimsPrincipal user, string relativePath)
+    {
+        if (!authorizer.GetAccess(user).IsAdmin)
+        {
+            return "Only administrators can change script files.";
+        }
+
+        return Resolve(relativePath) is null
+            ? $"'{relativePath}' isn't a PowerShell file ({string.Join(", ", Extensions)}) inside the scripts folder."
+            : null;
+    }
+
+    private async Task<string?> WriteAsync(ClaimsPrincipal user, string relativePath, byte[] bytes, string note)
+    {
+        var path = Resolve(relativePath)!;
         var existed = File.Exists(path);
         try
         {
@@ -119,7 +200,7 @@ public sealed class ScriptFiles(IOptionsMonitor<SpecOpsOptions> options, ISpecOp
             user,
             existed ? AuditActions.ScriptFileSaved : AuditActions.ScriptFileCreated,
             relativePath,
-            $"{bytes.Length:N0} bytes"
+            $"{bytes.Length:N0} bytes{note}"
         );
         return null;
     }

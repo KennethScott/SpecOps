@@ -41,6 +41,31 @@ public sealed class ConfigureTests(SpecOpsApp app)
     }
 
     [Fact]
+    public async Task Script_files_can_be_uploaded_into_a_folder()
+    {
+        var page = await app.SignedInPageAsync();
+        await page.GotoAsync("admin/config/files");
+
+        await app.WithDiagnosticsAsync(page, async () =>
+        {
+            await page.GetByLabel("Into folder").FillAsync("uploads");
+            await page.GetByLabel("Files to upload")
+                .SetInputFilesAsync(
+                    new FilePayload
+                    {
+                        Name = "Uploaded.ps1",
+                        MimeType = "text/plain",
+                        Buffer = System.Text.Encoding.UTF8.GetBytes("Write-Output 'uploaded'"),
+                    }
+                );
+
+            await Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Uploaded uploads/Uploaded.ps1.");
+            await Expect(page.GetByRole(AriaRole.Cell, new() { Name = "uploads/Uploaded.ps1", Exact = true }))
+                .ToBeVisibleAsync();
+        });
+    }
+
+    [Fact]
     public async Task Policy_and_history_pages_load()
     {
         var page = await app.SignedInPageAsync();
