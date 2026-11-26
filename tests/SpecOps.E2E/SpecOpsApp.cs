@@ -51,6 +51,58 @@ public sealed class SpecOpsApp : IAsyncLifetime
         return await context.NewPageAsync();
     }
 
+    /// <summary>
+    /// Runs <paramref name="test"/>; if it fails, the failure message also gets the browser console and the server's
+    /// warnings and errors, so a failure on CI can be diagnosed from the test output alone.
+    /// </summary>
+    public async Task WithDiagnosticsAsync(IPage page, Func<Task> test)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentNullException.ThrowIfNull(test);
+        var console = new List<string>();
+        page.Console += (_, message) => console.Add($"[{message.Type}] {message.Text}");
+        page.PageError += (_, error) => console.Add($"[page error] {error}");
+        try
+        {
+            await test();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"""
+                {ex.Message}
+                --- Page: {page.Url}
+                --- Browser console:
+                {string.Join(Environment.NewLine, console.TakeLast(20))}
+                --- Server warnings and errors:
+                {ServerLog()}
+                """,
+                ex
+            );
+        }
+    }
+
+    /// <summary>The end of the server's log file (Serilog, warnings and up in these tests).</summary>
+    private string ServerLog()
+    {
+        var logs = new DirectoryInfo(Path.Combine(_dataDirectory.FullName, "logs"));
+        var file = logs.Exists ? logs.GetFiles("*.log").MaxBy(f => f.LastWriteTimeUtc) : null;
+        if (file is null)
+        {
+            return "(no log file)";
+        }
+
+        using var stream = new FileStream(
+            file.FullName,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete
+        );
+        using var reader = new StreamReader(stream);
+        var lines = reader.ReadToEnd().Split(Environment.NewLine);
+        return string.Join(Environment.NewLine, lines.TakeLast(30));
+    }
+
     /// <summary>A fresh context, signed in as the Development admin user, on the Scripts page.</summary>
     public async Task<IPage> SignedInPageAsync()
     {
