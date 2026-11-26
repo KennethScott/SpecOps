@@ -1,4 +1,6 @@
 @* Frame for the Admin > Configure pages: heading, section tabs, save errors/confirmation, then the page. *@
+@implements IDisposable
+@inject NavigationManager Navigation
 
 <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
@@ -10,16 +12,16 @@
     </div>
     @if (Actions is not null)
     {
-        <div class="flex flex-wrap gap-2">@Actions</div>
+        <fieldset class="flex flex-wrap gap-2" disabled="@(!RendererInfo.IsInteractive)">@Actions</fieldset>
     }
 </div>
 
 <nav class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 text-sm dark:border-slate-800" aria-label="Configuration sections">
     @foreach (var (href, label) in Sections)
     {
-        <NavLink href="@href" Match="NavLinkMatch.Prefix"
-                 class="-mb-px shrink-0 border-b-2 border-transparent px-3 py-2 font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                 ActiveClass="!border-brand-600 !text-slate-900 dark:!text-white">@label</NavLink>
+        var active = IsActive(href);
+        <a href="@href" aria-current="@(active ? "page" : null)"
+           class="@($"-mb-px shrink-0 border-b-2 px-3 py-2 font-medium {(active ? "border-brand-600 text-slate-900 dark:text-white" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200")}")">@label</a>
     }
 </nav>
 
@@ -41,7 +43,11 @@
     <p class="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" role="status">@Message</p>
 }
 
-@ChildContent
+@* Every input and button stays disabled until the page is interactive: anything typed or clicked during the
+   prerender would be lost when the live page takes over. *@
+<fieldset disabled="@(!RendererInfo.IsInteractive)" class="min-w-0">
+    @ChildContent
+</fieldset>
 
 @code {
     private static readonly (string Href, string Label)[] Sections =
@@ -55,6 +61,20 @@
 
     [Parameter, EditorRequired]
     public string Title { get; set; } = "";
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    // The Scripts tab is also the section's start page (admin/config, where the main nav links to).
+    private bool IsActive(string href)
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+        return path.StartsWith(href, StringComparison.OrdinalIgnoreCase)
+            || (href == Sections[0].Href && string.Equals(path, "admin/config", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 
     [Parameter]
     public string? Description { get; set; }

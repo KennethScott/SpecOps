@@ -4,7 +4,6 @@
 @using SpecOps.Core.Configuration
 @using SpecOps.Core.Hosting
 @inject CatalogAdmin Admin
-@inject NavigationManager Navigation
 
 <PageTitle>Scripts · Configure · SpecOps</PageTitle>
 
@@ -92,17 +91,7 @@
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = default!;
 
-    protected override void OnInitialized()
-    {
-        // /admin/config (the nav link) shows this page under its own address, so the Scripts tab is highlighted.
-        if (string.Equals(Navigation.ToBaseRelativePath(Navigation.Uri).TrimEnd('/'), "admin/config", StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo("admin/config/scripts", replace: true);
-            return;
-        }
-
-        Load();
-    }
+    protected override void OnInitialized() => Load();
 
     private void Load()
     {
