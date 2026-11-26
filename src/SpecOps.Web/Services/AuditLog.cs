@@ -17,6 +17,7 @@ public static class AuditActions
     public const string UserStatusChanged = "user.status";
     public const string RoleAdded = "user.role-added";
     public const string RoleRemoved = "user.role-removed";
+    public const string UserDeleted = "user.deleted";
     public const string ScriptRun = "script.run";
     public const string ScriptDenied = "script.denied";
     public const string TerminalRun = "terminal.run";
