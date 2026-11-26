@@ -7,6 +7,7 @@
 @using SpecOps.Data
 @inject IServiceScopeFactory ScopeFactory
 @inject AuditLog Audit
+@inject UserAdmin UserAdmin
 @inject IOptionsMonitor<SpecOpsOptions> Options
 
 <PageTitle>Users · SpecOps</PageTitle>
@@ -43,6 +44,11 @@
 @if (_matching > _users.Count)
 {
     <p class="mb-3 text-sm text-slate-500 dark:text-slate-400">Showing @_users.Count of @_matching users. Search to narrow it down.</p>
+}
+
+@if (_error is not null)
+{
+    <p class="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-300" role="alert">@_error</p>
 }
 
 @if (_message is not null)
@@ -111,8 +117,27 @@ else
                             <Icon Name="x" /> @(user.Status == UserStatus.Pending ? "Reject" : "Disable")
                         </button>
                     }
+                    @if (!IsSelf(user))
+                    {
+                        <button type="button" class="btn-ghost py-1.5 text-rose-600" title="Delete" @onclick="() => _confirmDelete = user.Id" disabled="@_busy">
+                            <Icon Name="trash" /><span class="sr-only">Delete @user.Label</span>
+                        </button>
+                    }
                 </div>
             </div>
+            @if (_confirmDelete == user.Id)
+            {
+                <div class="-mt-2 flex flex-col gap-3 rounded-b-xl border border-t-0 border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between dark:border-rose-900 dark:bg-rose-950 dark:text-rose-200" role="alert">
+                    <span>
+                        Delete <span class="font-medium">@user.Label</span>? They lose access straight away. Their runs and audit history are kept.
+                        If they sign in again, they start over as a new user waiting for approval.
+                    </span>
+                    <span class="flex shrink-0 gap-2">
+                        <button type="button" class="btn-danger py-1.5" @onclick="() => DeleteAsync(row)" disabled="@_busy">Delete user</button>
+                        <button type="button" class="btn-ghost py-1.5" @onclick="() => _confirmDelete = null">Keep</button>
+                    </span>
+                </div>
+            }
         }
     </div>
 }
@@ -132,6 +157,8 @@ else
     private string? _message;
     private bool _loaded;
     private bool _busy;
+    private string? _confirmDelete;
+    private string? _error;
     private string? _currentUserId;
     private ClaimsPrincipal _currentUser = new();
 
@@ -218,6 +245,22 @@ else
         });
     }
 
+    private async Task DeleteAsync(UserRow row)
+    {
+        _busy = true;
+        try
+        {
+            _error = await UserAdmin.DeleteAsync(_currentUser, row.User.Id);
+            _message = _error is null ? $"Deleted {row.User.Label}." : null;
+            _confirmDelete = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     private async Task ToggleRoleAsync(UserRow row, string role)
     {
         await MutateAsync(row, async (users, roles, user) =>
@@ -247,6 +290,7 @@ else
     private async Task MutateAsync(UserRow row, Func<UserManager<SpecOpsUser>, RoleManager<IdentityRole>, SpecOpsUser, Task> change)
     {
         _busy = true;
+        _error = null;
         try
         {
             await using var scope = ScopeFactory.CreateAsyncScope();

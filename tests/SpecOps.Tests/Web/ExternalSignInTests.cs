@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SpecOps.Core.Security;
 using SpecOps.Data;
 using SpecOps.Web.Auth;
+using SpecOps.Web.Services;
 
 namespace SpecOps.Tests.Web;
 
@@ -157,5 +158,67 @@ public sealed class ExternalSignInTests(SignInTestFactory factory) : IClassFixtu
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Contains("signin.denied", audit);
         Assert.Contains("user.created", audit);
+    }
+
+    private static ClaimsPrincipal Admin(string id = "admin-id") =>
+        new(
+            new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, id),
+                    new Claim(ClaimTypes.Name, "Admin"),
+                    new Claim(ClaimTypes.Role, SpecOpsAuthorizer.AdminRole),
+                ],
+                "test"
+            )
+        );
+
+    [Fact]
+    public async Task Admins_can_delete_users_who_then_start_over()
+    {
+        var subject = Unique();
+        var first = await SignInAsync("Google", subject, ("email", $"{Unique()}@trusted.example"));
+        Assert.Equal(UserStatus.Active, first.User.Status);
+
+        var error = await factory.Services.GetRequiredService<UserAdmin>().DeleteAsync(Admin(), first.User.Id);
+
+        Assert.Null(error);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SpecOpsDbContext>();
+            Assert.Null(await db.Users.FindAsync([first.User.Id], TestContext.Current.CancellationToken));
+            Assert.False(
+                await db.UserLogins.AnyAsync(l => l.UserId == first.User.Id, TestContext.Current.CancellationToken)
+            );
+            var audit = await db.AuditEvents.SingleAsync(
+                e => e.Action == AuditActions.UserDeleted && e.Details!.Contains(subject),
+                TestContext.Current.CancellationToken
+            );
+            Assert.Equal("Admin", audit.Actor);
+        }
+
+        // The same person signing in again gets a brand-new account, waiting for approval like anyone new.
+        var again = await SignInAsync("Google", subject, ("email", $"{Unique()}@contoso.com"));
+        Assert.NotEqual(first.User.Id, again.User.Id);
+        Assert.Equal(UserStatus.Pending, again.User.Status);
+    }
+
+    [Fact]
+    public async Task Users_cant_delete_themselves_and_only_admins_can_delete()
+    {
+        var target = await SignInAsync("Microsoft", Unique(), ("email", $"{Unique()}@contoso.com"));
+        var users = factory.Services.GetRequiredService<UserAdmin>();
+        var helpDesk = new ClaimsPrincipal(
+            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "x"), new Claim(ClaimTypes.Role, "HelpDesk")], "t")
+        );
+
+        Assert.NotNull(await users.DeleteAsync(Admin(target.User.Id), target.User.Id));
+        Assert.NotNull(await users.DeleteAsync(helpDesk, target.User.Id));
+        Assert.NotNull(await users.DeleteAsync(Admin(), "no-such-user"));
+        await using var scope = factory.Services.CreateAsyncScope();
+        Assert.NotNull(
+            await scope
+                .ServiceProvider.GetRequiredService<SpecOpsDbContext>()
+                .Users.FindAsync([target.User.Id], TestContext.Current.CancellationToken)
+        );
     }
 }
