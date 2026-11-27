@@ -108,7 +108,7 @@ internal sealed partial class PowerShellExecutor : IScriptExecutor
                 .AddParameter("Stream")
                 .AddParameter("Width", settings.OutputWidth);
 
-            var input = new PSDataCollection<PSObject>();
+            using var input = new PSDataCollection<PSObject>();
             input.Complete();
             using var output = new PSDataCollection<PSObject>();
             output.DataAdded += (_, e) => run.Append(OutputKind.Output, output[e.Index]?.BaseObject?.ToString());

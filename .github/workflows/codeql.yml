@@ -31,7 +31,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: none
-          queries: security-and-quality
+          # Security queries only: code quality is enforced at build time by the .NET and Meziantou analyzers.
+          queries: security-extended
 
       - uses: github/codeql-action/analyze@v4
         with:
