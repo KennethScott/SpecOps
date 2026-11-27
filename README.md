@@ -12,8 +12,8 @@ generated form, and watch the output live.
 It runs on Linux (Docker) and Windows. It's built with .NET 11, Blazor and Tailwind, uses Microsoft Entra ID, Google or
 any OpenID Connect provider for sign-in, and keeps its data in SQLite.
 
-> This is v2 (the `v2` branch), a rebuild of the original app. The v1 app (.NET 7, Windows and Active Directory only)
-> is preserved at tag `v1-final`.
+> This is v2, a rebuild of the original app. The v1 app (.NET 7, Windows and Active Directory only) is preserved at
+> tag `v1-final`.
 
 ## Features
 
