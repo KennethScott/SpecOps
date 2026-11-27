@@ -4,7 +4,7 @@
 # More modules can be added at runtime under /data/modules without rebuilding.
 
 # ---- 1. Client assets: Tailwind CSS and the TypeScript bundles (Node) -----------------------------
-FROM node:22-slim AS client
+FROM node:26-slim AS client
 WORKDIR /src/src/SpecOps.Web
 COPY src/SpecOps.Web/package.json src/SpecOps.Web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
