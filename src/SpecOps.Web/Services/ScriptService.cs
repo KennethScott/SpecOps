@@ -86,13 +86,6 @@ public sealed class ScriptService(
             return StartRunResult.Fail($"This script requires {script.Platforms} and can't run on this server.");
         }
 
-        if (script.EnableImpersonation)
-        {
-            return StartRunResult.Fail(
-                "This script runs as the signed-in Windows user, which needs Windows sign-in (coming in a later release)."
-            );
-        }
-
         var validation = ParameterValidator.Validate(script.Parameters, input);
         if (!validation.IsValid)
         {
