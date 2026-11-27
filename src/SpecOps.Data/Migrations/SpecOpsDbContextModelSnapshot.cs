@@ -15,7 +15,7 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126145905_CatalogVersions";
+    public override string LastMigrationId => "20261126231924_Credentials";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -383,6 +383,46 @@ partial class SpecOpsDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("Status");
 
                 b.ToTable("AspNetUsers");
+            });
+
+        modelBuilder.Entity("SpecOps.Data.VaultCredential", b =>
+            {
+                b.Property<string>("Id")
+                    .HasMaxLength(128)
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime>("CreatedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Description")
+                    .HasMaxLength(1024)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("ProtectedPassword")
+                    .IsRequired()
+                    .HasColumnType("TEXT");
+
+                b.Property<DateTime>("UpdatedAtUtc")
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("UpdatedBy")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.Property<string>("UserName")
+                    .IsRequired()
+                    .HasMaxLength(256)
+                    .HasColumnType("TEXT");
+
+                b.HasKey("Id");
+
+                b.ToTable("Credentials");
             });
 
         modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

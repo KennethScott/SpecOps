@@ -117,6 +117,11 @@ public static class ParamBlockReader
 
     private static ParameterType TypeFor(Type type, string name)
     {
+        if (type == typeof(PSCredential))
+        {
+            return ParameterType.Credential;
+        }
+
         if (type == typeof(SwitchParameter) || type == typeof(bool))
         {
             return ParameterType.Checkbox;

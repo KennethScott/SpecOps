@@ -124,7 +124,14 @@ public sealed class RunHistoryTests : IDisposable
             new SpecOpsAuthorizer(_options),
             runner,
             new AuditLog(Scopes, NullLogger<AuditLog>.Instance),
-            _history
+            _history,
+            new CredentialVault(
+                Scopes,
+                new Microsoft.AspNetCore.DataProtection.EphemeralDataProtectionProvider(),
+                new SpecOpsAuthorizer(_options),
+                new AuditLog(Scopes, NullLogger<AuditLog>.Instance),
+                TimeProvider.System
+            )
         );
 
         var mine = await service.GetRunsAsync(User("user-1"), 10);

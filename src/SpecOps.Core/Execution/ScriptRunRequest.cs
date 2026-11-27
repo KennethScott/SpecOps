@@ -64,9 +64,10 @@ public sealed record ScriptRunRequest
         Parameters.ToDictionary(
             p => p.Key,
             p =>
-                SensitiveParameters.Contains(p.Key)
-                    ? MaskedValue
-                    : Convert.ToString(p.Value, CultureInfo.InvariantCulture) ?? "",
+                SensitiveParameters.Contains(p.Key) ? MaskedValue
+                // A vault credential: show which account, never the password.
+                : p.Value is System.Management.Automation.PSCredential credential ? credential.UserName
+                : Convert.ToString(p.Value, CultureInfo.InvariantCulture) ?? "",
             StringComparer.OrdinalIgnoreCase
         );
 }

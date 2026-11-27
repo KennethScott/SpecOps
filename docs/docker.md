@@ -133,7 +133,7 @@ Everything SpecOps keeps is in the `specops-data` volume, mounted at `/data`:
 | `/data/modules/`     | Extra PowerShell modules (see below)                                                   |
 | `/data/specops.db`   | Users, roles, configuration and its history, run history, audit log (SQLite)           |
 | `/data/logs/`        | Application logs, also on the Logs page (kept `SpecOps__LogRetentionDays`, default 30) |
-| `/data/keys/`        | Sign-in cookie encryption keys (keep with the database)                                |
+| `/data/keys/`        | Encryption keys for sign-in cookies and stored credentials (back up with the database) |
 
 To work with these files directly, bind-mount a host folder instead of the named volume, e.g.
 `./specops-data:/data` (the folder must be writable by UID 1654, the container's non-root user).

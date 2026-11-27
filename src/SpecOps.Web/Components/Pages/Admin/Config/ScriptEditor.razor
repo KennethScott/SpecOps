@@ -6,6 +6,7 @@
 @using SpecOps.Core.Hosting
 @inject CatalogAdmin Admin
 @inject ScriptFiles Files
+@inject CredentialVault Vault
 @inject NavigationManager Navigation
 
 <PageTitle>@(_isNew ? "New script" : _script.Name) · Configure · SpecOps</PageTitle>
@@ -193,6 +194,34 @@
                                     </Field>
                                 </div>
                             }
+                            else if (p.Type == ParameterType.Credential)
+                            {
+                                <div class="sm:col-span-2 lg:col-span-4">
+                                    <Field Label="Credentials it may use" Help="The script gets the chosen one as a PSCredential. With just one, users aren't asked.">
+                                        @if (_credentials.Count == 0)
+                                        {
+                                            <p class="pt-1 text-sm text-slate-500 dark:text-slate-400">No stored credentials yet. Add them on the <a href="admin/config/credentials" class="underline">Credentials</a> tab.</p>
+                                        }
+                                        <div class="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-sm">
+                                            @foreach (var credential in _credentials)
+                                            {
+                                                <label class="flex items-center gap-2" title="@credential.UserName">
+                                                    <input type="checkbox" class="size-4 accent-brand-600" checked="@draft.CredentialIds.Contains(credential.Id)"
+                                                           @onchange="e => Toggle(draft.CredentialIds, credential.Id, e.Value is true)" />
+                                                    @credential.Name
+                                                </label>
+                                            }
+                                            @foreach (var missing in draft.CredentialIds.Where(id => !_credentials.Any(c => string.Equals(c.Id, id, StringComparison.OrdinalIgnoreCase))).ToList())
+                                            {
+                                                <label class="flex items-center gap-2 text-rose-600" title="Not in the vault any more">
+                                                    <input type="checkbox" class="size-4 accent-brand-600" checked @onchange="() => draft.CredentialIds.Remove(missing)" />
+                                                    @missing (missing)
+                                                </label>
+                                            }
+                                        </div>
+                                    </Field>
+                                </div>
+                            }
                             else if (p.Type == ParameterType.Text)
                             {
                                 <div class="sm:col-span-2">
@@ -257,6 +286,10 @@
 
         public string SuggestionsText { get; set; } = string.Join('\n', definition.Suggestions);
 
+        public HashSet<string> CredentialIds { get; } = definition.Type == ParameterType.Credential
+            ? new(definition.Options.Select(o => o.Value), StringComparer.OrdinalIgnoreCase)
+            : new(StringComparer.OrdinalIgnoreCase);
+
         public ScriptParameterDefinition ToDefinition()
         {
             var d = Definition;
@@ -271,6 +304,13 @@
                 {
                     var bar = line.IndexOf('|', StringComparison.Ordinal);
                     result.Options.Add(bar < 0 ? new SelectOption { Value = line } : new SelectOption { Value = line[..bar].Trim(), Label = Blank(line[(bar + 1)..]) });
+                }
+            }
+            else if (d.Type == ParameterType.Credential)
+            {
+                foreach (var id in CredentialIds.Order(StringComparer.OrdinalIgnoreCase))
+                {
+                    result.Options.Add(new SelectOption { Value = id });
                 }
             }
             else if (d.Type == ParameterType.Text)
@@ -292,6 +332,7 @@
     private List<ParameterDraft> _parameters = [];
     private CatalogDocument _doc = new();
     private IReadOnlyList<string> _files = [];
+    private IReadOnlyList<CredentialInfo> _credentials = [];
     private IReadOnlyList<string> _errors = [];
     private string? _message;
     private bool _isNew;
@@ -323,6 +364,7 @@
 
         _doc = Admin.Load().Document;
         _files = Files.List();
+        _credentials = await Vault.ListAsync();
         _isNew = ScriptId is null;
         if (_isNew)
         {
@@ -367,6 +409,7 @@
                 ParameterType.Number or ParameterType.Range => "[double]",
                 ParameterType.Checkbox => "[switch]",
                 ParameterType.Date or ParameterType.DateTime => "[datetime]",
+                ParameterType.Credential => "[pscredential]",
                 _ => "[string]",
             };
             var attribute = p.Required ? "[Parameter(Mandatory)] " : "";
@@ -507,6 +550,18 @@
         _script.Platforms = on ? _script.Platforms | platform : _script.Platforms & ~platform;
 
     private void AddParameter() => _parameters.Add(new ParameterDraft(new ScriptParameterDefinition { Name = $"Parameter{_parameters.Count + 1}" }));
+
+    private static void Toggle(HashSet<string> set, string id, bool on)
+    {
+        if (on)
+        {
+            set.Add(id);
+        }
+        else
+        {
+            set.Remove(id);
+        }
+    }
 
     private void Move(int index, int offset)
     {

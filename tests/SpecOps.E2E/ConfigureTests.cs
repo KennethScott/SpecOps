@@ -41,6 +41,54 @@ public sealed class ConfigureTests(SpecOpsApp app)
     }
 
     [Fact]
+    public async Task A_stored_credential_reaches_the_script_as_a_PSCredential()
+    {
+        var page = await app.SignedInPageAsync();
+        await page.GotoInteractiveAsync("admin/config/credentials");
+        await app.WithDiagnosticsAsync(page, async () =>
+        {
+            await page.GetByRole(AriaRole.Button, new() { Name = "Add credential" }).ClickAsync();
+            await page.GetByLabel("Credential id").FillAsync("e2e-account");
+            await page.GetByLabel("Credential name").FillAsync("E2E account");
+            await page.GetByLabel("User name").FillAsync("e2e-user");
+            await page.GetByLabel("Password").FillAsync("Pa55word!");
+            await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+            await Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved 'E2E account'.");
+            // The password is never sent back to the browser.
+            await Expect(page.GetByLabel("Password")).ToHaveValueAsync("");
+
+            await page.GotoInteractiveAsync("admin/config/scripts/new");
+            await page.GetByLabel("Id", new() { Exact = true }).FillAsync("e2e-credential");
+            await page.GetByLabel("Name", new() { Exact = true }).FillAsync("E2E credential");
+            await page.GetByLabel("File", new() { Exact = true }).FillAsync("e2e/Credential.ps1");
+            await page.GetByRole(AriaRole.Button, new() { Name = "Add parameter" }).ClickAsync();
+            await page.GetByLabel("Parameter name").FillAsync("Account");
+            await page.GetByLabel("Parameter type").SelectOptionAsync("Credential");
+            await page.GetByLabel("E2E account").CheckAsync();
+
+            await page.GetByRole(AriaRole.Tab, new() { Name = "Code" }).ClickAsync();
+            var editor = page.Locator(".monaco-editor").First;
+            await Expect(editor).ToContainTextAsync("[pscredential]$Account");
+            await editor.ClickAsync();
+            await page.Keyboard.PressAsync("ControlOrMeta+A");
+            await page.Keyboard.PressAsync("Delete");
+            await page.Keyboard.InsertTextAsync(
+                "param([pscredential]$Account) \"$($Account.UserName) has a $($Account.GetNetworkCredential().Password.Length)-character password\""
+            );
+            await page.GetByRole(AriaRole.Button, new() { Name = "Save", Exact = true }).ClickAsync();
+            await Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Saved E2E credential.");
+
+            // Only one credential allowed, so the form just says which one.
+            await page.GotoInteractiveAsync("scripts/e2e-credential");
+            await Expect(page.Locator("#param-Account")).ToHaveTextAsync("E2E account");
+            await page.GetByRole(AriaRole.Button, new() { Name = "Run", Exact = true }).ClickAsync();
+
+            await Expect(page.GetByText("Succeeded", new() { Exact = true })).ToBeVisibleAsync();
+            await Expect(page.GetByRole(AriaRole.Log)).ToContainTextAsync("e2e-user has a 9-character password");
+        });
+    }
+
+    [Fact]
     public async Task Script_files_can_be_uploaded_into_a_folder()
     {
         var page = await app.SignedInPageAsync();

@@ -176,11 +176,15 @@ public sealed partial class SpecOpsOptionsValidator : IValidateOptions<SpecOpsOp
                 errors.Add($"{label}: names starting with 'SpecOps' are reserved.");
             }
 
-            if (p.Type == ParameterType.Select)
+            if (p.Type is ParameterType.Select or ParameterType.Credential)
             {
                 if (p.Options.Count == 0)
                 {
-                    errors.Add($"{label}: Select needs at least one option.");
+                    errors.Add(
+                        p.Type == ParameterType.Select
+                            ? $"{label}: Select needs at least one option."
+                            : $"{label}: choose at least one credential it may use."
+                    );
                 }
                 else if (
                     p.Default is { Length: > 0 } d

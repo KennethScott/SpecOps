@@ -85,6 +85,16 @@ public sealed class ParamBlockReaderTests
     }
 
     [Fact]
+    public void PSCredential_parameters_become_vault_credentials()
+    {
+        var result = ParamBlockReader.Read(
+            "param([pscredential]$Account, [System.Management.Automation.PSCredential]$Other)"
+        );
+
+        Assert.All(result.Parameters, p => Assert.Equal(ParameterType.Credential, p.Type));
+    }
+
+    [Fact]
     public void Explains_what_it_skipped()
     {
         var result = ParamBlockReader.Read(Script);

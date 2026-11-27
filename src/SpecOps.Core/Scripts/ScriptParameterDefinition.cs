@@ -13,6 +13,9 @@ public enum ParameterType
     Password,
     Select,
     Checkbox,
+
+    /// <summary>A stored credential from the vault, passed to the script as a PSCredential. Options are the allowed credential ids.</summary>
+    Credential,
 }
 
 public sealed class ScriptParameterDefinition
@@ -46,7 +49,7 @@ public sealed class ScriptParameterDefinition
     /// <summary>Regex the whole value must match (text-like types).</summary>
     public string? Pattern { get; set; }
 
-    /// <summary>Choices for Select.</summary>
+    /// <summary>Choices for Select; for Credential, the ids of the vault credentials users may pick.</summary>
     public IList<SelectOption> Options { get; init; } = [];
 
     /// <summary>Suggested values for free-text inputs (shown as an autocomplete list).</summary>
