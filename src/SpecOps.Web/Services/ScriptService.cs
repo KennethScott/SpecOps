@@ -25,7 +25,8 @@ public sealed class ScriptService(
     ISpecOpsAuthorizer authorizer,
     IScriptRunner runner,
     AuditLog audit,
-    RunHistory history
+    RunHistory history,
+    CredentialVault vault
 )
 {
     public const string TerminalScriptId = "terminal";
@@ -98,10 +99,27 @@ public sealed class ScriptService(
             return new StartRunResult(null, "Some parameters need attention.", validation.Errors);
         }
 
+        // Credential parameters: the validator checked the id is one the script allows; swap it for the real thing.
+        var values = new Dictionary<string, object>(validation.Values, StringComparer.OrdinalIgnoreCase);
+        foreach (var parameter in script.Parameters.Where(p => p.Type == ParameterType.Credential))
+        {
+            if (values.TryGetValue(parameter.Name, out var value) && value is string credentialId)
+            {
+                if (await vault.GetCredentialAsync(credentialId) is not { } credential)
+                {
+                    return StartRunResult.Fail(
+                        $"The credential '{credentialId}' for {parameter.DisplayLabel} doesn't exist any more; ask an administrator."
+                    );
+                }
+
+                values[parameter.Name] = credential;
+            }
+        }
+
         var request = ScriptRunRequest.ForScript(
             script,
             catalog.ResolveScriptPath(script),
-            validation.Values,
+            values,
             catalog.FindRunspaceProfile(script.RunspaceProfile)
         ) with
         {

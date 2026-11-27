@@ -27,6 +27,9 @@ public static class AuditActions
     public const string ScriptFileSaved = "script-file.saved";
     public const string ScriptFileDeleted = "script-file.deleted";
     public const string LogDownloaded = "log.downloaded";
+    public const string CredentialCreated = "credential.created";
+    public const string CredentialUpdated = "credential.updated";
+    public const string CredentialDeleted = "credential.deleted";
 }
 
 /// <summary>

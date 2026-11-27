@@ -52,6 +52,12 @@ public static class ParameterValidator
                 raw = raw.Trim();
             }
 
+            if (string.IsNullOrEmpty(raw) && def.Type == ParameterType.Credential && def.Options.Count == 1)
+            {
+                // Only one credential allowed: nothing to choose.
+                raw = def.Options[0].Value;
+            }
+
             if (string.IsNullOrEmpty(raw))
             {
                 if (def.Type == ParameterType.Checkbox)
@@ -107,6 +113,7 @@ public static class ParameterValidator
                 return MatchesPattern(def, raw) is { } emailPatternError ? (null, emailPatternError) : (raw, null);
 
             case ParameterType.Select:
+            case ParameterType.Credential:
                 return def.Options.Any(o => string.Equals(o.Value, raw, StringComparison.Ordinal))
                     ? (raw, null)
                     : (null, "Choose one of the listed options.");

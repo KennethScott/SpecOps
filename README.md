@@ -21,6 +21,8 @@
 >
 > **Configuration**: scripts, categories, policies and runspace profiles live in the database and are managed by admins under **Configure** (including the `.ps1` code, JSON import/export and version history with restore). The first start imports them from `specops.json`; after that the file only supplies the `ScriptsRoot` and `Runner` settings. Every change is validated first, and invalid `specops.json` or `Auth` settings stop the app at startup with a list of problems.
 >
+> **Credentials**: admins store service accounts under **Configure > Credentials** instead of putting passwords in scripts. A script declares `[pscredential]$Account`, its Credential parameter lists which stored credentials it may use (with just one, users aren't asked), and the script receives a real `PSCredential`. Passwords are encrypted with the app's Data Protection keys (`data/keys`), are never shown again after saving, and never appear in logs, run history or the audit log (runs show the account's user name). Back up `data/keys` together with the database: without the keys, stored passwords can't be decrypted and must be entered again.
+>
 > **Run one instance.** Active runs live in the app's memory and the default database is SQLite, so SpecOps isn't designed to run behind a load balancer with several instances.
 
 SpecOps is a .NET7 web application that allows you to centralize and host your **PowerShell 7** scripts for execution by anyone, particularly non-technical staff. The application is written with PowerShell in mind, but could easily be extended to allow other types. The application is intended to be used in a Windows-based Intranet environment.

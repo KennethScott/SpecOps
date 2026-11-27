@@ -24,6 +24,7 @@ builder.Services.AddSingleton<CatalogAdmin>();
 builder.Services.AddSingleton<ScriptFiles>();
 builder.Services.AddSingleton<LogFiles>();
 builder.Services.AddSingleton<UserAdmin>();
+builder.Services.AddSingleton<CredentialVault>();
 builder.Services.AddHostedService<ScriptRunnerLifetime>();
 builder.Services.AddHostedService<RunHistoryCleanup>();
 

@@ -153,4 +153,27 @@ public class ParameterValidatorTests
 
         Assert.Equal(" secret ", result.Values["P"]);
     }
+
+    [Fact]
+    public void Credential_must_be_one_the_script_allows_and_a_single_one_is_picked_automatically()
+    {
+        var two = new ScriptParameterDefinition
+        {
+            Name = "Account",
+            Type = ParameterType.Credential,
+            Options = [new() { Value = "a" }, new() { Value = "b" }],
+        };
+        var one = new ScriptParameterDefinition
+        {
+            Name = "Account",
+            Type = ParameterType.Credential,
+            Options = [new() { Value = "a" }],
+        };
+
+        Assert.Equal("b", Validate(two, "b").Values["Account"]);
+        Assert.False(Validate(two, "c").IsValid);
+        Assert.Empty(Validate(two, "").Values);
+        Assert.Equal("a", Validate(one, "").Values["Account"]);
+        Assert.False(Validate(one, "b").IsValid);
+    }
 }

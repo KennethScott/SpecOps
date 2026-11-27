@@ -1,5 +1,6 @@
 @page "/scripts/{ScriptId}"
 @inject ScriptService Scripts
+@inject CredentialVault Vault
 @inject NavigationManager Navigation
 
 <PageTitle>@(_script?.Name ?? "Script") · SpecOps</PageTitle>
@@ -36,7 +37,8 @@
                             Value="@_values.GetValueOrDefault(parameter.Name)"
                             ValueChanged="v => _values[parameter.Name] = v"
                             Error="@_fieldErrors.GetValueOrDefault(parameter.Name)"
-                            Disabled="@(IsRunning || !RendererInfo.IsInteractive)" />
+                            Disabled="@(IsRunning || !RendererInfo.IsInteractive)"
+                            CredentialNames="_credentialNames" />
         }
 
         @if (_error is not null)
@@ -76,6 +78,7 @@
     private IReadOnlyDictionary<string, string> _fieldErrors = new Dictionary<string, string>();
     private string? _error;
     private ClaimsPrincipal _user = new();
+    private Dictionary<string, string> _credentialNames = new(StringComparer.OrdinalIgnoreCase);
 
     [Parameter]
     public string ScriptId { get; set; } = "";
@@ -98,6 +101,11 @@
         {
             _script = Scripts.GetScript(_user, ScriptId);
             _category = _script is null ? null : Scripts.GetCategory(_script.CategoryId);
+            if (_script?.Parameters.Any(p => p.Type == ParameterType.Credential) == true)
+            {
+                _credentialNames = (await Vault.ListAsync()).ToDictionary(c => c.Id, c => c.Name, StringComparer.OrdinalIgnoreCase);
+            }
+
             Reset();
         }
 
@@ -113,7 +121,12 @@
         _values = new(StringComparer.OrdinalIgnoreCase);
         foreach (var p in _script?.Parameters ?? [])
         {
-            _values[p.Name] = p.Default ?? (p.Type == ParameterType.Range ? (p.Min ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture) : null);
+            _values[p.Name] = p.Default ?? p.Type switch
+            {
+                ParameterType.Range => (p.Min ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ParameterType.Credential when p.Options.Count == 1 => p.Options[0].Value,
+                _ => null,
+            };
         }
 
         _fieldErrors = new Dictionary<string, string>();

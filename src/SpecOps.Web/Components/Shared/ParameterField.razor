@@ -24,6 +24,23 @@
             </select>
             break;
 
+        case ParameterType.Credential when Definition.Options.Count == 1:
+            @* Nothing to choose: show which stored credential the script uses. *@
+            <p id="@InputId" class="input flex items-center gap-2 bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                <Icon Name="lock" Class="size-4" /> @CredentialName(Definition.Options[0].Value)
+            </p>
+            break;
+
+        case ParameterType.Credential:
+            <select id="@InputId" class="input @InvalidCss" value="@Value" @onchange="OnChange" required="@Definition.Required" disabled="@Disabled">
+                <option value="">Select…</option>
+                @foreach (var option in Definition.Options)
+                {
+                    <option value="@option.Value">@CredentialName(option.Value)</option>
+                }
+            </select>
+            break;
+
         case ParameterType.TextArea:
             <textarea id="@InputId" rows="4" class="input font-mono @InvalidCss" value="@Value" @onchange="OnChange"
                       placeholder="@Definition.Placeholder" required="@Definition.Required" disabled="@Disabled"></textarea>
@@ -94,6 +111,12 @@
 
     [Parameter]
     public bool Disabled { get; set; }
+
+    /// <summary>Vault credential names by id, for Credential parameters.</summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, string>? CredentialNames { get; set; }
+
+    private string CredentialName(string id) => CredentialNames?.GetValueOrDefault(id) ?? id;
 
     private string InputId => $"param-{Definition.Name}";
 

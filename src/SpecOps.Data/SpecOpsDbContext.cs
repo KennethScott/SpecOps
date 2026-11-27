@@ -12,6 +12,8 @@ public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options)
 
     public DbSet<CatalogVersion> CatalogVersions => Set<CatalogVersion>();
 
+    public DbSet<VaultCredential> Credentials => Set<VaultCredential>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -52,6 +54,15 @@ public sealed class SpecOpsDbContext(DbContextOptions<SpecOpsDbContext> options)
             version.Property(v => v.CreatedById).HasMaxLength(450);
             version.Property(v => v.CreatedBy).HasMaxLength(256);
             version.Property(v => v.Summary).HasMaxLength(512);
+        });
+
+        builder.Entity<VaultCredential>(credential =>
+        {
+            credential.Property(c => c.Id).HasMaxLength(128);
+            credential.Property(c => c.Name).HasMaxLength(256);
+            credential.Property(c => c.UserName).HasMaxLength(256);
+            credential.Property(c => c.Description).HasMaxLength(1024);
+            credential.Property(c => c.UpdatedBy).HasMaxLength(256);
         });
     }
 }
