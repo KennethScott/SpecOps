@@ -43,19 +43,28 @@ public sealed record ResultSet(string TypeName, IReadOnlyList<string> Columns, I
 /// Called from the PowerShell pipeline (as $__SpecOpsResults.Add($_)) for every object a script emits, so the objects
 /// survive alongside the console text. Plain strings and numbers are text-only; formatting directives are skipped.
 /// </summary>
-public sealed class ResultCapture(ScriptRun run, int maxRows)
+public sealed class ResultCapture
 {
+    private readonly IRunReporter _run;
+    private readonly int _maxRows;
+
+    internal ResultCapture(IRunReporter run, int maxRows)
+    {
+        _run = run;
+        _maxRows = maxRows;
+    }
+
     private const int MaxColumns = 40;
     private const int MaxValueLength = 2000;
     private const int MaxListItems = 20;
 
     public void Add(object? item)
     {
-        if (item is null || run.ResultCount >= maxRows)
+        if (item is null || _run.ResultCount >= _maxRows)
         {
             if (item is not null)
             {
-                run.MarkResultsTruncated();
+                _run.MarkResultsTruncated();
             }
 
             return;
@@ -77,7 +86,7 @@ public sealed class ResultCapture(ScriptRun run, int maxRows)
 
         if (columns.Count > 0)
         {
-            run.AddResult(
+            _run.AddResult(
                 new ResultRow(
                     pso.TypeNames.FirstOrDefault() ?? pso.BaseObject.GetType().FullName ?? "Object",
                     columns,

@@ -4,16 +4,38 @@ using SpecOps.Core.Scripts;
 
 namespace SpecOps.Tests.Core;
 
-public sealed class ScriptRunnerTests : IDisposable
+/// <summary>Runs scripts in this process; <see cref="WorkerScriptRunnerTests"/> runs the same tests through the worker.</summary>
+public class ScriptRunnerTests : IDisposable
 {
-    private readonly ScriptRunner _runner = new(
-        TestOptions.Create(o => o.Runner.MaxConcurrentRuns = 4),
-        NullLogger<ScriptRunner>.Instance
-    );
+    private readonly ScriptRunner _runner;
 
-    public void Dispose() => _runner.Dispose();
+    public ScriptRunnerTests()
+        : this(worker: null) { }
 
-    private static ScriptRunRequest Code(
+    protected ScriptRunnerTests(ScriptWorkerCommand? worker) =>
+        _runner = new(
+            TestOptions.Create(o => o.Runner.MaxConcurrentRuns = 4),
+            NullLogger<ScriptRunner>.Instance,
+            worker: worker
+        );
+
+    protected ScriptRunner Runner => _runner;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _runner.Dispose();
+        }
+    }
+
+    protected static ScriptRunRequest Code(
         string code,
         IReadOnlyDictionary<string, object>? parameters = null,
         TimeSpan? timeout = null
@@ -29,7 +51,7 @@ public sealed class ScriptRunnerTests : IDisposable
             Timeout = timeout,
         };
 
-    private static async Task<IReadOnlyList<OutputRecord>> CompleteAsync(ScriptRun run)
+    protected static async Task<IReadOnlyList<OutputRecord>> CompleteAsync(ScriptRun run)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var records = new List<OutputRecord>();
@@ -50,7 +72,7 @@ public sealed class ScriptRunnerTests : IDisposable
         return records;
     }
 
-    private static string[] Lines(IEnumerable<OutputRecord> records, OutputKind kind) =>
+    protected static string[] Lines(IEnumerable<OutputRecord> records, OutputKind kind) =>
         [.. records.Where(r => r.Stream == kind).Select(r => r.Text)];
 
     [Fact]
@@ -104,6 +126,40 @@ public sealed class ScriptRunnerTests : IDisposable
 
         Assert.Equal(RunStatus.Succeeded, run.Status);
         Assert.Equal(["Widget x 3 loud=True user=tester ip=127.0.0.1"], Lines(records, OutputKind.Output));
+    }
+
+    [Fact]
+    public async Task Passes_every_parameter_type_including_credentials()
+    {
+        var password = new System.Net.NetworkCredential("", "Pa55word!").SecurePassword;
+        var run = _runner.Start(
+            Code(
+                """
+                param([pscredential]$Account, [double]$Ratio, [datetime]$When, [timespan]$At, [bool]$Flag)
+                "$($Account.UserName):$($Account.GetNetworkCredential().Password)"
+                $Ratio.ToString([cultureinfo]::InvariantCulture)
+                $When.ToString("o")
+                "$At $Flag"
+                """,
+                new Dictionary<string, object>
+                {
+                    ["Account"] = new System.Management.Automation.PSCredential("svc-account", password),
+                    ["Ratio"] = 0.25,
+                    ["When"] = new DateTime(2026, 11, 26, 9, 30, 0, DateTimeKind.Unspecified),
+                    ["At"] = new TimeSpan(14, 5, 0),
+                    ["Flag"] = false,
+                }
+            )
+        );
+
+        var records = await CompleteAsync(run);
+
+        Assert.Equal(RunStatus.Succeeded, run.Status);
+        Assert.Equal(
+            ["svc-account:Pa55word!", "0.25", "2026-11-26T09:30:00.0000000", "14:05:00 False"],
+            Lines(records, OutputKind.Output)
+        );
+        Assert.Equal("svc-account", run.Parameters["Account"]);
     }
 
     [Fact]
