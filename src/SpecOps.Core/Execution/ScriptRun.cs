@@ -98,7 +98,7 @@ public sealed record SpecOpsRunContext(Guid RunId, string ScriptId, string Scrip
     "CA1001:Types that own disposable fields should be disposable",
     Justification = "The cancellation source is disposed in Complete(), which every run reaches (the runner guarantees a final status)."
 )]
-public sealed class ScriptRun
+public sealed class ScriptRun : IRunReporter
 {
     private readonly Lock _lock = new();
     private readonly List<OutputRecord> _records = [];
@@ -412,4 +412,16 @@ public sealed class ScriptRun
 
         _cancellation.Dispose();
     }
+
+    CancellationToken IRunReporter.CancellationToken => CancellationToken;
+
+    void IRunReporter.MarkRunning() => MarkRunning();
+
+    void IRunReporter.Append(OutputKind stream, string? text) => Append(stream, text);
+
+    void IRunReporter.AddResult(ResultRow row) => AddResult(row);
+
+    void IRunReporter.MarkResultsTruncated() => MarkResultsTruncated();
+
+    void IRunReporter.Complete(RunStatus status) => Complete(status);
 }

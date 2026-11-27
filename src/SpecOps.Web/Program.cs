@@ -7,6 +7,12 @@ using SpecOps.Web.Components;
 using SpecOps.Web.Infrastructure;
 using SpecOps.Web.Services;
 
+if (args is [ScriptWorkerSetup.Argument, var pipeName])
+{
+    await ScriptWorkerSetup.RunAsync(pipeName);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSpecOpsHosting();
@@ -18,6 +24,7 @@ builder.Services.AddSingleton<IScriptCatalog, ConfigurationScriptCatalog>();
 builder.Services.AddSingleton<ISpecOpsAuthorizer, SpecOpsAuthorizer>();
 builder.Services.AddSingleton<RunHistory>();
 builder.Services.AddSingleton<IRunHistory>(sp => sp.GetRequiredService<RunHistory>());
+builder.Services.AddSingleton(ScriptWorkerSetup.Command());
 builder.Services.AddSingleton<IScriptRunner, ScriptRunner>();
 builder.Services.AddSingleton<ScriptService>();
 builder.Services.AddSingleton<CatalogAdmin>();
