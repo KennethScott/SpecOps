@@ -27,9 +27,6 @@ public sealed class ScriptDefinition
     /// <summary>Overrides the runner's default timeout.</summary>
     public int? TimeoutMinutes { get; set; }
 
-    /// <summary>Run as the signed-in Windows user. Windows hosts with Windows sign-in only.</summary>
-    public bool EnableImpersonation { get; set; }
-
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsSupportedOnHost => HostPlatform.Supports(Platforms);
 }

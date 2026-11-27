@@ -20,6 +20,4 @@ public static class HostPlatform
         : ScriptPlatforms.None;
 
     public static bool Supports(ScriptPlatforms platforms) => (platforms & Current) != ScriptPlatforms.None;
-
-    public static bool SupportsImpersonation => OperatingSystem.IsWindows();
 }

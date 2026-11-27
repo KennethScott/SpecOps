@@ -5,210 +5,230 @@
 <img src="docs/images/banner.png" width="800">
 <br/><br/>
 
-> **🚧 v2 in progress (`v2` branch).** SpecOps is being rebuilt on .NET 11 + Blazor + Tailwind: cross-platform (Linux/Docker and Windows), sign-in via Entra ID / Google / OIDC, with run history in a database. The v1 app (described below) is preserved at tag `v1-final`.
->
-> **Run it (Docker):** `cp .env.example .env && docker compose up -d`, then see [docs/docker.md](docs/docker.md) for sign-in, HTTPS, scripts and Active Directory via a jump host.
->
-> **Develop it:** needs the .NET 11 SDK and Node.js 22+ (for the Tailwind and editor builds).
->
-> ```bash
-> dotnet run --project src/SpecOps.Web --launch-profile http
-> ```
->
-> Open http://localhost:5065 and choose **Sign in as dev user** (Development only). The first start imports the scripts in [samples/specops.json](samples/specops.json) (code in [samples/scripts](samples/scripts)); after that, manage them under **Configure**. Tests: `dotnet test` (unit, component and browser tests; see [docs/testing.md](docs/testing.md)). Restyling? Run `npm run watch:css` in `src/SpecOps.Web`.
->
-> Sign-in providers (Entra ID, Google, any OIDC) are configured under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json); put secrets in user-secrets or environment variables.
->
-> **Configuration**: scripts, categories, policies and runspace profiles live in the database and are managed by admins under **Configure** (including the `.ps1` code, JSON import/export and version history with restore). The first start imports them from `specops.json`; after that the file only supplies the `ScriptsRoot` and `Runner` settings. Every change is validated first, and invalid `specops.json` or `Auth` settings stop the app at startup with a list of problems.
->
-> **Credentials**: admins store service accounts under **Configure > Credentials** instead of putting passwords in scripts. A script declares `[pscredential]$Account`, its Credential parameter lists which stored credentials it may use (with just one, users aren't asked), and the script receives a real `PSCredential`. Passwords are encrypted with the app's Data Protection keys (`data/keys`), are never shown again after saving, and never appear in logs, run history or the audit log (runs show the account's user name). Back up `data/keys` together with the database: without the keys, stored passwords can't be decrypted and must be entered again.
->
-> **Script worker**: scripts run in a separate worker process, not in the web app, so a script that crashes the process (`[Environment]::Exit()`, a faulty native module) or leaks memory fails only the runs active in that worker. The web app and its other features keep going, and the next run starts a new worker. The worker is the same app started with `--script-worker`, under the same account and environment, so scripts can do exactly what they could before. It writes its log to the web app's log, and exits when the web app stops.
->
-> **Run one instance.** Active runs live in the app's memory and the default database is SQLite, so SpecOps isn't designed to run behind a load balancer with several instances.
+SpecOps is a web app that hosts your **PowerShell 7** scripts so other people, especially non-technical staff, can run
+them safely. Admins add a script, describe its parameters, and decide who can run it. Users pick the script, fill in a
+generated form, and watch the output live.
 
-SpecOps is a .NET7 web application that allows you to centralize and host your **PowerShell 7** scripts for execution by anyone, particularly non-technical staff. The application is written with PowerShell in mind, but could easily be extended to allow other types. The application is intended to be used in a Windows-based Intranet environment.
+It runs on Linux (Docker) and Windows. It's built with .NET 11, Blazor and Tailwind, uses Microsoft Entra ID, Google or
+any OpenID Connect provider for sign-in, and keeps its data in SQLite.
 
-Scripts are added and configured dynamically through the **scriptsettings.json** configuration file. Scripts can be added and changed on the fly, and the configuration specified in the json file allows for the dynamic generation of a GUI for users to input parameter values via rudimentary support for [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input) (i.e. text, date, number, etc.) and dropdowns via [HTML select elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select). The application leverages the [jQuery Validation library](https://jqueryvalidation.org/) so that basic validation is also possible by specifying HTML5-based attributes such as [required](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/required), [pattern](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern), etc.
+> This is v2 (the `v2` branch), a rebuild of the original app. The v1 app (.NET 7, Windows and Active Directory only)
+> is preserved at tag `v1-final`.
 
-SpecOps now also contains a realtime PowerShell terminal to aid in script development or to simply execute a quick command. The terminal is made possible by [jQueryTerminal](https://terminal.jcubic.pl/), and syntax highlighting of input is done via [PrismJS](https://prismjs.com/). The terminal is restricted to members of the Admin policy.
+## Features
 
-The application leverages [Bootstrap4](https://getbootstrap.com/docs/4.0/getting-started/introduction/) and the [AdminLTE](https://adminlte.io/) theme for styling with all plugins available.
+- **Forms generated from parameters:** text, text area, number, range slider, date, time, date and time, email,
+  password, drop-down, checkbox and stored credential, with required fields, min/max, regex patterns and suggestions.
+- **Live output:** every PowerShell stream (output, errors, warnings, information, verbose, debug, progress) streams
+  to the browser as it happens. Refreshing the page or reconnecting loses nothing, and runs can be cancelled.
+- **Results:** objects a script outputs are also shown as sortable, filterable tables and can be exported to CSV or JSON.
+- **Run history:** every run (who, when, parameters, status, output and results) is kept in the database, 90 days
+  by default.
+- **Access control:** policies map roles and identity-provider groups to script categories. New users wait for an
+  admin's approval unless their email domain is auto-approved.
+- **Admin pages in the browser:** scripts, parameters, `.ps1` code (Monaco editor), script file uploads, categories,
+  policies, runspace profiles and credentials. Includes JSON import/export and version history with restore.
+- **Credential vault:** service-account passwords are stored encrypted, and scripts receive them as a `PSCredential`.
+- **Terminal:** admins can run ad-hoc PowerShell on the server. Every command is logged in full.
+- **Audit log, log viewer and user management:** all in the app.
+- **Script worker:** scripts run in a separate process, so a misbehaving script can't take the web app down.
 
-Script output is returned in realtime via [SignalR](https://dotnet.microsoft.com/apps/aspnet/signalr). [Serilog](https://serilog.net/) is set up for logging to a file, but can easily be extended to log to a database, elasticsearch, etc.
+## Getting started
 
-#### Security
+### Docker (recommended)
 
-Security is based around the concept of **Security Policies** for different types of users (i.e. Admin, HelpDesk, L2-Support, etc.). Scripts themselves are grouped into **Categories**. Security Policies are defined in the **appsettings.json** file, and specify the Categories of scripts allowed for users in that policy as well as the Active Directory groups that are members of that policy. To access the site, you must be a member of an AD group included in one of the policies. The Script Runner page automatically determines the appropriate script Categories available and only shows the relevant scripts.
-
-```json
-    "SecurityPolicies": [
-      {
-        "Name": "Admin",
-        "Groups": [ "mydomain\\abc", "mydomain\\def" ],
-        "CategoryIds": [ "Admin" ]
-      },
-      {
-        "Name": "HelpDesk",
-        "Groups": [ "mydomain\\uvw", "mydomain\\xyz" ],
-        "CategoryIds": [ "MyApp1", "MyApp2" ]
-      }
-    ]
+```bash
+cp .env.example .env        # fill in a sign-in provider and your admin
+docker compose up -d        # http://<host>:8080
 ```
 
-The application also works off a domain - simply use your computer name\login instead of domain\login.
+[docs/docker.md](docs/docker.md) covers sign-in, HTTPS (Caddy, your own certificates, or an existing proxy), adding
+scripts and PowerShell modules, backups, and reaching Active Directory through a Windows jump host.
 
-#### Script Configuration
+### Develop or run on Windows
 
-Scripts are configured in **scriptsettings.json**.
+You need the .NET 11 SDK and Node.js 22+ (for the Tailwind and editor builds).
 
-1. **CategoryId** allows for grouping of related scripts and can be any meaningful value (Admin, HelpDesk, MyApplication, etc.)
-2. **Id** is the script's unique identifier and should be unique across all scripts (regardless of Category). A GUID is recommended.
-3. **PathAndFilename** may be relevant to the application's folder (i.e. ./Scripts/Demo.ps1) or could be any fully qualified path to which the AppPoolIdentity has access.
-4. **Name** is the user-friendly (short) name of the script that will be shown in the dropdown.
-5. **Summary** is a brief description of the script and will be shown when selected in the dropdown.
-6. **InputParms** is an array of Input Parameter objects for each parameter to be passed into the script.
-   - **Name** should match the parameter name expected in the script
-   - **Description** is a brief user-friendly description of the parameter
-   - **Placeholder** optional text to be shown inside the input element (if relevant)
-   - **Type** specifies the desired input element type to use for the parameter and is based on the [HTML5 input element types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). Proper dropdowns are also supported by using type=**select** in conjunction with the **Options** parameter.
-   - **Value** can be used to set the initial/default value for the input element
-   - **Min**, **Max**, **Step** are integer values used in combination with Type=**range** to facilitate a slider
-   - **List** is an array of values used in combination with Type=**text** to facilitate a combobox (range list)
-   - **Options** is a dictionary of key/value pairs used in combination with Type=**select** to facilitate a dropdown
-   - **Required** with a value of **true** may be used to cause the parameter to be required
-   - **Pattern** may be used to apply a desired regex pattern for validation
-   - **Logging** is an optional boolean used to disable logging of the parameter value in the Serilog sinks (defaults to true)
-   - **System Generated Input Parameters** are automatically available to all scripts. They could be used for anything, but most commonly for additional custom logging purposes. See /Scripts/Demo.ps1 for an example of usage.
-     - **SpecOpsCurrentUser** is the domain and userid of the user running the script
-     - **SpecOpsCurrentUserIP** is the IP address of the user running the script
-     - **SpecOpsScriptId** is the script id of the script being executed
-7. Custom Runspace pools are also supported
-   - **ExecutionPolicy** allows for specifying the desired [Microsoft.PowerShell.ExecutionPolicy](https://docs.microsoft.com/en-us/dotnet/api/microsoft.powershell.executionpolicy?view=powershellsdk-7.0.0) string name such as Unrestricted, Bypass, etc.
-   - **Min** is an integer value and specifies the minimum number of runspaces to allocate to the pool
-   - **Max** is an integer value and specifies the maximum number of runspaces to allocate to the pool. Recommended at n+1 where n=number of processors.
-   - **Modules** allows for an array of strings for specifying PowerShell modules to load into the pool
-8. **EnableImpersonation** is a boolean that when set to true forces the script to run under the security context of the current user. When not set or false, scripts run under the context of the AppPoolIdentity.
-
-```json
-"ScriptSettings": [
-    {
-      "CategoryId": "Admin",
-      "Id": "7CF9D423-5CB7-432B-A3E9-618340ADF5A7",
-      "PathAndFilename": "./Scripts/Demo.ps1",
-      "Name": "Demo",
-      "Summary": "This is a brief summary of what the demo script does....",
-      "EnableImpersonation": true,
-      "InputParms": [
-        {
-          "Name": "StrParam1",
-          "Type": "text",
-          "Description": "Input 3-letter String Parameter",
-          "Placeholder": "Enter text here...",
-          "Required": "true",
-          "Pattern": "[A-Za-z]{3}"
-        },
-        {
-          "Name": "DropdownParam1",
-          "Type": "select",
-          "Description": "Dropdown Select Parameter",
-          "Options": {
-            "": "Select a value...",
-            "abc": "ABC Text To Display",
-            "def": "DEF Text To Display",
-            "ghi": "GHI Text To Display"
-          },
-          "Required": "true"
-        },
-      ],
-      "Runspace": {
-        "ExecutionPolicy":  "Unrestricted",
-        "Min": 1,
-        "Max": 2,
-        "Modules": [
-          "PSDiagnostics"
-        ]
-      }
-    }
-  }
-]
+```bash
+dotnet run --project src/SpecOps.Web --launch-profile http
 ```
 
-<br/>
+Open http://localhost:5065 and choose **Sign in as dev user** (Development only). The first start imports the sample
+scripts in [samples/specops.json](samples/specops.json) (code in [samples/scripts](samples/scripts)); after that,
+manage them under **Configure**.
 
-<img src="SpecOps/wwwroot/dist/img/script-page-example.png" width="1000">
+Tests: `dotnet test` runs the unit, component and browser tests (see [docs/testing.md](docs/testing.md)). If you're
+restyling, run `npm run watch:css` in `src/SpecOps.Web`.
 
-<br/><br/>
+## Signing in and users
 
-#### Script Writing
+Sign-in providers go under `Auth:Providers` in [appsettings.json](src/SpecOps.Web/appsettings.json). Providers without
+a `ClientId` are ignored. Keep secrets in user-secrets or environment variables (for example
+`Auth__Providers__Microsoft__ClientSecret`), never in the file.
 
-Writing to the different output streams in the PowerShell script will trigger different output levels in the log. The desired css class can be specified for each level via the **appsettings.json** file as to facilitate the desired color coding of the log text. Each log record is also timestamped.
+| Setting                        | What it does                                                                           |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| `Auth:BootstrapAdmins`         | People who get the Admin role when they sign in (first admin, lockout recovery).       |
+| `Auth:AutoApproveEmailDomains` | New users with a verified email in these domains skip the approval queue.              |
+| `AllowedTenantIds` (Entra)     | Only accept sign-ins from your tenant. Strongly recommended.                           |
+| `GroupsClaim`                  | The claim that carries group IDs, for policies that grant access by group.             |
+| `Auth:DevSignIn`               | Adds **Sign in as dev user**. Development only; set in `appsettings.Development.json`. |
 
-| PowerShell Write              | Output Level |
-| :---------------------------- | :----------- |
-| `Write-Output`                | Data         |
-| `Write-Host`                  | Info         |
-| `Write-Information`           | Info         |
-| `Write-Warning`               | Warning      |
-| `Write-Debug`                 | Debug        |
-| `Write-Verbose`               | Verbose      |
-| `Write-Progress`              | Progress     |
-| `Write-Error` (or Exceptions) | Error        |
+Everyone else lands on a "waiting for approval" page. Admins approve people, assign roles and remove users on the
+**Users** page.
 
-Two additional output types not specific to the scripts are:
+## Configuration
 
-- **System** used by SpecOps itself to indicate things like script execution has started, ended, etc.
-- **Unknown** is essentially a catch-all in case output is produced and somehow not mapped to one of the above.
+SpecOps keeps everything in its data directory (`data` next to the app, `/data` in Docker): the database, logs,
+Data Protection keys, `specops.json` and the scripts folder. **Back up the whole folder.**
 
-Example showing each Output Level being mapped to the desired css class:
+Scripts, categories, policies, runspace profiles and credentials live in the database, and admins manage them under
+**Configure**. Every change is validated before it's saved and recorded in version history. On first start, SpecOps
+imports them from `specops.json`. After that the file only supplies the `ScriptsRoot` and `Runner` settings, which take
+effect without a restart. You can import a `specops.json` again at any time under **Configure > Import & history**.
 
-```json
-    "OutputLevels": [
-      { "Name": "Data", "CssClass": "so-data" },
-      { "Name": "Error", "CssClass": "so-error" },
-      { "Name": "Warning", "CssClass": "so-warning" },
-      { "Name": "Info", "CssClass": "so-info" },
-      { "Name": "Progress", "CssClass": "so-progress" },
-      { "Name": "Verbose", "CssClass": "so-verbose" },
-      { "Name": "Debug", "CssClass": "so-debug" },
-      { "Name": "System", "CssClass": "so-system" },
-      { "Name": "Unknown", "CssClass": "so-unknown" }
-    ]
-```
+Invalid `specops.json` or `Auth` settings stop the app at startup with a list of problems.
 
-<img src="SpecOps/wwwroot/dist/img/log-example.PNG" width="1000">
-<br/><br/>
+### Scripts
 
-#### Terminal
+| Field             | Meaning                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Id`              | Unique id, used in the script's URL (`/scripts/{Id}`).                                                        |
+| `Name`, `Summary` | What users see.                                                                                               |
+| `CategoryId`      | The category the script belongs to; policies grant access by category.                                        |
+| `Path`            | The `.ps1` file, relative to `ScriptsRoot` (or absolute).                                                     |
+| `Parameters`      | The form fields (below).                                                                                      |
+| `RunspaceProfile` | A warm runspace pool to run in. Without one, every run gets a fresh, isolated runspace.                       |
+| `Platforms`       | `Windows`, `Linux` and/or `MacOS` (default: any). Scripts that can't run on this host are shown but disabled. |
+| `TimeoutMinutes`  | Overrides `Runner:DefaultTimeout`.                                                                            |
 
-SpecOps now includes a realtime PowerShell terminal to aid in script development or simply executing a quick command. The terminal leverages the [jQueryTerminal library](https://terminal.jcubic.pl/).  
-Access to the terminal is restricted to members of the Admin policy.  
-Script output is styled the same as the output table on the Script Runner page. Input is also syntax highlighted via [PrismJS](https://prismjs.com/).
+### Parameters
 
-Impersonation is supported and is controlled via a dropdown option. When set to No, any code entered is executed and logged under the security context of the AppPoolIdentity. When set to Yes, it will be executed under the context of the current user.
+Each parameter's `Name` must match the script's `param()` block. Admins can also create the parameter list from the
+script's own `param()` block in the editor.
 
-Please be very careful in allowing access to the Terminal as it could be very dangerous in the hands of unskilled users.
-<br/><br/>
+| Field                                 | Meaning                                                                                                                       |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Type`                                | `Text`, `TextArea`, `Number`, `Range`, `Date`, `Time`, `DateTime`, `Email`, `Password`, `Select`, `Checkbox` or `Credential`. |
+| `Label`, `Description`, `Placeholder` | How the field is presented.                                                                                                   |
+| `Required`, `Default`                 | Whether a value is needed, and the initial value.                                                                             |
+| `Min`, `Max`, `Step`                  | For `Number` and `Range`.                                                                                                     |
+| `Pattern`                             | A regex the whole value must match (text-like types).                                                                         |
+| `Options`                             | Choices for `Select` (`Value` and `Label`); for `Credential`, the stored credentials allowed.                                 |
+| `Suggestions`                         | Values suggested as you type in free-text fields.                                                                             |
+| `Sensitive`                           | Never log or store the value (always on for `Password`).                                                                      |
 
-<img src="SpecOps/wwwroot/dist/img/terminal-page-example.PNG" width="1000">
-<br/><br/>
+Values are validated on the server and passed to the script with their proper types: `Number` as `int` or `double`,
+`Date` and `DateTime` as `DateTime`, `Time` as `TimeSpan`, `Checkbox` as `bool` (it works with `[switch]`), and
+`Credential` as `PSCredential`.
 
-#### Logging
+### Policies
 
-Serilog is used to log detailed information about the application, the scripts being executed, etc. It is currently configured to log to text files in the **/logs** folder.
+A policy grants **categories** (or `*` for all) to **roles** (assigned on the Users page) and/or **groups** (from the
+sign-in provider, e.g. Entra group object IDs). Users only see the scripts they're allowed to run. Members of the
+built-in **Admin** role can run everything and use the Configure, Terminal, Users, Logs and Audit pages.
 
-System-generated input parameters are also available in every script automatically and could be used for additional custom logging purposes. See the input parameters section for details.  
-<br/>
+### Runspace profiles
 
-#### Miscellaneous
+These are optional warm runspace pools, which make scripts start faster, especially ones that import large modules.
+Each profile has `MinRunspaces`, `MaxRunspaces`, `Modules` to import and an optional `ExecutionPolicy` (Windows). Each
+runspace is reset between runs, so variables, functions, aliases, modules and drives don't carry over. Environment
+variables are process-wide and are not reset.
 
-The Script Runner page supports routing parameters for the CategoryId and the ScriptId. This allows you to construct links directly to the desired category, and optionally, script.  
-`.../Pages/Scripts/{CategoryId}/{ScriptId}`
+### Credentials
 
-<br/><br/>
+Admins store service accounts under **Configure > Credentials** instead of putting passwords in scripts.
 
-#### Credits
+- A script declares `[pscredential]$Account`, and its `Credential` parameter lists which stored credentials it may
+  use. With just one, users aren't asked to choose.
+- Passwords are encrypted with the app's Data Protection keys (`data/keys`) and are never shown again after saving.
+- Passwords never appear in logs, run history or the audit log; runs show the account's user name.
 
-Thank you to [@keithbabinec](https://github.com/keithbabinec) for his work with hosted runspaces in his [PowerShellHostedRunspaceStarterKits](https://github.com/keithbabinec/PowerShellHostedRunspaceStarterkits) project.
+Back up `data/keys` together with the database. Without the keys, stored passwords can't be decrypted and must be
+entered again.
 
-<br/>
+### Runner settings
+
+These are set under `SpecOps:Runner` in `specops.json`.
+
+| Setting                   | Default      | Meaning                                               |
+| ------------------------- | ------------ | ----------------------------------------------------- |
+| `MaxConcurrentRuns`       | 10           | Scripts running at once; further runs queue.          |
+| `DefaultTimeout`          | 30 minutes   | Time limit for a run when the script doesn't set one. |
+| `MaxActiveRunsPerUser`    | 5            | Runs one user can have queued or running.             |
+| `MaxRunsPerMinutePerUser` | 20           | Runs one user can start per minute.                   |
+| `HistoryRetention`        | 90 days      | How long run history is kept.                         |
+| `MaxOutputRecords`        | 50,000       | Output lines kept per run.                            |
+| `MaxResultRows`           | 10,000       | Objects kept per run for the Results view and export. |
+| `OutputWidth`             | 160          | Console width used to format tables and lists.        |
+| `ExecutionPolicy`         | RemoteSigned | PowerShell execution policy (Windows).                |
+
+## Writing scripts
+
+Write ordinary PowerShell with a `param()` block (`[CmdletBinding()]` is fine). `$PSScriptRoot` works, so scripts can
+load files next to them. Each stream is shown in its own style:
+
+| PowerShell                                | Shown as    |
+| ----------------------------------------- | ----------- |
+| `Write-Output` (or just emitting objects) | Output      |
+| `Write-Host`, `Write-Information`         | Information |
+| `Write-Warning`                           | Warning     |
+| `Write-Error`, exceptions                 | Error       |
+| `Write-Verbose`                           | Verbose     |
+| `Write-Debug`                             | Debug       |
+| `Write-Progress`                          | Progress    |
+
+SpecOps's own messages (starting, finished, cancelled) are shown as **System**.
+
+Objects are formatted as they would be in a console, and are also captured as rows for the **Results** view and
+export.
+
+Every run's status follows from how the script ends. A terminating error fails the run, and non-terminating errors
+finish it as "completed with errors".
+
+Each script also gets a `$SpecOps` variable describing the run:
+
+| Property              | Value                             |
+| --------------------- | --------------------------------- |
+| `$SpecOps.RunId`      | The run's id (also in its URL).   |
+| `$SpecOps.ScriptId`   | The script's id.                  |
+| `$SpecOps.ScriptName` | The script's name.                |
+| `$SpecOps.User`       | Who started the run.              |
+| `$SpecOps.ClientIp`   | The address they started it from. |
+
+See [samples/scripts/Demo.ps1](samples/scripts/Demo.ps1) for every parameter type and output stream.
+
+## Runs and history
+
+The **Runs** page lists your runs; admins see everyone's. Each run has its own page (`/runs/{id}`) with its
+parameters, output and results, live while it runs and from history afterwards. Only the person who started a run and admins can open it.
+
+## Terminal
+
+Admins can run ad-hoc PowerShell on the server from the **Terminal** page (Ctrl+Enter runs it). Every command is
+written to the log and the audit log in full. Give the Admin role carefully: the Terminal can do anything the
+SpecOps account can.
+
+## Logs and audit
+
+- **Logs:** daily log files are written to `data/logs` and kept for 30 days (`SpecOps:LogRetentionDays`). Admins can
+  view and download them on the **Logs** page.
+- **Audit:** the **Audit** page records sign-ins, approvals and role changes, script and Terminal runs,
+  cancellations, configuration and script file changes, credential changes and log downloads.
+
+## How scripts run
+
+Scripts run in a separate **script worker** process, not in the web app. A script that crashes the process (for
+example `[Environment]::Exit()` or a faulty native module), or leaks memory, fails only the runs active in that worker.
+The web app keeps going, and the next run starts a new worker.
+
+The worker is the same app started with `--script-worker`, under the same account and environment, so scripts can
+reach exactly what the SpecOps account can. Its log goes into the web app's log, and it exits when the web app stops.
+
+**Run one instance.** Active runs live in the app's memory and the default database is SQLite, so SpecOps isn't
+designed to run behind a load balancer with several instances.
+
+## Credits
+
+Thank you to [@keithbabinec](https://github.com/keithbabinec) for his work with hosted runspaces in his
+[PowerShellHostedRunspaceStarterKits](https://github.com/keithbabinec/PowerShellHostedRunspaceStarterkits) project.
